@@ -22,8 +22,21 @@ Tu peux aussi choisir d'autres durées : `Orbit.cmd -FocusMinutes 25 -BreakMinut
   1. 🚀 50 min de focus, puis **il s'arrête et attend** que tu cliques sur « Je prends ma pause » (ou « On arrête là ») ;
   2. ☕ 10 min de pause, puis **il attend encore** que tu cliques sur « On repart ! » (ou « On arrête là »).
   Tant que tu n'as pas répondu, il te relance gentiment toutes les 4 min et son antenne clignote.
+- **Des bulles de BD** : tout ce que dit Orbit apparaît dans une bulle de bande dessinée avec un « pop ».
+  - Bulle de **parole** (avec une pointe) quand il te parle : questions, chrono, indications.
+  - Bulle de **pensée** (avec des petits ronds) pour ses blagues et ses réflexions.
 - **Des petits commentaires** : de la motivation pendant le focus (mi-parcours, 5 dernières minutes…) et des blagues selon l'application sous ta souris (Excel, Outlook, Teams, PowerPoint, VS Code…). Pendant le focus, il te taquine si tu passes sur YouTube, Netflix, Reddit…
 - **Statistiques** : il compte tes sessions de focus du jour.
+- **Une to-do en vrac** (clic droit > 📝 Ma to-do) :
+  - tape une idée et appuie sur Entrée ;
+  - chaque ajout, coche ou suppression est **enregistré tout de suite**, rien n'est perdu même si le PC plante ;
+  - les tâches non faites restent d'un jour à l'autre, et les tâches terminées des jours précédents partent dans une archive ;
+  - au lancement d'un focus, Orbit te propose la prochaine tâche de la liste.
+- **L'historique des copier-coller du jour** (clic droit > 📋 Mes copier-coller du jour) :
+  - chaque texte ou fichier copié (Ctrl+C) est noté avec l'heure ;
+  - tu peux faire une recherche dedans, et **un clic sur un élément le recopie** pour le recoller ;
+  - seule la journée en cours est conservée : l'historique de la veille est effacé automatiquement ;
+  - ce que les gestionnaires de mots de passe marquent comme « à ne pas enregistrer » est ignoré, et une case **Pause** arrête l'enregistrement quand tu veux.
 
 ## Commandes
 
@@ -32,6 +45,7 @@ Tu peux aussi choisir d'autres durées : `Orbit.cmd -FocusMinutes 25 -BreakMinut
 | Clic gauche sur Orbit | Affiche le statut (temps restant, ou la question en attente) |
 | Glisser Orbit | Le pose où tu veux, et il y reste |
 | **Clic droit** | Menu : lancer un focus, prendre la pause, mettre le chrono en pause, **couper le chrono**, mode silencieux, balades on/off, **réduire**, revenir en bas à droite, **masquer**, lancer au démarrage de Windows, stats, quitter |
+| Carnet (to-do / copier-coller) | Entrée pour ajouter une tâche, Échap pour fermer, glisser le titre pour déplacer |
 | Icône près de l'horloge | Double-clic pour faire réapparaître Orbit quand il est masqué ; clic droit pour le même menu en version courte |
 
 - **Réduire** : Orbit devient tout petit et arrête de parler, mais il te prévient toujours à la fin d'une session.
@@ -40,13 +54,22 @@ Tu peux aussi choisir d'autres durées : `Orbit.cmd -FocusMinutes 25 -BreakMinut
 
 ## Personnaliser
 
-Tout est dans `orbit.ps1` :
+Tout est dans `orbit.ps1` (le carnet est dans `notebook.ps1`) :
 - les réglages (fréquence des commentaires, des balades, etc.) sont dans le bloc `$Config` en haut du fichier ;
 - les phrases sont dans `$Lines`, `$AppLines` (par application) et `$TitleLines` (par mot-clé dans le titre de la fenêtre). Ajoute les tiennes !
 
-Si tu modifies le fichier, garde l'encodage **UTF-8 avec BOM**, sinon les accents et les emojis s'afficheront mal.
+Si tu modifies un fichier, garde l'encodage **UTF-8 avec BOM**, sinon les accents et les emojis s'afficheront mal.
 
-Les statistiques et un petit journal d'erreurs sont enregistrés dans `%APPDATA%\Orbit\`.
+Tout est enregistré dans `%APPDATA%\Orbit\` :
+
+| Fichier | Contenu |
+|---|---|
+| `todo.json` / `todo.md` | ta to-do (le `.md` se lit dans n'importe quel éditeur) |
+| `todo-archive.md` | les tâches terminées, jour par jour |
+| `clipboard\AAAA-MM-JJ.json` | les copier-coller du jour |
+| `stats.json`, `orbit.log` | statistiques et petit journal d'erreurs |
+
+Attention : l'historique des copier-coller est stocké en clair dans ton profil. Si tu copies des données sensibles, utilise la case **Pause** ou le bouton **Tout effacer**.
 
 ## Et sur un PC d'entreprise ?
 

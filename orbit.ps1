@@ -74,6 +74,7 @@ public static class OrbitNative {
     [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint flags);
     [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h, int cmd);
     [DllImport("kernel32.dll")] static extern IntPtr GetConsoleWindow();
+    [DllImport("user32.dll")] public static extern uint GetClipboardSequenceNumber();
 
     public static uint UnderCursor(out string title) {
         title = "";
@@ -252,24 +253,43 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
 [xml]$xaml = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Orbit" Width="320" Height="250"
+        Title="Orbit" Width="320" Height="270"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" ShowActivated="False" ResizeMode="NoResize"
         UseLayoutRounding="True">
   <Grid x:Name="Root">
-    <Border x:Name="Bubble" HorizontalAlignment="Right" VerticalAlignment="Bottom"
-            Margin="0,0,14,124" MaxWidth="296" Padding="12,9,12,9" CornerRadius="14"
-            Background="#FAFFFFFF" BorderBrush="#6C5CE7" BorderThickness="1.5"
-            Visibility="Collapsed">
-      <Border.Effect>
-        <DropShadowEffect BlurRadius="8" ShadowDepth="2" Opacity="0.3"/>
-      </Border.Effect>
-      <StackPanel>
-        <TextBlock x:Name="BubbleText" TextWrapping="Wrap" FontFamily="Segoe UI" FontSize="13"
-                   Foreground="#222233" LineHeight="18"/>
-        <WrapPanel x:Name="BubbleButtons" HorizontalAlignment="Right"/>
-      </StackPanel>
-    </Border>
+    <!-- bulle facon bande dessinee : contour epais + queue qui pointe vers Orbit -->
+    <Grid x:Name="BubbleWrap" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+          Margin="0,0,10,112" MaxWidth="300" Visibility="Collapsed" RenderTransformOrigin="0.8,1">
+      <Grid.RenderTransform>
+        <ScaleTransform x:Name="BubblePop" ScaleX="1" ScaleY="1"/>
+      </Grid.RenderTransform>
+      <Grid.Effect>
+        <DropShadowEffect BlurRadius="0" ShadowDepth="3" Direction="-45" Opacity="0.25"/>
+      </Grid.Effect>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+      <Border x:Name="Bubble" Grid.Row="0" Padding="14,10,14,10" CornerRadius="20"
+              Background="White" BorderBrush="#1E1B3A" BorderThickness="2.5">
+        <StackPanel>
+          <TextBlock x:Name="BubbleText" TextWrapping="Wrap" FontFamily="Comic Sans MS, Segoe UI"
+                     FontSize="13.5" Foreground="#1E1B3A" LineHeight="19"/>
+          <WrapPanel x:Name="BubbleButtons" HorizontalAlignment="Right"/>
+        </StackPanel>
+      </Border>
+      <!-- queue de bulle "parole" -->
+      <Path x:Name="SpeechTail" Grid.Row="1" HorizontalAlignment="Right" Margin="0,-3.5,40,0"
+            Fill="White" Stroke="#1E1B3A" StrokeThickness="2.5" StrokeLineJoin="Round"
+            Data="M 0,0 Q 8,12 22,20 Q 14,9 16,0"/>
+      <!-- queue de bulle "pensee" : petits ronds -->
+      <Canvas x:Name="ThoughtTail" Grid.Row="1" HorizontalAlignment="Right" Width="26" Height="22"
+              Margin="0,3,36,0" Visibility="Collapsed">
+        <Ellipse Canvas.Left="0" Canvas.Top="0" Width="12" Height="10" Fill="White" Stroke="#1E1B3A" StrokeThickness="2.2"/>
+        <Ellipse Canvas.Left="14" Canvas.Top="12" Width="7" Height="6" Fill="White" Stroke="#1E1B3A" StrokeThickness="2"/>
+      </Canvas>
+    </Grid>
 
     <Canvas x:Name="Bot" Width="120" Height="122" HorizontalAlignment="Right" VerticalAlignment="Bottom"
             Background="#01000000" Cursor="Hand" RenderTransformOrigin="1,1">
@@ -336,7 +356,7 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
 
 $window = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xaml))
 $ui = @{}
-foreach ($n in 'Root','Bubble','BubbleText','BubbleButtons','Bot','BotScale','Bob','Ring','Body','AntennaLight',
+foreach ($n in 'Root','BubbleWrap','BubblePop','SpeechTail','ThoughtTail','Bubble','BubbleText','BubbleButtons','Bot','BotScale','Bob','Ring','Body','AntennaLight',
                'EyeScale','PupilL','PupilR','Mouth','Moon','Pill','PillText') {
     $ui[$n] = $window.FindName($n)
 }
@@ -375,6 +395,7 @@ $O = @{
     FromDevice   = $null
     Hwnd         = [IntPtr]::Zero
     Home         = $null
+    MoodBrush    = $null
     Today        = (Get-Date).ToString('yyyy-MM-dd')
     FocusToday   = 0
     MyPid        = $PID
@@ -419,7 +440,7 @@ function Set-Mood([string]$mood) {
     $b.GradientStops.Add((New-Object Windows.Media.GradientStop((New-Color $c[1]), 1.0)))
     $ui.Body.Fill = $b
     $ui.AntennaLight.Fill = New-Object Windows.Media.SolidColorBrush((New-Color $c[2]))
-    $ui.Bubble.BorderBrush = New-Object Windows.Media.SolidColorBrush((New-Color $c[1]))
+    $O.MoodBrush = New-Object Windows.Media.SolidColorBrush((New-Color $c[1]))
     $ui.Pill.Background = New-Object Windows.Media.SolidColorBrush((New-Color ('#E6' + $c[1].Substring(1))))
     switch ($mood) {
         'Await' { $ui.Mouth.Data = [Windows.Media.Geometry]::Parse('M 56,72 A 4,4 0 1 1 64,72 A 4,4 0 1 1 56,72') }
@@ -432,11 +453,14 @@ function Set-Mood([string]$mood) {
 #  Bulle de dialogue
 # ---------------------------------------------------------------------------
 function Show-Bubble {
-    param([string]$Text, [object[]]$Buttons = @(), [double]$Seconds = $Config.BubbleSeconds, [switch]$Force)
+    param([string]$Text, [object[]]$Buttons = @(), [double]$Seconds = $Config.BubbleSeconds,
+          [switch]$Force, [switch]$Thought)
 
     if (-not $Force -and $Buttons.Count -eq 0 -and ($O.Quiet -or $O.Mini)) { return }
     if (-not $Force -and $Buttons.Count -eq 0 -and $ui.BubbleButtons.Children.Count -gt 0 -and
-        $ui.Bubble.Visibility -eq 'Visible') { return }   # ne pas ecraser une question en attente
+        $ui.BubbleWrap.Visibility -eq 'Visible') { return }   # ne pas ecraser une question en attente
+
+    $wasVisible = $ui.BubbleWrap.Visibility -eq 'Visible'
 
     $ui.BubbleText.Text = $Text
     $ui.BubbleButtons.Children.Clear()
@@ -450,9 +474,10 @@ function Show-Bubble {
         $btn.FontFamily = 'Segoe UI Semibold'
         $btn.FontSize = 12
         $btn.Cursor = 'Hand'
-        $btn.BorderThickness = '0'
+        $btn.BorderThickness = '1.5'
+        $btn.BorderBrush = '#1E1B3A'
         if ($b.Primary) {
-            $btn.Background = $ui.Bubble.BorderBrush
+            $btn.Background = $O.MoodBrush
             $btn.Foreground = 'White'
         } else {
             $btn.Background = '#EEEEF5'
@@ -461,12 +486,26 @@ function Show-Bubble {
         $btn.Add_Click({ param($s, $e) Hide-Bubble; Invoke-Safe $s.Tag })
         [void]$ui.BubbleButtons.Children.Add($btn)
     }
-    $ui.Bubble.Visibility = 'Visible'
+    # bulle de pensee (petits ronds) pour les blagues et reflexions, bulle de parole sinon
+    $ui.SpeechTail.Visibility = if ($Thought) { 'Collapsed' } else { 'Visible' }
+    $ui.ThoughtTail.Visibility = if ($Thought) { 'Visible' } else { 'Collapsed' }
+    $ui.Bubble.CornerRadius = if ($Thought) { '26' } else { '20' }
+    $ui.BubbleWrap.Visibility = 'Visible'
+    if (-not $wasVisible) {
+        # petit effet "pop" de dessin anime
+        $anim = New-Object Windows.Media.Animation.DoubleAnimation(0.2, 1.0, [timespan]::FromMilliseconds(320))
+        $ease = New-Object Windows.Media.Animation.BackEase
+        $ease.EasingMode = 'EaseOut'
+        $ease.Amplitude = 0.6
+        $anim.EasingFunction = $ease
+        $ui.BubblePop.BeginAnimation([Windows.Media.ScaleTransform]::ScaleXProperty, $anim)
+        $ui.BubblePop.BeginAnimation([Windows.Media.ScaleTransform]::ScaleYProperty, $anim)
+    }
     $O.BubbleUntil = if ($Buttons.Count) { [datetime]::MaxValue } else { (Get-Date).AddSeconds($Seconds) }
 }
 
 function Hide-Bubble {
-    $ui.Bubble.Visibility = 'Collapsed'
+    $ui.BubbleWrap.Visibility = 'Collapsed'
     $ui.BubbleButtons.Children.Clear()
     $O.BubbleUntil = [datetime]::MinValue
 }
@@ -493,6 +532,7 @@ $BtnFocus      = @{ Label = "🚀 Go, {0} min de focus" -f (Format-Min $Config.F
 $BtnAgain      = @{ Label = "🚀 On repart !"; Action = { Start-Focus }; Primary = $true }
 $BtnBreak      = @{ Label = "☕ Je prends ma pause"; Action = { Start-Break }; Primary = $true }
 $BtnStop       = @{ Label = "⏹ On arrête là"; Action = { Stop-Cycle } }
+$BtnTodo       = @{ Label = "📝 Ma to-do"; Action = { Open-Notebook 'Todo' } }
 $BtnLater      = @{ Label = "Plus tard"; Action = { Show-Bubble "Ok ! Clique sur moi quand tu veux te lancer 😉" -Force } }
 
 function Start-Focus {
@@ -504,7 +544,10 @@ function Start-Focus {
     $O.NextMotivation = (Get-Date).AddMinutes($Config.MotivationEveryMin)
     $O.NextReminder = [datetime]::MaxValue
     Set-Mood 'Focus'
-    Show-Bubble ((Pick $Lines.FocusStart) -f (Format-Min $Config.FocusMinutes)) -Force -Seconds 5
+    $msg = (Pick $Lines.FocusStart) -f (Format-Min $Config.FocusMinutes)
+    $next = Get-NextTodo
+    if ($next) { $msg += "`nEt si tu attaquais : « $($next.text) » ?" }
+    Show-Bubble $msg -Force -Seconds 7
     Update-Pill
 }
 
@@ -592,7 +635,7 @@ function Update-Pill {
 
 function Show-Status {
     switch ($O.State) {
-        'Idle'       { Show-Bubble (Pick $Lines.Hello) -Buttons @($BtnFocus, $BtnLater) -Force }
+        'Idle'       { Show-Bubble (Pick $Lines.Hello) -Buttons @($BtnFocus, $BtnTodo, $BtnLater) -Force }
         'AwaitBreak' { Ask-Break }
         'AwaitFocus' { Ask-Focus }
         'Focus' {
@@ -645,7 +688,7 @@ function Check-App {
         if ($AppLines.ContainsKey($name) -and (Get-Random -Maximum 100) -lt 60) { $line = Pick $AppLines[$name] }
     }
     if ($line) {
-        Show-Bubble $line
+        Show-Bubble $line -Thought
         $O.NextAppComment = (Get-Date).AddSeconds($Config.AppCommentCooldownS)
     }
 }
@@ -701,7 +744,7 @@ function Start-Walk {
     $O.Walking = $true
     $O.WalkTarget = Get-RandomSpot
     $O.WalkLingerUntil = [datetime]::MinValue
-    if ((Get-Random -Maximum 100) -lt 50) { Show-Bubble (Pick $Lines.Wander) -Seconds 4 }
+    if ((Get-Random -Maximum 100) -lt 50) { Show-Bubble (Pick $Lines.Wander) -Seconds 4 -Thought }
 }
 
 function Ensure-Visible {
@@ -760,7 +803,7 @@ function On-Frame {
     [Windows.Controls.Canvas]::SetTop($ui.PupilR, 50.5 + $vy)
 
     # bulle temporaire
-    if ($ui.Bubble.Visibility -eq 'Visible' -and $now -ge $O.BubbleUntil) { Hide-Bubble }
+    if ($ui.BubbleWrap.Visibility -eq 'Visible' -and $now -ge $O.BubbleUntil) { Hide-Bubble }
 
     # deplacements
     if ($O.Dragging -or $window.Visibility -ne 'Visible') { return }
@@ -828,7 +871,7 @@ function On-Second {
                 $line = $null
                 if ((Get-Random -Maximum 100) -lt 20) { $line = Get-TimeOfDayLine }
                 if (-not $line) { $line = Pick $Lines.Motivation }
-                Show-Bubble $line
+                Show-Bubble $line -Thought
             }
         }
     }
@@ -841,6 +884,7 @@ function On-Second {
         Show-Bubble (Pick $pool) -Buttons $btns -Force
     }
 
+    if ($Native -or $script:slowCount % 2 -eq 0) { Check-Clipboard }
     if ($script:slowCount % 2 -eq 0 -and $window.Visibility -eq 'Visible') { Check-App }
     if ($script:slowCount % 5 -eq 0 -and $Native -and $O.Hwnd -ne [IntPtr]::Zero -and $window.Visibility -eq 'Visible') {
         [OrbitNative]::KeepOnTop($O.Hwnd)
@@ -884,7 +928,9 @@ function Set-Mini([bool]$on) {
     $s = if ($on) { 0.55 } else { 1 }
     $ui.BotScale.ScaleX = $s
     $ui.BotScale.ScaleY = $s
-    $ui.Bubble.Margin = if ($on) { '0,0,14,72' } else { '0,0,14,124' }
+    $ui.BubbleWrap.Margin = if ($on) { '0,0,10,58' } else { '0,0,10,112' }
+    $ui.SpeechTail.Margin = if ($on) { '0,-3.5,18,0' } else { '0,-3.5,40,0' }
+    $ui.ThoughtTail.Margin = if ($on) { '0,3,14,0' } else { '0,3,36,0' }
     if ($on) { $O.Walking = $false }
 }
 
@@ -895,12 +941,21 @@ function Hide-Orbit {
 
 function Quit-Orbit {
     Save-Stats
+    Save-Todos
+    $NB.Quitting = $true
     $script:frameTimer.Stop()
     $script:secondTimer.Stop()
     $app.Shutdown()
 }
 
+# ---------------------------------------------------------------------------
+#  Carnet : to-do + historique des copier-coller (voir notebook.ps1)
+# ---------------------------------------------------------------------------
+. (Join-Path $PSScriptRoot 'notebook.ps1')
+
 $menu = New-Object Windows.Controls.ContextMenu
+$miTodo   = New-MenuItem "📝  Ma to-do" { Open-Notebook 'Todo' }
+$miClip   = New-MenuItem "📋  Mes copier-coller du jour" { Open-Notebook 'Clip' }
 $miFocus  = New-MenuItem "🚀  Lancer un focus" { Start-Focus }
 $miBreak  = New-MenuItem "☕  Prendre ma pause" { Start-Break }
 $miPause  = New-MenuItem "⏸  Mettre le chrono en pause" { Toggle-Pause }
@@ -914,7 +969,8 @@ $miAuto   = New-MenuItem "⚡  Lancer au démarrage de Windows" { Toggle-Autosta
 $miStats  = New-MenuItem "🏆  Mes stats du jour" { Show-Bubble ("Aujourd'hui : {0} session(s) de focus, soit {1} min. 🔥" -f $O.FocusToday, [math]::Round($O.FocusToday * $Config.FocusMinutes)) -Force }
 $miQuit   = New-MenuItem "❌  Quitter Orbit" { Quit-Orbit }
 
-foreach ($i in @($miFocus, $miBreak, $miPause, $miStop, (New-Object Windows.Controls.Separator),
+foreach ($i in @($miTodo, $miClip, (New-Object Windows.Controls.Separator),
+                 $miFocus, $miBreak, $miPause, $miStop, (New-Object Windows.Controls.Separator),
                  $miQuiet, $miWander, $miMini, $miHome, $miHide, $miAuto, (New-Object Windows.Controls.Separator),
                  $miStats, $miQuit)) { [void]$menu.Items.Add($i) }
 
@@ -943,7 +999,7 @@ $ui.Bot.Add_MouseLeftButtonDown({
             $O.Walking = $false
             Show-Bubble "Ok, je reste ici. Clic droit > « Revenir en bas à droite » pour me libérer." -Seconds 5
         } else {
-            if ($ui.Bubble.Visibility -eq 'Visible' -and $ui.BubbleButtons.Children.Count -eq 0 -and (Get-Random -Maximum 100) -lt 25) {
+            if ($ui.BubbleWrap.Visibility -eq 'Visible' -and $ui.BubbleButtons.Children.Count -eq 0 -and (Get-Random -Maximum 100) -lt 25) {
                 Show-Bubble (Pick $Lines.Poke) -Force -Seconds 3
             } else { Show-Status }
         }
@@ -981,6 +1037,9 @@ try {
     [void]$cms.Items.Add('Lancer un focus', $null, { Invoke-Safe { Ensure-Visible; Start-Focus } })
     [void]$cms.Items.Add('Prendre ma pause', $null, { Invoke-Safe { Ensure-Visible; Start-Break } })
     [void]$cms.Items.Add('Couper le chrono', $null, { Invoke-Safe { Stop-Cycle } })
+    [void]$cms.Items.Add('-')
+    [void]$cms.Items.Add('Ma to-do', $null, { Invoke-Safe { Open-Notebook 'Todo' } })
+    [void]$cms.Items.Add('Mes copier-coller du jour', $null, { Invoke-Safe { Open-Notebook 'Clip' } })
     [void]$cms.Items.Add('-')
     [void]$cms.Items.Add('Quitter Orbit', $null, { Invoke-Safe { Quit-Orbit } })
     $script:tray.ContextMenuStrip = $cms
