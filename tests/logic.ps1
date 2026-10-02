@@ -346,16 +346,21 @@ Check 'import : reglages illisibles ecartes (pas appliques a l''aveugle)' (-not 
 $DataDir = $OldData2
 # 5. archive zip piegee (« zip slip ») : un fichier qui essaie de sortir du dossier
 try {
-    try { Add-Type -AssemblyName System.IO.Compression.FileSystem } catch {}
-    $zp = Join-Path $T 'piege.zip'
+    foreach ($asm in 'System.IO.Compression', 'System.IO.Compression.FileSystem') { try { Add-Type -AssemblyName $asm } catch {} }
+    $zdir = Join-Path ([IO.Path]::GetTempPath()) ('orbit-zip-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+    New-Item -ItemType Directory -Path $zdir | Out-Null
+    $zp = Join-Path $zdir 'piege.zip'
     $fs = [IO.File]::Open($zp, 'Create')
-    $za = New-Object IO.Compression.ZipArchive($fs, [IO.Compression.ZipArchiveMode]::Create)
-    $en = $za.CreateEntry('../ECHAPPE.txt'); $w = New-Object IO.StreamWriter($en.Open()); $w.Write('x'); $w.Dispose()
-    $za.Dispose(); $fs.Dispose()
-    $dest = Join-Path $T 'extraction'
+    try {
+        $za = New-Object IO.Compression.ZipArchive($fs, [IO.Compression.ZipArchiveMode]::Create)
+        $en = $za.CreateEntry('../ECHAPPE.txt'); $w = New-Object IO.StreamWriter($en.Open()); $w.Write('x'); $w.Dispose()
+        $za.Dispose()
+    } finally { $fs.Dispose() }
+    $dest = Join-Path $zdir 'extraction'
     $blocked = $false
     try { [IO.Compression.ZipFile]::ExtractToDirectory($zp, $dest) } catch { $blocked = $true }
-    Check 'zip piege : extraction refusee, rien ecrit hors du dossier' ($blocked -and -not (Test-Path (Join-Path $T 'ECHAPPE.txt')))
+    Check 'zip piege : extraction refusee, rien ecrit hors du dossier' ($blocked -and -not (Test-Path (Join-Path $zdir 'ECHAPPE.txt')))
+    Remove-Item -Recurse -Force $zdir -ErrorAction SilentlyContinue
 } catch { Check 'zip piege' $false $_.Exception.Message }
 
 Section 'Robustesse : fichiers en lecture seule, gros textes'
