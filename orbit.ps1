@@ -46,7 +46,6 @@ $Config = @{
     EndSound            = 'Carillon' # Carillon | Windows | Fichier  (fin de session et rappels)
     EndSoundFile        = ''
     CustomImage         = ''         # apparence "Mon image"
-    KnockOutWhite       = $true      # rend le fond blanc de l'image transparent
     IdlePause           = $true  # met le focus en pause si tu t'absentes
     IdleMinutes         = 5
 }
@@ -298,18 +297,6 @@ public static class OrbitNative {
         foreach (double v in buf) peak = Math.Max(peak, Math.Abs(v));
         for (int i = 0; i < buf.Length; i++) buf[i] = buf[i] / peak * 0.9;
         return Wav(buf, volume);
-    }
-
-    // Image personnalisee : rend transparent le fond blanc (pixels BGRA), avec un bord adouci
-    public static void KnockOutWhite(byte[] px, int threshold) {
-        for (int i = 0; i + 3 < px.Length; i += 4) {
-            int b = px[i], g = px[i + 1], r = px[i + 2];
-            int m = Math.Min(r, Math.Min(g, b));
-            int spread = Math.Max(r, Math.Max(g, b)) - m;
-            if (spread > 40 || m < threshold - 25) continue;            // couleur franche : on garde
-            double k = m >= threshold ? 0 : (threshold - m) / 25.0;     // 0 = transparent, 1 = opaque
-            px[i + 3] = (byte)(px[i + 3] * k);
-        }
     }
 }
 '@
@@ -865,7 +852,7 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           <Path x:Name="MSteam" Data="M 43,60.6 Q 42.3,58.8 43.3,57.2 M 45,60.6 Q 44.3,58.4 45.3,56.8" Stroke="#C9D0D9" StrokeThickness="0.55" Opacity="0.8"/>
         </Canvas>
 
-        <!-- ===== Apparence 7 : ton image (fond blanc rendu transparent), chrono en dessous ===== -->
+        <!-- ===== Apparence 7 : ton image telle quelle, chrono en dessous ===== -->
         <Canvas x:Name="SkinCustom" Visibility="Collapsed">
           <Image x:Name="CustomImg" Width="120" Height="72" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
           <Border x:Name="UClockBox" Canvas.Left="42" Canvas.Top="74" Width="36" Height="13.8" CornerRadius="2.5" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="1"><TextBlock x:Name="UClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="7.56" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
@@ -1070,7 +1057,6 @@ function Get-SettingsSnapshot {
         endSound           = $Config.EndSound
         endSoundFile       = $Config.EndSoundFile
         customImage        = $Config.CustomImage
-        knockOutWhite      = $Config.KnockOutWhite
         skin               = $O.Skin
         idlePause          = $Config.IdlePause
         idleMinutes        = $Config.IdleMinutes
@@ -1101,7 +1087,6 @@ function Apply-SettingsData($d) {
     if ($d.endSound) { $Config.EndSound = [string]$d.endSound }
     if (Has 'endSoundFile') { $Config.EndSoundFile = [string]$d.endSoundFile }
     if (Has 'customImage') { $Config.CustomImage = [string]$d.customImage }
-    if (Has 'knockOutWhite') { $Config.KnockOutWhite = [bool]$d.knockOutWhite }
     if ($d.skin) { $O.Skin = [string]$d.skin }   # verifie par Set-Skin
     if (Has 'idlePause') { $Config.IdlePause = [bool]$d.idlePause }
     if (Has 'idleMinutes') { $Config.IdleMinutes = [int]$d.idleMinutes }
@@ -1158,7 +1143,7 @@ $Skins = [ordered]@{
                    Eyes = @(); Fill = @('CSpark1', 'CSpark2', 'CSpark3', 'CSpark4', 'CRing'); Stroke = @(); Beacons = @(); Glows = @() }
 }
 
-# Charge l'image personnalisee ; le fond blanc devient transparent si demande
+# Charge l'image personnalisee (affichee telle quelle)
 function Load-CustomImage {
     $path = $Config.CustomImage
     if (-not $path -or -not (Test-Path -LiteralPath $path)) { return $false }
@@ -1169,16 +1154,7 @@ function Load-CustomImage {
         $bmp.DecodePixelWidth = 360      # largement assez pour la taille d'Orbit, et rapide
         $bmp.CacheOption = 'OnLoad'
         $bmp.EndInit()
-        $src = $bmp
-        if ($Config.KnockOutWhite -and $Native) {
-            $conv = New-Object Windows.Media.Imaging.FormatConvertedBitmap($bmp, [Windows.Media.PixelFormats]::Bgra32, $null, 0)
-            $w = $conv.PixelWidth; $h = $conv.PixelHeight; $stride = $w * 4
-            $px = New-Object byte[] ($stride * $h)
-            $conv.CopyPixels($px, $stride, 0)
-            [OrbitNative]::KnockOutWhite($px, 240)
-            $src = [Windows.Media.Imaging.BitmapSource]::Create($w, $h, 96, 96, [Windows.Media.PixelFormats]::Bgra32, $null, $px, $stride)
-        }
-        $ui.CustomImg.Source = $src
+        $ui.CustomImg.Source = $bmp
         return $true
     } catch { Write-Log "Image : $($_.Exception.Message)"; return $false }
 }

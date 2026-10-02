@@ -67,7 +67,6 @@
             <Button x:Name="SImgPick" Content="🖼️ Choisir une image…" Padding="8,2" Background="#EEEEF5" BorderThickness="0" Cursor="Hand"/>
             <TextBlock x:Name="SImgName" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="#6B6880" FontSize="11.5"/>
           </StackPanel>
-          <CheckBox x:Name="SKnock" Margin="22,4,0,0" Content="Rendre le fond blanc de l'image transparent"/>
 
           <TextBlock Style="{StaticResource Section}" Text="⏱ Rythme Pomodoro"/>
           <StackPanel Orientation="Horizontal">
@@ -174,7 +173,7 @@ $sw = @{}
 foreach ($n in 'SHeader','SClose','SDefaults','SCancel','SSave','SError','SR50','SR25','SRPerso','SPersoFocus','SPersoBreak',
                'SIdle','SIdleMin','STasks','SNudge','SJokes','SJokeMin','SMotiv','SApps','SQuiet','SWander','SWanderMin',
                'SWanderMax','SSounds','SDroid','SDroidVol','SAuto','SBubbleSound','SBubbleFile','SBubbleTest','SBubbleFileName',
-               'SEndSound','SEndFile','SEndTest','SEndFileName','SSkinCustom','SImgPick','SImgName','SKnock','SSkinSatellite','SSkinDroid','SSkinRobot','SSkinButler','SSkinBrain','SSkinHuman') {
+               'SEndSound','SEndFile','SEndTest','SEndFileName','SSkinCustom','SImgPick','SImgName','SSkinSatellite','SSkinDroid','SSkinRobot','SSkinButler','SSkinBrain','SSkinHuman') {
     $sw[$n] = $settingsWin.FindName($n)
 }
 
@@ -184,7 +183,7 @@ $DefaultSettings.rhythm = '50/10'; $DefaultSettings.customFocus = 40; $DefaultSe
 $DefaultSettings.quiet = $false; $DefaultSettings.wander = $true; $DefaultSettings.wanderMin = 4; $DefaultSettings.wanderMax = 9
 $DefaultSettings.taskReminders = $true; $DefaultSettings.reminderEveryMin = 4; $DefaultSettings.motivationEveryMin = 9
 $DefaultSettings.jokes = $true; $DefaultSettings.jokeEveryMin = 2; $DefaultSettings.appComments = $true
-$DefaultSettings.skin = 'Satellite'; $DefaultSettings.sounds = $true; $DefaultSettings.droidSounds = $true; $DefaultSettings.droidVolume = 40; $DefaultSettings.bubbleSound = 'Droide'; $DefaultSettings.endSound = 'Carillon'; $DefaultSettings.knockOutWhite = $true; $DefaultSettings.idlePause = $true; $DefaultSettings.idleMinutes = 5
+$DefaultSettings.skin = 'Satellite'; $DefaultSettings.sounds = $true; $DefaultSettings.droidSounds = $true; $DefaultSettings.droidVolume = 40; $DefaultSettings.bubbleSound = 'Droide'; $DefaultSettings.endSound = 'Carillon'; $DefaultSettings.idlePause = $true; $DefaultSettings.idleMinutes = 5
 
 function Fill-SettingsForm($d) {
     $sw.SR50.IsChecked = $d.rhythm -eq '50/10'
@@ -212,7 +211,6 @@ function Fill-SettingsForm($d) {
     $SF.EndFile = [string]$d.endSoundFile
     Select-ComboTag $sw.SBubbleSound $d.bubbleSound
     Select-ComboTag $sw.SEndSound $d.endSound
-    $sw.SKnock.IsChecked = $d.knockOutWhite
     Update-FileLabels
     $sw.SError.Visibility = 'Collapsed'
     foreach ($tb in 'SPersoFocus','SPersoBreak','SIdleMin','SNudge','SJokeMin','SMotiv','SWanderMin','SWanderMax') {
@@ -264,12 +262,11 @@ function Save-SettingsForm {
         droidVolume = [int]$sw.SDroidVol.Value
         bubbleSound = [string]$sw.SBubbleSound.SelectedItem.Tag; bubbleSoundFile = $SF.BubbleFile
         endSound = [string]$sw.SEndSound.SelectedItem.Tag; endSoundFile = $SF.EndFile
-        knockOutWhite = [bool]$sw.SKnock.IsChecked
     })
     Apply-Rhythm
     $skin = 'Satellite'
     foreach ($k in 'Droid', 'Robot', 'Butler', 'Human', 'Brain', 'Custom') { if ($sw["SSkin$k"].IsChecked) { $skin = $k } }
-    if ($skin -ne $O.Skin -or $skin -eq 'Custom') { Set-Skin $skin -Quiet }   # (recharge l'image si l'option "fond blanc" a change)
+    if ($skin -ne $O.Skin) { Set-Skin $skin -Quiet }
     if (-not $O.Wander) { $O.Walking = $false }
     if ($O.Quiet) { Hide-Bubble }
     Save-Settings
@@ -347,10 +344,7 @@ $sw.SBubbleFile.Add_Click({ Invoke-Safe { $f = Pick-WavFile; if ($f) { $SF.Bubbl
 $sw.SEndFile.Add_Click({ Invoke-Safe { $f = Pick-WavFile; if ($f) { $SF.EndFile = $f; Select-ComboTag $sw.SEndSound 'Fichier'; Update-FileLabels } } })
 $sw.SImgPick.Add_Click({
     Invoke-Safe {
-        $old = $Config.KnockOutWhite
-        $Config.KnockOutWhite = [bool]$sw.SKnock.IsChecked
         if (Choose-CustomImage) { $sw.SSkinCustom.IsChecked = $true }
-        $Config.KnockOutWhite = $old
         Update-FileLabels
     }
 })
