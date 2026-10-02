@@ -1,4 +1,4 @@
-<#
+﻿<#
     Fenetre de reglages d'Orbit (clic droit > Reglages).
     Ce fichier est charge par orbit.ps1 (il ne se lance pas tout seul).
 #>
