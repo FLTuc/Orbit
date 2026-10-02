@@ -16,13 +16,14 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
 ## Ce qu'il fait
 
 - **Il te suit** : il se place en bas à droite de l'écran où se trouve ta souris et change d'écran en même temps que toi.
-- **Il se balade** : de temps en temps, il part faire un petit tour sur tes écrans, puis il revient. C'est un vrai petit satellite : panneaux solaires où passe un reflet de soleil, antenne parabolique avec balise, viseur d'étoiles, isolation dorée, feux de navigation rouge et vert, propulseurs. Sa caméra suit ta souris et ses voyants changent de couleur selon le moment (bleu = focus, vert = pause, orange = il attend ta réponse). Clin d'œil geek : la rangée de LED sous la caméra affiche **les minutes restantes en binaire** (au repos, elle fait un balayage), et le chrono s'affiche façon contrôle de mission : `T-24:31`.
-- **6 apparences au choix** (clic droit > 🎨 Apparence, ou dans les réglages) :
+- **Il se balade** : de temps en temps, il part faire un petit tour sur tes écrans, puis il revient. C'est un vrai petit satellite : panneaux solaires où passe un reflet de soleil, antenne parabolique avec balise, viseur d'étoiles, isolation dorée, feux de navigation rouge et vert, propulseurs. Sa caméra suit ta souris et ses voyants changent de couleur selon le moment (bleu = focus, vert = pause, orange = il attend ta réponse). Clin d'œil geek : la rangée de LED sous la caméra affiche **les minutes restantes en binaire** (au repos, elle fait un balayage), et le chrono s'affiche en grand sur un petit écran intégré au dessin.
+- **6 apparences au choix, ou ta propre image** (clic droit > 🎨 Apparence, ou dans les réglages) :
   - 🛰️ **Satellite** : le dessin décrit ci-dessus ;
   - 🤖 **Droïde de maintenance** : une sphère qui flotte sur ses réacteurs, avec une visière, un œil-caméra et deux petits bras articulés (l'un tient un tournevis) ;
   - 🦾 **Robot assistant** : un buste de robot avec une visière à deux yeux et un petit terminal sur la poitrine qui affiche son état (`> focus_`, `> pause_`…) ;
   - 🎩 **Majordome robot** : un robot en queue-de-pie, avec nœud papillon, monocle, moustache, serviette sur le bras et plateau avec un café fumant, entouré d'un anneau holographique qui tourne ;
   - 🤵 **Majordome humain** : un gentleman aux cheveux gris, moustache, queue-de-pie et gants blancs, plateau avec café et chrono ; ses yeux te suivent ;
+  - 🖼️ **Mon image** : n'importe quelle image (PNG, JPG…) à la place du dessin ; son fond blanc peut être rendu transparent, et le chrono s'affiche dans une étiquette sous l'image ;
   - 🧠 **Cerveau humain** : un cerveau dessiné comme une planche d'anatomie (lobes, scissure latérale, sillon central, circonvolutions serrées, cervelet, tronc cérébral), posé sur un socle de présentation qui affiche le chrono et les LED ; de petites étincelles d'activité neuronale s'allument de temps en temps.
   Les yeux (quand le dessin en a) suivent ta souris, les couleurs suivent le moment (focus, pause, attente) et les LED affichent les minutes restantes en binaire (sur le majordome, ce sont les boutons de sa chemise).
 - **Il reste au-dessus** de toutes les applications, sans te voler le focus. Le chrono est intégré au dessin : sur un petit écran (panneau du satellite, sphère du droïde, terminal du robot, plateau des majordomes, socle du cerveau).
@@ -36,7 +37,7 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   - **à la fin de la pause**, il rappelle la prochaine tâche au programme.
 - **Pause automatique si tu t'absentes** : si tu ne touches ni la souris ni le clavier pendant 5 min en plein focus, Orbit met le chrono en pause au moment où tu es parti (le temps d'absence ne compte pas). À ton retour, il te dit combien de temps tu as été absent et te propose de reprendre.
 - **Des blagues pendant la pause** : environ une toutes les 2 minutes, piochées parmi **plus de 1000 blagues** (combles, devinettes, « Monsieur et Madame… », bureau, informatique, espace…). Orbit pose la question, puis donne la chute quelques secondes plus tard. Il retient où il en est, même après un redémarrage : aucune blague ne revient tant que toutes ne sont pas passées.
-- **Des bulles de BD** : tout ce que dit Orbit apparaît dans une bulle de bande dessinée avec un « pop », accompagné de **petits bips doux** (générés par Orbit lui-même, sur une gamme musicale agréable ; ils montent légèrement quand il te pose une question). Volume réglable, ou désactivables, dans les réglages.
+- **Des bulles de BD** : tout ce que dit Orbit apparaît dans une bulle de bande dessinée avec un « pop », accompagné d'un **petit son au choix** : droïde doux, carillon, marimba, pop, bip, ou ton propre fichier WAV. Les sons sont générés par Orbit lui-même et montent légèrement quand il te pose une question. Le son de fin de session et des rappels se choisit aussi (carillon, son de Windows ou ton fichier).
   - Bulle de **parole** (avec une pointe) quand il te parle : questions, chrono, indications.
   - Bulle de **pensée** (avec des petits ronds) pour ses réflexions et ses commentaires sur tes applis.
 - **Des petits commentaires** : de la motivation pendant le focus (mi-parcours, 5 dernières minutes…) et des blagues selon l'application sous ta souris (Excel, Outlook, Teams, PowerPoint, VS Code…). Pendant le focus, il te taquine si tu passes sur YouTube, Netflix, Reddit…
@@ -64,7 +65,7 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   - rappels de tâches, et fréquence des relances quand Orbit attend ta réponse ;
   - blagues de pause (oui/non et fréquence), phrases de motivation, commentaires sur les applis, mode silencieux ;
   - apparence (satellite, droïde, robot, majordome robot ou humain, cerveau humain) ;
-  - balades (oui/non et fréquence), sons, bips de droïde, lancement au démarrage de Windows.
+  - balades (oui/non et fréquence), sons (style, fichier perso, volume, bouton ▶ pour écouter), lancement au démarrage de Windows.
 
 ## Commandes
 

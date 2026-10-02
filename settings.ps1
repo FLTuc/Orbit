@@ -6,7 +6,7 @@
 [xml]$settingsXaml = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Réglages d'Orbit" Width="420" Height="640"
+        Title="Réglages d'Orbit" Width="440" Height="680"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="True" ResizeMode="NoResize" UseLayoutRounding="True"
         FontFamily="Segoe UI" FontSize="13">
@@ -60,8 +60,14 @@
             <RadioButton x:Name="SSkinRobot" Content="🦾 Robot" GroupName="Skin" Margin="0,2,14,2" VerticalContentAlignment="Center"/>
             <RadioButton x:Name="SSkinButler" Content="🎩 Majordome robot" GroupName="Skin" Margin="0,2,14,2" VerticalContentAlignment="Center"/>
             <RadioButton x:Name="SSkinHuman" Content="🤵 Majordome humain" GroupName="Skin" Margin="0,2,14,2" VerticalContentAlignment="Center"/>
-            <RadioButton x:Name="SSkinBrain" Content="🧠 Cerveau" GroupName="Skin" Margin="0,2,0,2" VerticalContentAlignment="Center"/>
+            <RadioButton x:Name="SSkinBrain" Content="🧠 Cerveau" GroupName="Skin" Margin="0,2,14,2" VerticalContentAlignment="Center"/>
+            <RadioButton x:Name="SSkinCustom" Content="🖼️ Mon image" GroupName="Skin" Margin="0,2,0,2" VerticalContentAlignment="Center"/>
           </WrapPanel>
+          <StackPanel Orientation="Horizontal" Margin="22,4,0,0">
+            <Button x:Name="SImgPick" Content="🖼️ Choisir une image…" Padding="8,2" Background="#EEEEF5" BorderThickness="0" Cursor="Hand"/>
+            <TextBlock x:Name="SImgName" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="#6B6880" FontSize="11.5"/>
+          </StackPanel>
+          <CheckBox x:Name="SKnock" Margin="22,4,0,0" Content="Rendre le fond blanc de l'image transparent"/>
 
           <TextBlock Style="{StaticResource Section}" Text="⏱ Rythme Pomodoro"/>
           <StackPanel Orientation="Horizontal">
@@ -122,13 +128,37 @@
           </CheckBox>
 
           <TextBlock Style="{StaticResource Section}" Text="🔊 Sons et démarrage"/>
-          <CheckBox x:Name="SSounds" Content="Petit son à la fin des sessions et pour les rappels"/>
-          <CheckBox x:Name="SDroid" Content="Bips de droïde à chaque bulle 🤖"/>
-          <StackPanel Orientation="Horizontal" Margin="22,2,0,0">
-            <TextBlock Text="Volume des bips" VerticalAlignment="Center"/>
-            <Slider x:Name="SDroidVol" Minimum="5" Maximum="100" Width="150" Margin="10,0,8,0"
+          <CheckBox x:Name="SDroid" Content="Un son à chaque bulle"/>
+          <StackPanel Orientation="Horizontal" Margin="22,3,0,0">
+            <ComboBox x:Name="SBubbleSound" Width="150">
+              <ComboBoxItem Content="🤖 Droïde doux" Tag="Droide"/>
+              <ComboBoxItem Content="🔔 Carillon" Tag="Carillon"/>
+              <ComboBoxItem Content="🪵 Marimba" Tag="Marimba"/>
+              <ComboBoxItem Content="🫧 Pop" Tag="Pop"/>
+              <ComboBoxItem Content="📟 Bip" Tag="Bip"/>
+              <ComboBoxItem Content="📁 Mon fichier WAV" Tag="Fichier"/>
+            </ComboBox>
+            <Button x:Name="SBubbleFile" Content="Choisir…" Padding="8,2" Margin="6,0,0,0" Background="#EEEEF5" BorderThickness="0" Cursor="Hand"/>
+            <Button x:Name="SBubbleTest" Content="▶" Padding="8,2" Margin="6,0,0,0" Background="#EEEEF5" BorderThickness="0" Cursor="Hand" ToolTip="Écouter"/>
+          </StackPanel>
+          <TextBlock x:Name="SBubbleFileName" Margin="22,2,0,0" Foreground="#6B6880" FontSize="11.5"/>
+
+          <CheckBox x:Name="SSounds" Margin="0,8,0,3" Content="Un son à la fin des sessions et pour les rappels"/>
+          <StackPanel Orientation="Horizontal" Margin="22,3,0,0">
+            <ComboBox x:Name="SEndSound" Width="150">
+              <ComboBoxItem Content="🔔 Carillon (3 notes)" Tag="Carillon"/>
+              <ComboBoxItem Content="🪟 Son de Windows" Tag="Windows"/>
+              <ComboBoxItem Content="📁 Mon fichier WAV" Tag="Fichier"/>
+            </ComboBox>
+            <Button x:Name="SEndFile" Content="Choisir…" Padding="8,2" Margin="6,0,0,0" Background="#EEEEF5" BorderThickness="0" Cursor="Hand"/>
+            <Button x:Name="SEndTest" Content="▶" Padding="8,2" Margin="6,0,0,0" Background="#EEEEF5" BorderThickness="0" Cursor="Hand" ToolTip="Écouter"/>
+          </StackPanel>
+          <TextBlock x:Name="SEndFileName" Margin="22,2,0,0" Foreground="#6B6880" FontSize="11.5"/>
+
+          <StackPanel Orientation="Horizontal" Margin="0,8,0,4">
+            <TextBlock Text="Volume des sons" VerticalAlignment="Center"/>
+            <Slider x:Name="SDroidVol" Minimum="5" Maximum="100" Width="170" Margin="10,0,0,0"
                     VerticalAlignment="Center" IsSnapToTickEnabled="True" TickFrequency="5"/>
-            <Button x:Name="SDroidTest" Content="▶ Écouter" Padding="8,2" Background="#EEEEF5" BorderThickness="0" Cursor="Hand"/>
           </StackPanel>
           <CheckBox x:Name="SAuto" Content="Lancer Orbit au démarrage de Windows"/>
           <TextBlock Text=" " Margin="0,6,0,0"/>
@@ -143,7 +173,8 @@ $settingsWin = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeR
 $sw = @{}
 foreach ($n in 'SHeader','SClose','SDefaults','SCancel','SSave','SError','SR50','SR25','SRPerso','SPersoFocus','SPersoBreak',
                'SIdle','SIdleMin','STasks','SNudge','SJokes','SJokeMin','SMotiv','SApps','SQuiet','SWander','SWanderMin',
-               'SWanderMax','SSounds','SDroid','SDroidVol','SDroidTest','SAuto','SSkinSatellite','SSkinDroid','SSkinRobot','SSkinButler','SSkinBrain','SSkinHuman') {
+               'SWanderMax','SSounds','SDroid','SDroidVol','SAuto','SBubbleSound','SBubbleFile','SBubbleTest','SBubbleFileName',
+               'SEndSound','SEndFile','SEndTest','SEndFileName','SSkinCustom','SImgPick','SImgName','SKnock','SSkinSatellite','SSkinDroid','SSkinRobot','SSkinButler','SSkinBrain','SSkinHuman') {
     $sw[$n] = $settingsWin.FindName($n)
 }
 
@@ -153,7 +184,7 @@ $DefaultSettings.rhythm = '50/10'; $DefaultSettings.customFocus = 40; $DefaultSe
 $DefaultSettings.quiet = $false; $DefaultSettings.wander = $true; $DefaultSettings.wanderMin = 4; $DefaultSettings.wanderMax = 9
 $DefaultSettings.taskReminders = $true; $DefaultSettings.reminderEveryMin = 4; $DefaultSettings.motivationEveryMin = 9
 $DefaultSettings.jokes = $true; $DefaultSettings.jokeEveryMin = 2; $DefaultSettings.appComments = $true
-$DefaultSettings.skin = 'Satellite'; $DefaultSettings.sounds = $true; $DefaultSettings.droidSounds = $true; $DefaultSettings.droidVolume = 40; $DefaultSettings.idlePause = $true; $DefaultSettings.idleMinutes = 5
+$DefaultSettings.skin = 'Satellite'; $DefaultSettings.sounds = $true; $DefaultSettings.droidSounds = $true; $DefaultSettings.droidVolume = 40; $DefaultSettings.bubbleSound = 'Droide'; $DefaultSettings.endSound = 'Carillon'; $DefaultSettings.knockOutWhite = $true; $DefaultSettings.idlePause = $true; $DefaultSettings.idleMinutes = 5
 
 function Fill-SettingsForm($d) {
     $sw.SR50.IsChecked = $d.rhythm -eq '50/10'
@@ -176,7 +207,13 @@ function Fill-SettingsForm($d) {
     $sw.SSounds.IsChecked = $d.sounds
     $sw.SDroid.IsChecked = $d.droidSounds
     $sw.SDroidVol.Value = [math]::Max(5, [double]$d.droidVolume)
-    foreach ($k in 'Satellite', 'Droid', 'Robot', 'Butler', 'Human', 'Brain') { $sw["SSkin$k"].IsChecked = ($d.skin -eq $k) }
+    foreach ($k in 'Satellite', 'Droid', 'Robot', 'Butler', 'Human', 'Brain', 'Custom') { $sw["SSkin$k"].IsChecked = ($d.skin -eq $k) }
+    $SF.BubbleFile = [string]$d.bubbleSoundFile
+    $SF.EndFile = [string]$d.endSoundFile
+    Select-ComboTag $sw.SBubbleSound $d.bubbleSound
+    Select-ComboTag $sw.SEndSound $d.endSound
+    $sw.SKnock.IsChecked = $d.knockOutWhite
+    Update-FileLabels
     $sw.SError.Visibility = 'Collapsed'
     foreach ($tb in 'SPersoFocus','SPersoBreak','SIdleMin','SNudge','SJokeMin','SMotiv','SWanderMin','SWanderMax') {
         $sw[$tb].ClearValue([Windows.Controls.Control]::BorderBrushProperty)
@@ -225,11 +262,14 @@ function Save-SettingsForm {
         wander = [bool]$sw.SWander.IsChecked; wanderMin = [int]$wmin; wanderMax = [int]$wmax
         sounds = [bool]$sw.SSounds.IsChecked; droidSounds = [bool]$sw.SDroid.IsChecked
         droidVolume = [int]$sw.SDroidVol.Value
+        bubbleSound = [string]$sw.SBubbleSound.SelectedItem.Tag; bubbleSoundFile = $SF.BubbleFile
+        endSound = [string]$sw.SEndSound.SelectedItem.Tag; endSoundFile = $SF.EndFile
+        knockOutWhite = [bool]$sw.SKnock.IsChecked
     })
     Apply-Rhythm
     $skin = 'Satellite'
-    foreach ($k in 'Droid', 'Robot', 'Butler', 'Human', 'Brain') { if ($sw["SSkin$k"].IsChecked) { $skin = $k } }
-    if ($skin -ne $O.Skin) { Set-Skin $skin -Quiet }
+    foreach ($k in 'Droid', 'Robot', 'Butler', 'Human', 'Brain', 'Custom') { if ($sw["SSkin$k"].IsChecked) { $skin = $k } }
+    if ($skin -ne $O.Skin -or $skin -eq 'Custom') { Set-Skin $skin -Quiet }   # (recharge l'image si l'option "fond blanc" a change)
     if (-not $O.Wander) { $O.Walking = $false }
     if ($O.Quiet) { Hide-Bubble }
     Save-Settings
@@ -268,14 +308,50 @@ $sw.SClose.Add_Click({ $settingsWin.Hide() })
 $sw.SCancel.Add_Click({ $settingsWin.Hide() })
 $sw.SDefaults.Add_Click({ Invoke-Safe { Fill-SettingsForm $DefaultSettings } })
 $sw.SSave.Add_Click({ Invoke-Safe { Save-SettingsForm } })
-# ecoute immediate du volume choisi, sans enregistrer
-$sw.SDroidTest.Add_Click({
+# choix des fichiers en attente d'enregistrement
+$SF = @{ BubbleFile = ''; EndFile = '' }
+
+function Select-ComboTag($combo, [string]$tag) {
+    foreach ($it in $combo.Items) { if ($it.Tag -eq $tag) { $combo.SelectedItem = $it; return } }
+    $combo.SelectedIndex = 0
+}
+
+function Update-FileLabels {
+    $sw.SBubbleFileName.Text = if ($SF.BubbleFile) { '📁 ' + [IO.Path]::GetFileName($SF.BubbleFile) } else { '' }
+    $sw.SEndFileName.Text = if ($SF.EndFile) { '📁 ' + [IO.Path]::GetFileName($SF.EndFile) } else { '' }
+    $sw.SImgName.Text = if ($Config.CustomImage) { [IO.Path]::GetFileName($Config.CustomImage) } else { 'aucune image pour l''instant' }
+}
+
+function Pick-WavFile {
+    $dlg = New-Object Microsoft.Win32.OpenFileDialog
+    $dlg.Title = 'Choisis un son (fichier .wav)'
+    $dlg.Filter = 'Sons WAV (*.wav)|*.wav'
+    if ($dlg.ShowDialog()) { return $dlg.FileName }
+    return $null
+}
+
+# ecoute d'un son avec les choix de la fenetre, sans enregistrer
+function Test-SoundChoice([switch]$End) {
+    $keep = @{}
+    foreach ($k in 'DroidVolume', 'DroidSounds', 'Sounds', 'BubbleSound', 'BubbleSoundFile', 'EndSound', 'EndSoundFile') { $keep[$k] = $Config[$k] }
+    $Config.DroidVolume = [int]$sw.SDroidVol.Value; $Config.DroidSounds = $true; $Config.Sounds = $true
+    $Config.BubbleSound = [string]$sw.SBubbleSound.SelectedItem.Tag; $Config.BubbleSoundFile = $SF.BubbleFile
+    $Config.EndSound = [string]$sw.SEndSound.SelectedItem.Tag; $Config.EndSoundFile = $SF.EndFile
+    if ($End) { Play-Sound -Force } else { Play-Chirp -Force -Question:((Get-Random -Maximum 2) -eq 1) }
+    foreach ($k in $keep.Keys) { $Config[$k] = $keep[$k] }
+}
+
+$sw.SBubbleTest.Add_Click({ Invoke-Safe { Test-SoundChoice } })
+$sw.SEndTest.Add_Click({ Invoke-Safe { Test-SoundChoice -End } })
+$sw.SBubbleFile.Add_Click({ Invoke-Safe { $f = Pick-WavFile; if ($f) { $SF.BubbleFile = $f; Select-ComboTag $sw.SBubbleSound 'Fichier'; Update-FileLabels } } })
+$sw.SEndFile.Add_Click({ Invoke-Safe { $f = Pick-WavFile; if ($f) { $SF.EndFile = $f; Select-ComboTag $sw.SEndSound 'Fichier'; Update-FileLabels } } })
+$sw.SImgPick.Add_Click({
     Invoke-Safe {
-        $old = $Config.DroidVolume; $wasOn = $Config.DroidSounds
-        $Config.DroidVolume = [int]$sw.SDroidVol.Value; $Config.DroidSounds = $true
-        $script:LastChirp = [datetime]::MinValue
-        Play-Chirp
-        $Config.DroidVolume = $old; $Config.DroidSounds = $wasOn
+        $old = $Config.KnockOutWhite
+        $Config.KnockOutWhite = [bool]$sw.SKnock.IsChecked
+        if (Choose-CustomImage) { $sw.SSkinCustom.IsChecked = $true }
+        $Config.KnockOutWhite = $old
+        Update-FileLabels
     }
 })
 $settingsWin.Add_Closing({ param($s, $e) if (-not $NB.Quitting) { $e.Cancel = $true; $settingsWin.Hide() } })

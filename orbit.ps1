@@ -40,7 +40,13 @@ $Config = @{
     AppComments         = $true  # commentaires selon l'appli sous la souris
     Sounds              = $true
     DroidSounds         = $true  # petits bips de droide a chaque bulle
-    DroidVolume         = 40     # volume des bips, de 0 a 100
+    DroidVolume         = 40     # volume des sons, de 0 a 100
+    BubbleSound         = 'Droide'   # Droide | Carillon | Marimba | Pop | Bip | Fichier
+    BubbleSoundFile     = ''
+    EndSound            = 'Carillon' # Carillon | Windows | Fichier  (fin de session et rappels)
+    EndSoundFile        = ''
+    CustomImage         = ''         # apparence "Mon image"
+    KnockOutWhite       = $true      # rend le fond blanc de l'image transparent
     IdlePause           = $true  # met le focus en pause si tu t'absentes
     IdleMinutes         = 5
 }
@@ -195,6 +201,115 @@ public static class OrbitNative {
         foreach (short sm in data) w.Write(sm);
         w.Flush();
         return ms.ToArray();
+    }
+
+    // ---- Autres styles de sons (meme format WAV en memoire) ----
+    static byte[] Wav(double[] buf, double volume) {
+        const int rate = 22050;
+        System.IO.MemoryStream ms = new System.IO.MemoryStream();
+        System.IO.BinaryWriter w = new System.IO.BinaryWriter(ms);
+        int bytes = buf.Length * 2;
+        w.Write(Encoding.ASCII.GetBytes("RIFF")); w.Write(36 + bytes); w.Write(Encoding.ASCII.GetBytes("WAVE"));
+        w.Write(Encoding.ASCII.GetBytes("fmt ")); w.Write(16); w.Write((short)1); w.Write((short)1);
+        w.Write(rate); w.Write(rate * 2); w.Write((short)2); w.Write((short)16);
+        w.Write(Encoding.ASCII.GetBytes("data")); w.Write(bytes);
+        foreach (double v in buf) w.Write((short)(Math.Max(-1, Math.Min(1, v * volume)) * 32767));
+        w.Flush();
+        return ms.ToArray();
+    }
+
+    // ajoute une note "percussive" (somme de partiels qui s'eteignent) a partir de 'start' secondes
+    static void Strike(double[] buf, double start, double f, double[] ratios, double[] amps, double[] decays) {
+        const int rate = 22050;
+        int s0 = (int)(start * rate);
+        for (int i = 0; s0 + i < buf.Length; i++) {
+            double t = (double)i / rate, v = 0;
+            for (int k = 0; k < ratios.Length; k++) v += amps[k] * Math.Exp(-t / decays[k]) * Math.Sin(2 * Math.PI * f * ratios[k] * t);
+            double attack = Math.Min(1, t / 0.004);
+            buf[s0 + i] += v * attack;
+        }
+    }
+
+    // style : 0 droide doux, 1 carillon, 2 marimba, 3 pop, 4 bip, 10 fin de session (arpege de carillon)
+    public static byte[] Synth(int style, int seed, double volume, bool question) {
+        if (style == 0) return DroidChirp(seed, volume, question);
+        Random rnd = new Random(seed);
+        const int rate = 22050;
+        double[] penta = { 523.25, 587.33, 659.25, 783.99, 880.00, 1046.50, 1174.66, 1318.51 };
+        double[] bellR = { 1, 2.0, 2.76, 5.4 }, bellA = { 0.6, 0.2, 0.14, 0.05 }, bellD = { 0.45, 0.22, 0.14, 0.06 };
+        double[] maribR = { 1, 4.0, 9.8 }, maribA = { 0.7, 0.18, 0.05 }, maribD = { 0.22, 0.05, 0.02 };
+        double[] buf;
+        switch (style) {
+            case 1: {
+                buf = new double[(int)(rate * 0.95)];
+                double f = penta[rnd.Next(3, 8)];
+                Strike(buf, 0, f, bellR, bellA, bellD);
+                if (question) Strike(buf, 0.14, f * 1.335, bellR, bellA, bellD);
+                else if (rnd.NextDouble() < 0.5) Strike(buf, 0.13, penta[rnd.Next(2, 7)], bellR, bellA, bellD);
+                break;
+            }
+            case 2: {
+                buf = new double[(int)(rate * 0.6)];
+                int notes = question ? 2 : rnd.Next(2, 4);
+                double f = penta[rnd.Next(0, 5)] / 2 * 1.5;
+                for (int n = 0; n < notes; n++) {
+                    Strike(buf, n * 0.11, f, maribR, maribA, maribD);
+                    f = question && n == notes - 2 ? f * 1.335 : penta[rnd.Next(0, 6)] / 2 * 1.5;
+                }
+                break;
+            }
+            case 3: {
+                buf = new double[(int)(rate * 0.25)];
+                int pops = question ? 2 : rnd.Next(1, 3);
+                for (int n = 0; n < pops; n++) {
+                    int s0 = (int)(n * 0.09 * rate), len = (int)(0.06 * rate);
+                    bool up = question && n == pops - 1;
+                    double ph = 0;
+                    for (int i = 0; i < len && s0 + i < buf.Length; i++) {
+                        double p = (double)i / len;
+                        double f = up ? 420 * Math.Pow(2.6, p) : 1150 * Math.Pow(0.32, p);
+                        ph += 2 * Math.PI * f / rate;
+                        double env = Math.Min(1, i / (rate * 0.002)) * Math.Exp(-p * 3.2);
+                        buf[s0 + i] += Math.Sin(ph) * env * 0.8;
+                    }
+                }
+                break;
+            }
+            case 4: {
+                buf = new double[(int)(rate * 0.32)];
+                double[] fs = question ? new double[] { 660, 990 } : new double[] { 880 };
+                for (int n = 0; n < fs.Length; n++) {
+                    int s0 = (int)(n * 0.13 * rate), len = (int)(0.1 * rate);
+                    for (int i = 0; i < len; i++) {
+                        double env = Math.Sin(Math.PI * i / len);
+                        buf[s0 + i] += Math.Sin(2 * Math.PI * fs[n] * i / rate) * env * 0.7;
+                    }
+                }
+                break;
+            }
+            default: {
+                buf = new double[(int)(rate * 1.5)];
+                double[] arp = { 1046.50, 1318.51, 1567.98 };
+                for (int n = 0; n < arp.Length; n++) Strike(buf, n * 0.16, arp[n], bellR, bellA, bellD);
+                break;
+            }
+        }
+        double peak = 0.0001;
+        foreach (double v in buf) peak = Math.Max(peak, Math.Abs(v));
+        for (int i = 0; i < buf.Length; i++) buf[i] = buf[i] / peak * 0.9;
+        return Wav(buf, volume);
+    }
+
+    // Image personnalisee : rend transparent le fond blanc (pixels BGRA), avec un bord adouci
+    public static void KnockOutWhite(byte[] px, int threshold) {
+        for (int i = 0; i + 3 < px.Length; i += 4) {
+            int b = px[i], g = px[i + 1], r = px[i + 2];
+            int m = Math.Min(r, Math.Min(g, b));
+            int spread = Math.Max(r, Math.Max(g, b)) - m;
+            if (spread > 40 || m < threshold - 25) continue;            // couleur franche : on garde
+            double k = m >= threshold ? 0 : (threshold - m) / 25.0;     // 0 = transparent, 1 = opaque
+            px[i + 3] = (byte)(px[i + 3] * k);
+        }
     }
 }
 '@
@@ -587,7 +702,7 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
         <Line X1="42.6" Y1="52" X2="77.4" Y2="52" Stroke="#6B7380" StrokeThickness="0.7"/>
 
         <!-- ecran du chrono -->
-        <Border x:Name="SClockBox" Canvas.Left="45" Canvas.Top="55" Width="30" Height="11.5" CornerRadius="1.6" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.8"><TextBlock x:Name="SClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="6.3" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+        <Border x:Name="SClockBox" Canvas.Left="42" Canvas.Top="53.6" Width="36" Height="13.8" CornerRadius="1.6" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.8"><TextBlock x:Name="SClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="7.56" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
 
         <!-- voyant d'etat -->
         <Ellipse x:Name="StatusLed" Canvas.Left="44.7" Canvas.Top="30.3" Width="3" Height="3" Fill="#5FD3FF"/>
@@ -635,7 +750,7 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           <Path Data="M 38,62 Q 60,70 82,62" Stroke="#6E7988" StrokeThickness="0.7"/>
           <Path Data="M 40,50 Q 60,44 80,50" Stroke="#6E7988" StrokeThickness="0.5" Opacity="0.6"/>
           <Path Data="M 37.5,64 Q 60,73 82.5,64 L 81.6,67.5 Q 60,76 38.4,67.5 Z" Fill="{StaticResource OStripe}"/>
-          <Border x:Name="DClockBox" Canvas.Left="48" Canvas.Top="57.4" Width="24" Height="9.2" CornerRadius="1.4" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="DClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="5.04" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+          <Border x:Name="DClockBox" Canvas.Left="45.6" Canvas.Top="56.6" Width="28.8" Height="11.04" CornerRadius="1.4" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="DClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="6.05" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
           <Rectangle Canvas.Left="47" Canvas.Top="69" Width="26" Height="6" RadiusX="1.2" RadiusY="1.2" Fill="#141B24"/>
           <Rectangle x:Name="DBit0" Canvas.Left="70.0" Canvas.Top="70.8" Width="2.6" Height="2.4" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
           <Rectangle x:Name="DBit1" Canvas.Left="65.8" Canvas.Top="70.8" Width="2.6" Height="2.4" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
@@ -670,14 +785,14 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           <Ellipse Canvas.Left="28.40" Canvas.Top="78.40" Width="5.20" Height="5.20" Fill="#4D5766"/>
           <Ellipse Canvas.Left="86.40" Canvas.Top="78.40" Width="5.20" Height="5.20" Fill="#4D5766"/>
           <Path Data="M 40,56 L 80,56 L 77,84 L 43,84 Z" Fill="{StaticResource OMetal}" Stroke="#4A5260" StrokeThickness="1"/>
-          <Path Data="M 45,60 L 75,60 L 73.5,72 L 46.5,72 Z" Fill="#1B2330" Stroke="#3A4556" StrokeThickness="0.7"/>
-          <Rectangle x:Name="RBit0" Canvas.Left="70.0" Canvas.Top="57.3" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
-          <Rectangle x:Name="RBit1" Canvas.Left="65.7" Canvas.Top="57.3" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
-          <Rectangle x:Name="RBit2" Canvas.Left="61.4" Canvas.Top="57.3" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
-          <Rectangle x:Name="RBit3" Canvas.Left="57.1" Canvas.Top="57.3" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
-          <Rectangle x:Name="RBit4" Canvas.Left="52.8" Canvas.Top="57.3" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
-          <Rectangle x:Name="RBit5" Canvas.Left="48.5" Canvas.Top="57.3" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
-          <Border x:Name="RClockBox" Canvas.Left="46.36" Canvas.Top="61.0" Width="27.27" Height="10.45" CornerRadius="1" Background="#00000000" BorderBrush="#5FD3FF" BorderThickness="0"><TextBlock x:Name="RClock" Text="▶ FOCUS" Foreground="#5FD3FF" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="5.73" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+          <Path Data="M 42.5,59.5 L 77.5,59.5 L 76,73.5 L 44,73.5 Z" Fill="#1B2330" Stroke="#3A4556" StrokeThickness="0.7"/>
+          <Rectangle x:Name="RBit0" Canvas.Left="70.0" Canvas.Top="56.6" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="RBit1" Canvas.Left="65.7" Canvas.Top="56.6" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="RBit2" Canvas.Left="61.4" Canvas.Top="56.6" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="RBit3" Canvas.Left="57.1" Canvas.Top="56.6" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="RBit4" Canvas.Left="52.8" Canvas.Top="56.6" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="RBit5" Canvas.Left="48.5" Canvas.Top="56.6" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Border x:Name="RClockBox" Canvas.Left="43.64" Canvas.Top="60.2" Width="32.73" Height="12.55" CornerRadius="1" Background="#00000000" BorderBrush="#5FD3FF" BorderThickness="0"><TextBlock x:Name="RClock" Text="▶ FOCUS" Foreground="#5FD3FF" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="6.87" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
           <Rectangle Canvas.Left="43.5" Canvas.Top="76" Width="33" Height="2.2" Fill="{StaticResource OStripe}"/>
           <Rectangle Canvas.Left="55" Canvas.Top="50" Width="10" Height="7" Fill="{StaticResource ODark}"/>
           <Line X1="55" Y1="52.5" X2="65" Y2="52.5" Stroke="#6E7988" StrokeThickness="0.5"/>
@@ -714,11 +829,8 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           <Ellipse Canvas.Left="42.80" Canvas.Top="65.80" Width="4.40" Height="4.40" Fill="#E8ECF1"/>
           <Path Data="M 79,49 L 86,60 L 95,57" Stroke="#1A2540" StrokeThickness="4.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
           <Ellipse Canvas.Left="93.80" Canvas.Top="54.30" Width="4.40" Height="4.40" Fill="#E8ECF1"/>
-          <Ellipse Canvas.Left="77.50" Canvas.Top="51.50" Width="37.00" Height="5.00" Fill="{StaticResource OTray}" Stroke="#7F8A99" StrokeThickness="0.6"/>
-          <Border x:Name="MClockBox" Canvas.Left="77.6" Canvas.Top="42.05" Width="28.57" Height="10.95" CornerRadius="1.3" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="MClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="6.0" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
-          <Path Data="M 106.6,48.6 L 112.6,48.6 L 111.9,53 L 107.3,53 Z" Fill="White" Stroke="#AEB6C2" StrokeThickness="0.5"/>
-          <Path Data="M 112.5,49.6 Q 114.9,50.4 112.1,52.3" Stroke="#AEB6C2" StrokeThickness="0.7"/>
-          <Path x:Name="MSteam" Data="M 108.5,47.4 Q 107.7,45.4 108.9,43.6 M 110.7,47.4 Q 109.9,45 111.1,43" Stroke="#C9D0D9" StrokeThickness="0.55" Opacity="0.8"/>
+          <Ellipse Canvas.Left="80.50" Canvas.Top="51.50" Width="34.00" Height="5.00" Fill="{StaticResource OTray}" Stroke="#7F8A99" StrokeThickness="0.6"/>
+          <Border x:Name="MClockBox" Canvas.Left="80.4" Canvas.Top="38.86" Width="34.29" Height="13.14" CornerRadius="1.3" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="MClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="7.2" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
           <Path Data="M 41,46 Q 60,42 79,46 L 80,72 L 74,82 L 66,72 L 54,72 L 46,82 L 40,72 Z" Fill="{StaticResource OCoat}" Stroke="#0A0F1A" StrokeThickness="0.8"/>
           <Path Data="M 52.5,45 L 67.5,45 L 60,71 Z" Fill="#F4F6F9" Stroke="#C9D0D9" StrokeThickness="0.5"/>
           <Path Data="M 52.5,45 L 60,71 L 49,56 Z" Fill="#26355A" Stroke="#0A0F1A" StrokeThickness="0.5"/>
@@ -747,6 +859,16 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           <Ellipse Canvas.Left="61.00" Canvas.Top="21.70" Width="8.00" Height="8.00" Stroke="#C9A227" StrokeThickness="0.9"/>
           <Path Data="M 68.6,27.5 Q 72,36 70.5,44" Stroke="#C9A227" StrokeThickness="0.4"/>
           <Path Data="M 60,33 Q 56,32 53.5,34.5 Q 56.5,35.5 60,34.2 Q 63.5,35.5 66.5,34.5 Q 64,32 60,33 Z" Fill="#3A4352"/>
+          <!-- tasse de cafe tenue dans la main gauche (au premier plan) -->
+          <Ellipse Canvas.Left="39.80" Canvas.Top="65.40" Width="8.40" Height="2.00" Fill="{StaticResource OTray}" Stroke="#7F8A99" StrokeThickness="0.4"/><Path Data="M 41.6,61.6 L 46.4,61.6 L 45.9,65.8 L 42.1,65.8 Z" Fill="White" Stroke="#AEB6C2" StrokeThickness="0.5"/>
+          <Path Data="M 46.3,62.4 Q 48.4,63.2 46,65" Stroke="#AEB6C2" StrokeThickness="0.6"/>
+          <Path x:Name="MSteam" Data="M 43,60.6 Q 42.3,58.8 43.3,57.2 M 45,60.6 Q 44.3,58.4 45.3,56.8" Stroke="#C9D0D9" StrokeThickness="0.55" Opacity="0.8"/>
+        </Canvas>
+
+        <!-- ===== Apparence 7 : ton image (fond blanc rendu transparent), chrono en dessous ===== -->
+        <Canvas x:Name="SkinCustom" Visibility="Collapsed">
+          <Image x:Name="CustomImg" Width="120" Height="72" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
+          <Border x:Name="UClockBox" Canvas.Left="42" Canvas.Top="74" Width="36" Height="13.8" CornerRadius="2.5" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="1"><TextBlock x:Name="UClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="7.56" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
         </Canvas>
 
         <!-- ===== Apparence 6 : majordome humain ===== -->
@@ -758,11 +880,8 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           <Ellipse Canvas.Left="42.80" Canvas.Top="65.80" Width="4.40" Height="4.40" Fill="White" Stroke="#D5DAE1" StrokeThickness="0.4"/>
           <Path Data="M 79,49 L 86,60 L 95,57" Stroke="#1A2540" StrokeThickness="4.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
           <Ellipse Canvas.Left="93.80" Canvas.Top="54.30" Width="4.40" Height="4.40" Fill="White" Stroke="#D5DAE1" StrokeThickness="0.4"/>
-          <Ellipse Canvas.Left="77.50" Canvas.Top="51.50" Width="37.00" Height="5.00" Fill="{StaticResource OTray}" Stroke="#7F8A99" StrokeThickness="0.6"/>
-          <Border x:Name="HClockBox" Canvas.Left="78.6" Canvas.Top="42.55" Width="27.27" Height="10.45" CornerRadius="1.3" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="HClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="5.73" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
-          <Path Data="M 106.6,48.6 L 112.6,48.6 L 111.9,53 L 107.3,53 Z" Fill="White" Stroke="#AEB6C2" StrokeThickness="0.5"/>
-          <Path Data="M 112.5,49.6 Q 114.9,50.4 112.1,52.3" Stroke="#AEB6C2" StrokeThickness="0.7"/>
-          <Path x:Name="HSteam" Data="M 108.5,47.4 Q 107.7,45.4 108.9,43.6 M 110.7,47.4 Q 109.9,45 111.1,43" Stroke="#C9D0D9" StrokeThickness="0.55" Opacity="0.8"/>
+          <Ellipse Canvas.Left="80.50" Canvas.Top="51.50" Width="34.00" Height="5.00" Fill="{StaticResource OTray}" Stroke="#7F8A99" StrokeThickness="0.6"/>
+          <Border x:Name="HClockBox" Canvas.Left="81.4" Canvas.Top="39.45" Width="32.73" Height="12.55" CornerRadius="1.3" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="HClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="6.87" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
           <Path Data="M 41,46 Q 60,42 79,46 L 80,72 L 74,82 L 66,72 L 54,72 L 46,82 L 40,72 Z" Fill="{StaticResource OCoat}" Stroke="#0A0F1A" StrokeThickness="0.8"/>
           <Path Data="M 52.5,45 L 67.5,45 L 60,71 Z" Fill="#F4F6F9" Stroke="#C9D0D9" StrokeThickness="0.5"/>
           <Path Data="M 52.5,45 L 60,71 L 49,56 Z" Fill="#26355A" Stroke="#0A0F1A" StrokeThickness="0.5"/>
@@ -797,14 +916,18 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           <Path Data="M 57.2,35.6 Q 60,37 62.8,35.6" Stroke="#A86B57" StrokeThickness="0.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
           <Ellipse Canvas.Left="50.40" Canvas.Top="29.20" Width="4.40" Height="2.60" Fill="#33E58F7A"/>
           <Ellipse Canvas.Left="65.20" Canvas.Top="29.20" Width="4.40" Height="2.60" Fill="#33E58F7A"/>
+          <!-- tasse de cafe tenue dans la main gauche (au premier plan) -->
+          <Ellipse Canvas.Left="39.80" Canvas.Top="65.40" Width="8.40" Height="2.00" Fill="{StaticResource OTray}" Stroke="#7F8A99" StrokeThickness="0.4"/><Path Data="M 41.6,61.6 L 46.4,61.6 L 45.9,65.8 L 42.1,65.8 Z" Fill="White" Stroke="#AEB6C2" StrokeThickness="0.5"/>
+          <Path Data="M 46.3,62.4 Q 48.4,63.2 46,65" Stroke="#AEB6C2" StrokeThickness="0.6"/>
+          <Path x:Name="HSteam" Data="M 43,60.6 Q 42.3,58.8 43.3,57.2 M 45,60.6 Q 44.3,58.4 45.3,56.8" Stroke="#C9D0D9" StrokeThickness="0.55" Opacity="0.8"/>
         </Canvas>
 
         <!-- ===== Apparence 5 : cerveau augmente (plaque chromee, circuits, oeil bionique) ===== -->
         <Canvas x:Name="SkinBrain" Visibility="Collapsed">
           <Canvas.RenderTransform><ScaleTransform CenterX="60" CenterY="88" ScaleX="1.1" ScaleY="1.1"/></Canvas.RenderTransform>
-          <Ellipse Canvas.Left="39.00" Canvas.Top="86.00" Width="42.00" Height="4.80" Fill="#38000000"/>
-          <Rectangle Canvas.Left="38" Canvas.Top="70" Width="44" Height="16" RadiusX="4" RadiusY="4" Fill="{StaticResource OMetalV}" Stroke="#4A5260" StrokeThickness="1"/>
-          <Rectangle x:Name="CRing" Canvas.Left="40" Canvas.Top="84" Width="40" Height="1" RadiusX="0.5" RadiusY="0.5" Fill="#5FD3FF" Opacity="0.85"/>
+          <Ellipse Canvas.Left="39.00" Canvas.Top="87.40" Width="42.00" Height="4.80" Fill="#38000000"/>
+          <Rectangle Canvas.Left="38" Canvas.Top="70" Width="44" Height="17.5" RadiusX="4" RadiusY="4" Fill="{StaticResource OMetalV}" Stroke="#4A5260" StrokeThickness="1"/>
+          <Rectangle x:Name="CRing" Canvas.Left="40" Canvas.Top="86.2" Width="40" Height="0.6" RadiusX="0.5" RadiusY="0.5" Fill="#5FD3FF" Opacity="0.85"/>
           <Rectangle Canvas.Left="57.8" Canvas.Top="66.5" Width="4.4" Height="4.2" Fill="{StaticResource ODark}"/>
           <Path Data="M 63.2,58.5 C 65.6,62 65.4,65.6 63.6,68.8 L 59,68.8 C 60.2,65.4 60.2,62.4 59,59.4 Z" Fill="{StaticResource OBrainDeep}" Stroke="#8E5751" StrokeThickness="0.7"/>
           <Path Data="M 70,58 C 74,55 84,54 89,57 C 92,61 88,67 80,67 C 74,67 70,63 70,58 Z" Fill="{StaticResource OBrainDeep}" Stroke="#8E5751" StrokeThickness="0.8"/>
@@ -822,13 +945,13 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           <Ellipse x:Name="CSpark2" Canvas.Left="65.30" Canvas.Top="23.30" Width="1.40" Height="1.40" Fill="#5FD3FF"/>
           <Ellipse x:Name="CSpark3" Canvas.Left="80.30" Canvas.Top="32.30" Width="1.40" Height="1.40" Fill="#5FD3FF"/>
           <Ellipse x:Name="CSpark4" Canvas.Left="56.30" Canvas.Top="51.30" Width="1.40" Height="1.40" Fill="#5FD3FF"/>
-          <Rectangle x:Name="CBit0" Canvas.Left="66.6" Canvas.Top="81.9" Width="2.2" Height="1.6" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
-          <Rectangle x:Name="CBit1" Canvas.Left="63.7" Canvas.Top="81.9" Width="2.2" Height="1.6" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
-          <Rectangle x:Name="CBit2" Canvas.Left="60.8" Canvas.Top="81.9" Width="2.2" Height="1.6" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
-          <Rectangle x:Name="CBit3" Canvas.Left="57.9" Canvas.Top="81.9" Width="2.2" Height="1.6" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
-          <Rectangle x:Name="CBit4" Canvas.Left="55.0" Canvas.Top="81.9" Width="2.2" Height="1.6" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
-          <Rectangle x:Name="CBit5" Canvas.Left="52.1" Canvas.Top="81.9" Width="2.2" Height="1.6" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
-          <Border x:Name="CClockBox" Canvas.Left="46.36" Canvas.Top="70.8" Width="27.27" Height="10.45" CornerRadius="1.6" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="CClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="5.73" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+          <Rectangle x:Name="CBit0" Canvas.Left="66.6" Canvas.Top="84.1" Width="2.2" Height="1.5" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
+          <Rectangle x:Name="CBit1" Canvas.Left="63.7" Canvas.Top="84.1" Width="2.2" Height="1.5" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
+          <Rectangle x:Name="CBit2" Canvas.Left="60.8" Canvas.Top="84.1" Width="2.2" Height="1.5" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
+          <Rectangle x:Name="CBit3" Canvas.Left="57.9" Canvas.Top="84.1" Width="2.2" Height="1.5" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
+          <Rectangle x:Name="CBit4" Canvas.Left="55.0" Canvas.Top="84.1" Width="2.2" Height="1.5" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
+          <Rectangle x:Name="CBit5" Canvas.Left="52.1" Canvas.Top="84.1" Width="2.2" Height="1.5" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
+          <Border x:Name="CClockBox" Canvas.Left="43.64" Canvas.Top="70.7" Width="32.73" Height="12.55" CornerRadius="1.6" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="CClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="6.87" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
         </Canvas>
       </Canvas>
 
@@ -942,6 +1065,12 @@ function Get-SettingsSnapshot {
         sounds             = $Config.Sounds
         droidSounds        = $Config.DroidSounds
         droidVolume        = $Config.DroidVolume
+        bubbleSound        = $Config.BubbleSound
+        bubbleSoundFile    = $Config.BubbleSoundFile
+        endSound           = $Config.EndSound
+        endSoundFile       = $Config.EndSoundFile
+        customImage        = $Config.CustomImage
+        knockOutWhite      = $Config.KnockOutWhite
         skin               = $O.Skin
         idlePause          = $Config.IdlePause
         idleMinutes        = $Config.IdleMinutes
@@ -967,6 +1096,12 @@ function Apply-SettingsData($d) {
     if (Has 'sounds') { $Config.Sounds = [bool]$d.sounds }
     if (Has 'droidSounds') { $Config.DroidSounds = [bool]$d.droidSounds }
     if (Has 'droidVolume') { $Config.DroidVolume = [math]::Min(100, [math]::Max(0, [int]$d.droidVolume)) }
+    if ($d.bubbleSound) { $Config.BubbleSound = [string]$d.bubbleSound }
+    if (Has 'bubbleSoundFile') { $Config.BubbleSoundFile = [string]$d.bubbleSoundFile }
+    if ($d.endSound) { $Config.EndSound = [string]$d.endSound }
+    if (Has 'endSoundFile') { $Config.EndSoundFile = [string]$d.endSoundFile }
+    if (Has 'customImage') { $Config.CustomImage = [string]$d.customImage }
+    if (Has 'knockOutWhite') { $Config.KnockOutWhite = [bool]$d.knockOutWhite }
     if ($d.skin) { $O.Skin = [string]$d.skin }   # verifie par Set-Skin
     if (Has 'idlePause') { $Config.IdlePause = [bool]$d.idlePause }
     if (Has 'idleMinutes') { $Config.IdleMinutes = [int]$d.idleMinutes }
@@ -1017,12 +1152,60 @@ $Skins = [ordered]@{
     Human     = @{ Label = '🤵 Majordome humain'; Root = 'SkinHuman'; Scale = 1.1; Clock = 'HClock'; Bits = 'HBit'; EyeX = 60; EyeY = 24.4; EyeMax = 0.9
                    Eyes = @(@('HEyeL', 53.95, 23.35), @('HEyeR', 63.95, 23.35), @('HGlintL', 54.25, 23.65), @('HGlintR', 64.25, 23.65))
                    Fill = @('HPocket'); Stroke = @(); Beacons = @(); Glows = @() }
+    Custom    = @{ Label = '🖼️ Mon image'; Root = 'SkinCustom'; Clock = 'UClock'; Bits = $null; EyeX = 60; EyeY = 40; EyeMax = 0
+                   Eyes = @(); Fill = @(); Stroke = @(); Beacons = @(); Glows = @() }
     Brain     = @{ Label = '🧠 Cerveau humain'; Root = 'SkinBrain'; Scale = 1.1; Clock = 'CClock'; Bits = 'CBit'; EyeX = 60; EyeY = 40; EyeMax = 0
                    Eyes = @(); Fill = @('CSpark1', 'CSpark2', 'CSpark3', 'CSpark4', 'CRing'); Stroke = @(); Beacons = @(); Glows = @() }
 }
 
+# Charge l'image personnalisee ; le fond blanc devient transparent si demande
+function Load-CustomImage {
+    $path = $Config.CustomImage
+    if (-not $path -or -not (Test-Path -LiteralPath $path)) { return $false }
+    try {
+        $bmp = New-Object Windows.Media.Imaging.BitmapImage
+        $bmp.BeginInit()
+        $bmp.UriSource = New-Object Uri ((Resolve-Path -LiteralPath $path).ProviderPath)
+        $bmp.DecodePixelWidth = 360      # largement assez pour la taille d'Orbit, et rapide
+        $bmp.CacheOption = 'OnLoad'
+        $bmp.EndInit()
+        $src = $bmp
+        if ($Config.KnockOutWhite -and $Native) {
+            $conv = New-Object Windows.Media.Imaging.FormatConvertedBitmap($bmp, [Windows.Media.PixelFormats]::Bgra32, $null, 0)
+            $w = $conv.PixelWidth; $h = $conv.PixelHeight; $stride = $w * 4
+            $px = New-Object byte[] ($stride * $h)
+            $conv.CopyPixels($px, $stride, 0)
+            [OrbitNative]::KnockOutWhite($px, 240)
+            $src = [Windows.Media.Imaging.BitmapSource]::Create($w, $h, 96, 96, [Windows.Media.PixelFormats]::Bgra32, $null, $px, $stride)
+        }
+        $ui.CustomImg.Source = $src
+        return $true
+    } catch { Write-Log "Image : $($_.Exception.Message)"; return $false }
+}
+
+# Choix d'une image : elle est copiee dans le dossier d'Orbit pour rester disponible
+function Choose-CustomImage {
+    $dlg = New-Object Microsoft.Win32.OpenFileDialog
+    $dlg.Title = 'Choisis une image pour Orbit'
+    $dlg.Filter = 'Images (*.png;*.jpg;*.jpeg;*.bmp;*.gif)|*.png;*.jpg;*.jpeg;*.bmp;*.gif'
+    if (-not $dlg.ShowDialog()) { return $false }
+    try {
+        Get-ChildItem -Path $DataDir -Filter 'mon-image.*' -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+        $dest = Join-Path $DataDir ('mon-image' + [IO.Path]::GetExtension($dlg.FileName).ToLowerInvariant())
+        Copy-Item -LiteralPath $dlg.FileName -Destination $dest -Force
+        $Config.CustomImage = $dest
+        return (Load-CustomImage)
+    } catch { Write-Log "Copie image : $($_.Exception.Message)"; return $false }
+}
+
 function Set-Skin([string]$name, [switch]$Quiet) {
     if (-not $Skins.Contains($name)) { $name = 'Satellite' }
+    if ($name -eq 'Custom' -and -not (Load-CustomImage)) {
+        if ($Quiet -or -not (Choose-CustomImage)) {
+            if (-not $Quiet) { Show-Bubble "Pas d'image choisie, je garde mon apparence actuelle." -Force -Seconds 4 }
+            if ($O.Skin -eq 'Custom') { $name = 'Satellite' } else { return }
+        }
+    }
     foreach ($k in $Skins.Keys) { $ui[$Skins[$k].Root].Visibility = if ($k -eq $name) { 'Visible' } else { 'Collapsed' } }
     $O.Skin = $name
     if ($O.Mood) { Set-Mood $O.Mood }
@@ -1034,6 +1217,7 @@ function Set-Skin([string]$name, [switch]$Quiet) {
             'Butler'    { "Votre majordome est à votre service. Un café avec votre focus ? ☕🎩" }
             'Brain'     { "Cerveau en place. Rappel : il se muscle par séries de focus 🧠" }
             'Human'     { "Bonjour. Votre majordome est à votre service : un café, l'heure, et votre liste de tâches ☕🤵" }
+            'Custom'    { "Nouveau look ! J'adore 😎" }
         }
         Show-Bubble $hello -Force -Seconds 4
     }
@@ -1288,35 +1472,64 @@ function Stop-Cycle {
 $script:Chirps = @{ Talk = @(); Ask = @() }
 $script:ChirpPlayer = $null
 $script:LastChirp = [datetime]::MinValue
-# la banque est refaite quand on change le volume dans les reglages
+$SoundStyles = @{ Droide = 0; Carillon = 1; Marimba = 2; Pop = 3; Bip = 4 }
+
+# la banque de sons est refaite quand on change de style ou de volume dans les reglages
 function Build-Chirps {
+    $script:ChirpKey = "$($Config.BubbleSound)|$($Config.DroidVolume)"
+    $script:Chirps.Talk = @(); $script:Chirps.Ask = @(); $script:EndWav = $null
     if (-not $Native) { return }
     $vol = 0.55 * $Config.DroidVolume / 100
+    $style = if ($SoundStyles.ContainsKey($Config.BubbleSound)) { $SoundStyles[$Config.BubbleSound] } else { 0 }
     try {
-        $script:Chirps.Talk = @(1..10 | ForEach-Object { , [OrbitNative]::DroidChirp((Get-Random), $vol, $false) })
-        $script:Chirps.Ask = @(1..6 | ForEach-Object { , [OrbitNative]::DroidChirp((Get-Random), $vol, $true) })
-        $script:ChirpVolume = $Config.DroidVolume
-    } catch { Write-Log "Bips : $($_.Exception.Message)" }
+        $script:Chirps.Talk = @(1..8 | ForEach-Object { , [OrbitNative]::Synth($style, (Get-Random), $vol, $false) })
+        $script:Chirps.Ask = @(1..5 | ForEach-Object { , [OrbitNative]::Synth($style, (Get-Random), $vol, $true) })
+        $script:EndWav = [OrbitNative]::Synth(10, 1, [math]::Min(0.9, $vol * 1.3), $false)
+    } catch { Write-Log "Sons : $($_.Exception.Message)" }
 }
 Build-Chirps
 
-function Play-Chirp([switch]$Question) {
-    if (-not $Config.DroidSounds -or $Config.DroidVolume -le 0) { return }
-    if ($script:ChirpVolume -ne $Config.DroidVolume) { Build-Chirps }
-    $bank = if ($Question) { $script:Chirps.Ask } else { $script:Chirps.Talk }
-    if (-not $bank.Count) { return }
-    # pas plus d'un bip toutes les 1,5 seconde
-    if (((Get-Date) - $script:LastChirp).TotalSeconds -lt 1.5) { return }
-    $script:LastChirp = Get-Date
+# joue un fichier WAV choisi par l'utilisateur (renvoie $false s'il est introuvable ou illisible)
+function Play-WavFile([string]$path) {
+    if (-not $path -or -not (Test-Path -LiteralPath $path)) { return $false }
     try {
-        $wav = $bank[(Get-Random -Maximum $bank.Count)]
-        $script:ChirpPlayer = New-Object System.Media.SoundPlayer (New-Object IO.MemoryStream (, $wav))
-        $script:ChirpPlayer.Play()   # asynchrone : n'interrompt pas l'animation
-    } catch { Write-Log "Bip : $($_.Exception.Message)" }
+        $script:ChirpPlayer = New-Object System.Media.SoundPlayer $path
+        $script:ChirpPlayer.Play()
+        return $true
+    } catch { Write-Log "Son $path : $($_.Exception.Message)"; return $false }
 }
 
-function Play-Sound {
-    if ($Config.Sounds) { try { [System.Media.SystemSounds]::Asterisk.Play() } catch {} }
+function Play-Bytes([byte[]]$wav) {
+    if (-not $wav) { return }
+    try {
+        $script:ChirpPlayer = New-Object System.Media.SoundPlayer (New-Object IO.MemoryStream (, $wav))
+        $script:ChirpPlayer.Play()   # asynchrone : n'interrompt pas l'animation
+    } catch { Write-Log "Son : $($_.Exception.Message)" }
+}
+
+# son des bulles
+function Play-Chirp([switch]$Question, [switch]$Force) {
+    if (-not $Config.DroidSounds -or $Config.DroidVolume -le 0) { return }
+    # pas plus d'un son toutes les 1,5 seconde
+    if (-not $Force -and ((Get-Date) - $script:LastChirp).TotalSeconds -lt 1.5) { return }
+    $script:LastChirp = Get-Date
+    if ($Config.BubbleSound -eq 'Fichier') { [void](Play-WavFile $Config.BubbleSoundFile); return }
+    if ($script:ChirpKey -ne "$($Config.BubbleSound)|$($Config.DroidVolume)") { Build-Chirps }
+    $bank = if ($Question) { $script:Chirps.Ask } else { $script:Chirps.Talk }
+    if ($bank.Count) { Play-Bytes $bank[(Get-Random -Maximum $bank.Count)] }
+}
+
+# son de fin de session et des rappels
+function Play-Sound([switch]$Force) {
+    if (-not $Config.Sounds -and -not $Force) { return }
+    switch ($Config.EndSound) {
+        'Fichier' { if (Play-WavFile $Config.EndSoundFile) { return } }
+        'Carillon' {
+            if ($script:ChirpKey -ne "$($Config.BubbleSound)|$($Config.DroidVolume)") { Build-Chirps }
+            if ($script:EndWav) { Play-Bytes $script:EndWav; return }
+        }
+    }
+    try { [System.Media.SystemSounds]::Asterisk.Play() } catch {}
 }
 
 # ---------------------------------------------------------------------------
@@ -1439,8 +1652,7 @@ function Update-Pill {
             $left = if ($O.Paused) { $O.Remaining } else { $O.EndsAt - (Get-Date) }
             if ($left -lt [timespan]::Zero) { $left = [timespan]::Zero }
             $t = '{0:00}:{1:00}' -f [math]::Floor($left.TotalMinutes), $left.Seconds
-            # compte a rebours facon controle de mission pendant le focus
-            $prefix = if ($O.Paused) { '⏸' } elseif ($O.State -eq 'Break') { '☕' } else { 'T-' }
+            $prefix = if ($O.Paused) { '⏸' } elseif ($O.State -eq 'Break') { '☕' } else { '' }
             $prefix + $t
         }
     }
@@ -1580,6 +1792,7 @@ function Ensure-Visible {
 
 $script:BitOff = New-Object Windows.Media.SolidColorBrush((New-Color '#2A3442'))
 function Update-Bits([double]$t) {
+    if (-not $Skins[$O.Skin].Bits) { return }
     $on = $O.AccentBrush
     if (-not $on) { return }
     $mask = 0; $blink = 1.0
@@ -1884,6 +2097,8 @@ foreach ($k in $Skins.Keys) {
     $skinItems[$k] = $it
     [void]$miSkin.Items.Add($it)
 }
+[void]$miSkin.Items.Add((New-Object Windows.Controls.Separator))
+[void]$miSkin.Items.Add((New-MenuItem "🖼️  Choisir une autre image…" { if (Choose-CustomImage) { Set-Skin 'Custom'; Save-Settings } }))
 
 foreach ($i in @($miTodo, $miClip, (New-Object Windows.Controls.Separator),
                  $miFocus, $miBreak, $miPause, $miStop, $miRhythm, $miTasks, (New-Object Windows.Controls.Separator),
