@@ -41,8 +41,8 @@ $Config = @{
     Sounds              = $true
     DroidSounds         = $true  # petits bips de droide a chaque bulle
     DroidVolume         = 40     # volume des sons, de 0 a 100
-    BubbleSound         = 'Droide'   # Droide | Carillon | Marimba | Pop | Bip | Fichier
-    BubbleSoundFile     = ''
+    BubbleSound         = 'Droide'   # Droide | Carillon | Marimba | Pop | Bip | Fichier | Aleatoire
+    BubbleSoundFiles    = @()        # mes sons (.wav), joues au hasard
     EndSound            = 'Carillon' # Carillon | Windows | Fichier  (fin de session et rappels)
     EndSoundFile        = ''
     CustomImage         = ''         # apparence "Mon image"
@@ -1053,7 +1053,7 @@ function Get-SettingsSnapshot {
         droidSounds        = $Config.DroidSounds
         droidVolume        = $Config.DroidVolume
         bubbleSound        = $Config.BubbleSound
-        bubbleSoundFile    = $Config.BubbleSoundFile
+        bubbleSoundFiles   = @($Config.BubbleSoundFiles)
         endSound           = $Config.EndSound
         endSoundFile       = $Config.EndSoundFile
         customImage        = $Config.CustomImage
@@ -1083,7 +1083,8 @@ function Apply-SettingsData($d) {
     if (Has 'droidSounds') { $Config.DroidSounds = [bool]$d.droidSounds }
     if (Has 'droidVolume') { $Config.DroidVolume = [math]::Min(100, [math]::Max(0, [int]$d.droidVolume)) }
     if ($d.bubbleSound) { $Config.BubbleSound = [string]$d.bubbleSound }
-    if (Has 'bubbleSoundFile') { $Config.BubbleSoundFile = [string]$d.bubbleSoundFile }
+    if (Has 'bubbleSoundFiles') { $Config.BubbleSoundFiles = @($d.bubbleSoundFiles | Where-Object { $_ } | ForEach-Object { [string]$_ }) }
+    elseif ($d.bubbleSoundFile) { $Config.BubbleSoundFiles = @([string]$d.bubbleSoundFile) }   # ancienne version : un seul fichier
     if ($d.endSound) { $Config.EndSound = [string]$d.endSound }
     if (Has 'endSoundFile') { $Config.EndSoundFile = [string]$d.endSoundFile }
     if (Has 'customImage') { $Config.CustomImage = [string]$d.customImage }
@@ -1453,15 +1454,34 @@ $SoundStyles = @{ Droide = 0; Carillon = 1; Marimba = 2; Pop = 3; Bip = 4 }
 # la banque de sons est refaite quand on change de style ou de volume dans les reglages
 function Build-Chirps {
     $script:ChirpKey = "$($Config.BubbleSound)|$($Config.DroidVolume)"
-    $script:Chirps.Talk = @(); $script:Chirps.Ask = @(); $script:EndWav = $null
+    $script:StyleBanks = @{}; $script:EndWav = $null
     if (-not $Native) { return }
-    $vol = 0.55 * $Config.DroidVolume / 100
-    $style = if ($SoundStyles.ContainsKey($Config.BubbleSound)) { $SoundStyles[$Config.BubbleSound] } else { 0 }
-    try {
-        $script:Chirps.Talk = @(1..8 | ForEach-Object { , [OrbitNative]::Synth($style, (Get-Random), $vol, $false) })
-        $script:Chirps.Ask = @(1..5 | ForEach-Object { , [OrbitNative]::Synth($style, (Get-Random), $vol, $true) })
-        $script:EndWav = [OrbitNative]::Synth(10, 1, [math]::Min(0.9, $vol * 1.3), $false)
-    } catch { Write-Log "Sons : $($_.Exception.Message)" }
+    try { $script:EndWav = [OrbitNative]::Synth(10, 1, [math]::Min(0.9, 0.55 * $Config.DroidVolume / 100 * 1.3), $false) }
+    catch { Write-Log "Sons : $($_.Exception.Message)" }
+}
+
+# banque de sons d'un style, fabriquee a la premiere utilisation
+function Get-StyleBank([int]$style) {
+    if (-not $script:StyleBanks.ContainsKey($style)) {
+        $vol = 0.55 * $Config.DroidVolume / 100
+        try {
+            $script:StyleBanks[$style] = @{
+                Talk = @(1..6 | ForEach-Object { , [OrbitNative]::Synth($style, (Get-Random), $vol, $false) })
+                Ask  = @(1..4 | ForEach-Object { , [OrbitNative]::Synth($style, (Get-Random), $vol, $true) })
+            }
+        } catch { Write-Log "Sons : $($_.Exception.Message)"; $script:StyleBanks[$style] = @{ Talk = @(); Ask = @() } }
+    }
+    return $script:StyleBanks[$style]
+}
+
+function Get-MySounds { @($Config.BubbleSoundFiles | Where-Object { $_ -and (Test-Path -LiteralPath $_) }) }
+
+# tire au hasard un element different du precedent quand c'est possible
+function Pick-NotLast([object[]]$items) {
+    if ($items.Count -le 1) { return $items[0] }
+    do { $it = $items[(Get-Random -Maximum $items.Count)] } while ("$it" -eq "$($script:LastSoundPick)")
+    $script:LastSoundPick = $it
+    return $it
 }
 Build-Chirps
 
@@ -1489,10 +1509,23 @@ function Play-Chirp([switch]$Question, [switch]$Force) {
     # pas plus d'un son toutes les 1,5 seconde
     if (-not $Force -and ((Get-Date) - $script:LastChirp).TotalSeconds -lt 1.5) { return }
     $script:LastChirp = Get-Date
-    if ($Config.BubbleSound -eq 'Fichier') { [void](Play-WavFile $Config.BubbleSoundFile); return }
     if ($script:ChirpKey -ne "$($Config.BubbleSound)|$($Config.DroidVolume)") { Build-Chirps }
-    $bank = if ($Question) { $script:Chirps.Ask } else { $script:Chirps.Talk }
-    if ($bank.Count) { Play-Bytes $bank[(Get-Random -Maximum $bank.Count)] }
+    $mine = Get-MySounds
+    $choice = switch ($Config.BubbleSound) {
+        'Fichier'   { if ($mine.Count) { Pick-NotLast $mine } }
+        # aleatoire : un des 5 sons integres ou un de mes fichiers, au hasard
+        'Aleatoire' { Pick-NotLast (@('Droide', 'Carillon', 'Marimba', 'Pop', 'Bip') + $mine) }
+        default     { $Config.BubbleSound }
+    }
+    if (-not $choice) { return }
+    if ($SoundStyles.ContainsKey([string]$choice)) {
+        if (-not $Native) { return }
+        $bank = Get-StyleBank $SoundStyles[[string]$choice]
+        $list = if ($Question) { $bank.Ask } else { $bank.Talk }
+        if ($list.Count) { Play-Bytes $list[(Get-Random -Maximum $list.Count)] }
+    } else {
+        [void](Play-WavFile $choice)
+    }
 }
 
 # son de fin de session et des rappels

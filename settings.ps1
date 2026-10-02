@@ -135,12 +135,21 @@
               <ComboBoxItem Content="🪵 Marimba" Tag="Marimba"/>
               <ComboBoxItem Content="🫧 Pop" Tag="Pop"/>
               <ComboBoxItem Content="📟 Bip" Tag="Bip"/>
-              <ComboBoxItem Content="📁 Mon fichier WAV" Tag="Fichier"/>
+              <ComboBoxItem Content="📁 Mes sons (au hasard)" Tag="Fichier"/>
+              <ComboBoxItem Content="🎲 Aléatoire (tous les sons)" Tag="Aleatoire"/>
             </ComboBox>
-            <Button x:Name="SBubbleFile" Content="Choisir…" Padding="8,2" Margin="6,0,0,0" Background="#EEEEF5" BorderThickness="0" Cursor="Hand"/>
             <Button x:Name="SBubbleTest" Content="▶" Padding="8,2" Margin="6,0,0,0" Background="#EEEEF5" BorderThickness="0" Cursor="Hand" ToolTip="Écouter"/>
           </StackPanel>
-          <TextBlock x:Name="SBubbleFileName" Margin="22,2,0,0" Foreground="#6B6880" FontSize="11.5"/>
+          <TextBlock Margin="22,6,0,2" Text="Mes sons (.wav) — un est choisi au hasard à chaque bulle :" Foreground="#4A4766" FontSize="12"/>
+          <Grid Margin="22,0,0,0">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <ListBox x:Name="SMySounds" Height="72" SelectionMode="Extended" FontSize="12"/>
+            <StackPanel Grid.Column="1" Margin="6,0,0,0">
+              <Button x:Name="SSoundAdd" Content="＋ Ajouter…" Padding="8,2" Margin="0,0,0,4" Background="#EEEEF5" BorderThickness="0" Cursor="Hand"/>
+              <Button x:Name="SSoundDel" Content="－ Retirer" Padding="8,2" Margin="0,0,0,4" Background="#EEEEF5" BorderThickness="0" Cursor="Hand"/>
+              <Button x:Name="SSoundPlay" Content="▶ Écouter" Padding="8,2" Background="#EEEEF5" BorderThickness="0" Cursor="Hand" ToolTip="Écouter le son sélectionné"/>
+            </StackPanel>
+          </Grid>
 
           <CheckBox x:Name="SSounds" Margin="0,8,0,3" Content="Un son à la fin des sessions et pour les rappels"/>
           <StackPanel Orientation="Horizontal" Margin="22,3,0,0">
@@ -172,7 +181,7 @@ $settingsWin = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeR
 $sw = @{}
 foreach ($n in 'SHeader','SClose','SDefaults','SCancel','SSave','SError','SR50','SR25','SRPerso','SPersoFocus','SPersoBreak',
                'SIdle','SIdleMin','STasks','SNudge','SJokes','SJokeMin','SMotiv','SApps','SQuiet','SWander','SWanderMin',
-               'SWanderMax','SSounds','SDroid','SDroidVol','SAuto','SBubbleSound','SBubbleFile','SBubbleTest','SBubbleFileName',
+               'SWanderMax','SSounds','SDroid','SDroidVol','SAuto','SBubbleSound','SBubbleTest','SMySounds','SSoundAdd','SSoundDel','SSoundPlay',
                'SEndSound','SEndFile','SEndTest','SEndFileName','SSkinCustom','SImgPick','SImgName','SSkinSatellite','SSkinDroid','SSkinRobot','SSkinButler','SSkinBrain','SSkinHuman') {
     $sw[$n] = $settingsWin.FindName($n)
 }
@@ -207,7 +216,8 @@ function Fill-SettingsForm($d) {
     $sw.SDroid.IsChecked = $d.droidSounds
     $sw.SDroidVol.Value = [math]::Max(5, [double]$d.droidVolume)
     foreach ($k in 'Satellite', 'Droid', 'Robot', 'Butler', 'Human', 'Brain', 'Custom') { $sw["SSkin$k"].IsChecked = ($d.skin -eq $k) }
-    $SF.BubbleFile = [string]$d.bubbleSoundFile
+    $SF.BubbleFiles = New-Object System.Collections.ArrayList
+    foreach ($f in @($d.bubbleSoundFiles)) { if ($f) { [void]$SF.BubbleFiles.Add([string]$f) } }
     $SF.EndFile = [string]$d.endSoundFile
     Select-ComboTag $sw.SBubbleSound $d.bubbleSound
     Select-ComboTag $sw.SEndSound $d.endSound
@@ -260,7 +270,7 @@ function Save-SettingsForm {
         wander = [bool]$sw.SWander.IsChecked; wanderMin = [int]$wmin; wanderMax = [int]$wmax
         sounds = [bool]$sw.SSounds.IsChecked; droidSounds = [bool]$sw.SDroid.IsChecked
         droidVolume = [int]$sw.SDroidVol.Value
-        bubbleSound = [string]$sw.SBubbleSound.SelectedItem.Tag; bubbleSoundFile = $SF.BubbleFile
+        bubbleSound = [string]$sw.SBubbleSound.SelectedItem.Tag; bubbleSoundFiles = @($SF.BubbleFiles)
         endSound = [string]$sw.SEndSound.SelectedItem.Tag; endSoundFile = $SF.EndFile
     })
     Apply-Rhythm
@@ -306,7 +316,8 @@ $sw.SCancel.Add_Click({ $settingsWin.Hide() })
 $sw.SDefaults.Add_Click({ Invoke-Safe { Fill-SettingsForm $DefaultSettings } })
 $sw.SSave.Add_Click({ Invoke-Safe { Save-SettingsForm } })
 # choix des fichiers en attente d'enregistrement
-$SF = @{ BubbleFile = ''; EndFile = '' }
+$SF = @{ BubbleFiles = (New-Object System.Collections.ArrayList); EndFile = '' }
+$SoundsDir = Join-Path $DataDir 'sons'
 
 function Select-ComboTag($combo, [string]$tag) {
     foreach ($it in $combo.Items) { if ($it.Tag -eq $tag) { $combo.SelectedItem = $it; return } }
@@ -314,25 +325,59 @@ function Select-ComboTag($combo, [string]$tag) {
 }
 
 function Update-FileLabels {
-    $sw.SBubbleFileName.Text = if ($SF.BubbleFile) { '📁 ' + [IO.Path]::GetFileName($SF.BubbleFile) } else { '' }
+    $sw.SMySounds.Items.Clear()
+    foreach ($f in $SF.BubbleFiles) {
+        $it = New-Object Windows.Controls.ListBoxItem
+        $it.Content = '🎵 ' + [IO.Path]::GetFileNameWithoutExtension($f) + $(if (Test-Path -LiteralPath $f) { '' } else { '  (introuvable)' })
+        $it.Tag = $f
+        [void]$sw.SMySounds.Items.Add($it)
+    }
+    if (-not $SF.BubbleFiles.Count) { [void]$sw.SMySounds.Items.Add('Aucun son pour l''instant : clique sur « Ajouter… »') }
     $sw.SEndFileName.Text = if ($SF.EndFile) { '📁 ' + [IO.Path]::GetFileName($SF.EndFile) } else { '' }
     $sw.SImgName.Text = if ($Config.CustomImage) { [IO.Path]::GetFileName($Config.CustomImage) } else { 'aucune image pour l''instant' }
 }
 
-function Pick-WavFile {
+function Pick-WavFile([switch]$Multi) {
     $dlg = New-Object Microsoft.Win32.OpenFileDialog
-    $dlg.Title = 'Choisis un son (fichier .wav)'
+    $dlg.Title = if ($Multi) { 'Choisis un ou plusieurs sons (.wav)' } else { 'Choisis un son (fichier .wav)' }
     $dlg.Filter = 'Sons WAV (*.wav)|*.wav'
-    if ($dlg.ShowDialog()) { return $dlg.FileName }
+    $dlg.Multiselect = [bool]$Multi
+    if ($dlg.ShowDialog()) { if ($Multi) { return , $dlg.FileNames } else { return $dlg.FileName } }
     return $null
+}
+
+# ajoute des sons : copies dans le dossier d'Orbit pour rester disponibles
+function Add-MySounds {
+    $files = Pick-WavFile -Multi
+    if (-not $files) { return }
+    if (-not (Test-Path $SoundsDir)) { New-Item -ItemType Directory -Path $SoundsDir | Out-Null }
+    foreach ($f in $files) {
+        try {
+            $name = [IO.Path]::GetFileName($f)
+            $dest = Join-Path $SoundsDir $name
+            $i = 2
+            while ((Test-Path -LiteralPath $dest) -and ((Get-Item -LiteralPath $dest).Length -ne (Get-Item -LiteralPath $f).Length)) {
+                $dest = Join-Path $SoundsDir ("{0} ({1}){2}" -f [IO.Path]::GetFileNameWithoutExtension($f), $i, [IO.Path]::GetExtension($f)); $i++
+            }
+            if ($f -ne $dest) { Copy-Item -LiteralPath $f -Destination $dest -Force }
+            if ($SF.BubbleFiles -notcontains $dest) { [void]$SF.BubbleFiles.Add($dest) }
+        } catch { Write-Log "Ajout son : $($_.Exception.Message)" }
+    }
+    if ([string]$sw.SBubbleSound.SelectedItem.Tag -notin 'Fichier', 'Aleatoire') { Select-ComboTag $sw.SBubbleSound 'Fichier' }
+    Update-FileLabels
+}
+
+function Remove-MySounds {
+    foreach ($it in @($sw.SMySounds.SelectedItems)) { if ($it.Tag) { $SF.BubbleFiles.Remove([string]$it.Tag) } }
+    Update-FileLabels
 }
 
 # ecoute d'un son avec les choix de la fenetre, sans enregistrer
 function Test-SoundChoice([switch]$End) {
     $keep = @{}
-    foreach ($k in 'DroidVolume', 'DroidSounds', 'Sounds', 'BubbleSound', 'BubbleSoundFile', 'EndSound', 'EndSoundFile') { $keep[$k] = $Config[$k] }
+    foreach ($k in 'DroidVolume', 'DroidSounds', 'Sounds', 'BubbleSound', 'BubbleSoundFiles', 'EndSound', 'EndSoundFile') { $keep[$k] = $Config[$k] }
     $Config.DroidVolume = [int]$sw.SDroidVol.Value; $Config.DroidSounds = $true; $Config.Sounds = $true
-    $Config.BubbleSound = [string]$sw.SBubbleSound.SelectedItem.Tag; $Config.BubbleSoundFile = $SF.BubbleFile
+    $Config.BubbleSound = [string]$sw.SBubbleSound.SelectedItem.Tag; $Config.BubbleSoundFiles = @($SF.BubbleFiles)
     $Config.EndSound = [string]$sw.SEndSound.SelectedItem.Tag; $Config.EndSoundFile = $SF.EndFile
     if ($End) { Play-Sound -Force } else { Play-Chirp -Force -Question:((Get-Random -Maximum 2) -eq 1) }
     foreach ($k in $keep.Keys) { $Config[$k] = $keep[$k] }
@@ -340,7 +385,15 @@ function Test-SoundChoice([switch]$End) {
 
 $sw.SBubbleTest.Add_Click({ Invoke-Safe { Test-SoundChoice } })
 $sw.SEndTest.Add_Click({ Invoke-Safe { Test-SoundChoice -End } })
-$sw.SBubbleFile.Add_Click({ Invoke-Safe { $f = Pick-WavFile; if ($f) { $SF.BubbleFile = $f; Select-ComboTag $sw.SBubbleSound 'Fichier'; Update-FileLabels } } })
+$sw.SSoundAdd.Add_Click({ Invoke-Safe { Add-MySounds } })
+$sw.SSoundDel.Add_Click({ Invoke-Safe { Remove-MySounds } })
+$sw.SSoundPlay.Add_Click({
+    Invoke-Safe {
+        $it = $sw.SMySounds.SelectedItem
+        $f = if ($it -and $it.Tag) { [string]$it.Tag } elseif ($SF.BubbleFiles.Count) { $SF.BubbleFiles[0] } else { $null }
+        if ($f -and -not (Play-WavFile $f)) { [Windows.MessageBox]::Show($settingsWin, "Impossible de lire ce fichier. Vérifie que c'est bien un .wav.", 'Orbit') | Out-Null }
+    }
+})
 $sw.SEndFile.Add_Click({ Invoke-Safe { $f = Pick-WavFile; if ($f) { $SF.EndFile = $f; Select-ComboTag $sw.SEndSound 'Fichier'; Update-FileLabels } } })
 $sw.SImgPick.Add_Click({
     Invoke-Safe {
