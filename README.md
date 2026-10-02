@@ -23,8 +23,8 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   - 🦾 **Robot assistant** : un buste de robot avec une visière à deux yeux et un petit terminal sur la poitrine qui affiche son état (`> focus_`, `> pause_`…) ;
   - 🎩 **Majordome robot** : un robot en queue-de-pie, avec nœud papillon, monocle, moustache, serviette sur le bras et plateau avec un café fumant, entouré d'un anneau holographique qui tourne ;
   - 🤵 **Majordome humain** : un gentleman aux cheveux gris, moustache, queue-de-pie et gants blancs, plateau avec café et chrono ; ses yeux te suivent ;
-  - 🧠 **Cerveau holographique** : un cerveau de verre sombre vu de profil, aux circonvolutions lumineuses et neurones qui scintillent, avec une puce implantée (LED binaires, antenne), posé sur un module flottant.
-  Dans tous les cas, les yeux suivent ta souris, les couleurs suivent le moment (focus, pause, attente) et les LED affichent les minutes restantes en binaire (sur le majordome, ce sont les boutons de sa chemise).
+  - 🧠 **Cerveau humain** : un cerveau dessiné comme une planche d'anatomie (lobes, scissure latérale, sillon central, circonvolutions serrées, cervelet, tronc cérébral), posé sur un socle de présentation qui affiche le chrono et les LED ; de petites étincelles d'activité neuronale s'allument de temps en temps.
+  Les yeux (quand le dessin en a) suivent ta souris, les couleurs suivent le moment (focus, pause, attente) et les LED affichent les minutes restantes en binaire (sur le majordome, ce sont les boutons de sa chemise).
 - **Il reste au-dessus** de toutes les applications, sans te voler le focus. Le chrono est intégré au dessin : sur un petit écran (panneau du satellite, sphère du droïde, terminal du robot, plateau des majordomes, socle du cerveau).
 - **Cycle Pomodoro avec confirmation**, en 50/10, en 25/5 ou avec ton propre rythme (dans les réglages) :
   1. 🚀 focus (50 ou 25 min), puis **il s'arrête et attend** que tu cliques sur « Je prends ma pause » (ou « On arrête là ») ;
@@ -63,7 +63,7 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   - pause automatique en cas d'absence, et au bout de combien de minutes ;
   - rappels de tâches, et fréquence des relances quand Orbit attend ta réponse ;
   - blagues de pause (oui/non et fréquence), phrases de motivation, commentaires sur les applis, mode silencieux ;
-  - apparence (satellite, droïde, robot, majordome robot ou humain, cerveau) ;
+  - apparence (satellite, droïde, robot, majordome robot ou humain, cerveau humain) ;
   - balades (oui/non et fréquence), sons, bips de droïde, lancement au démarrage de Windows.
 
 ## Commandes
