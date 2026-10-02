@@ -42,6 +42,8 @@ $NB = @{
     BackupDay  = ''
     FocusCards = New-Object System.Collections.ArrayList   # cartes liees au focus en cours / au prochain
     LastAddedId = ''
+    MdPending  = $false
+    ClipPending = $false
     LoadNotice = ''
     RenderedBoard = ''
 }
@@ -465,12 +467,24 @@ function Restore-Kanban([string]$path) {
     Show-Bubble "Tableaux restaurés ↩️ ($label)" -Force -Seconds 4
 }
 
-# Sauvegarde a chaque modification (kanban.json + une copie lisible todo.md)
+# Sauvegarde a chaque modification dans kanban.json. La copie lisible todo.md
+# est regeneree au plus tard 10 s apres (et a la fermeture d'Orbit).
 function Save-Todos {
     Backup-Kanban
     try {
         $data = [ordered]@{ current = $NB.BoardId; boards = @($NB.Boards); cards = @($NB.Todos); focus = @($NB.FocusCards) }
         Write-FileSafe $KanbanFile (ConvertTo-Json -InputObject $data -Depth 6)
+    } catch { Write-Log "Ecriture tableaux : $($_.Exception.Message)" }
+    if ($NB.MdTimer) {
+        $NB.MdPending = $true
+        if (-not $NB.MdTimer.IsEnabled) { $NB.MdTimer.Start() }
+    } else { Write-TodoMd }
+}
+
+function Write-TodoMd {
+    $NB.MdPending = $false
+    if ($NB.MdTimer) { $NB.MdTimer.Stop() }
+    try {
         $lines = @("# Tableaux Orbit", "", "_Mis à jour le $((Get-Date).ToString('dd/MM/yyyy HH:mm'))_")
         foreach ($b in $NB.Boards) {
             $lines += ''; $lines += "## $($b.name)"
@@ -488,7 +502,7 @@ function Save-Todos {
             }
         }
         Write-FileSafe $TodoMd ($lines -join "`r`n")
-    } catch { Write-Log "Ecriture tableaux : $($_.Exception.Message)" }
+    } catch { Write-Log "Ecriture todo.md : $($_.Exception.Message)" }
 }
 
 # Deplace une carte dans une colonne (eventuellement d'un autre tableau), a la position voulue
@@ -787,14 +801,34 @@ function Toggle-Fav($c) {
     Render-Clips
 }
 
-function Save-Clips {
+# L'historique peut peser plus d'1 Mo : au lieu de le reecrire a chaque Ctrl+C,
+# on l'enregistre au plus tard 2,5 s apres (et tout de suite a la fermeture). -Now : immediatement.
+function Save-Clips([switch]$Now) {
+    if (-not $Now -and $NB.ClipSaveTimer) {
+        $NB.ClipPending = $true
+        if (-not $NB.ClipSaveTimer.IsEnabled) { $NB.ClipSaveTimer.Start() }
+        return
+    }
+    $NB.ClipPending = $false
+    if ($NB.ClipSaveTimer) { $NB.ClipSaveTimer.Stop() }
     try { Write-FileSafe (Get-ClipFile) (ConvertTo-JsonArray $NB.Clips) }
     catch { Write-Log "Ecriture presse-papiers : $($_.Exception.Message)" }
 }
 
+# Tout ce qui attend encore d'etre ecrit (appele a la fermeture d'Orbit)
+function Flush-Notebook {
+    if ($NB.ClipPending) { Save-Clips -Now }
+    if ($NB.MdPending) { Write-TodoMd }
+}
+
 function Add-Clip([string]$kind, [string]$text, [string[]]$files) {
     $today = (Get-Date).ToString('yyyy-MM-dd')
-    if ($today -ne $NB.ClipDay) { $NB.ClipDay = $today; Load-Clips }
+    if ($today -ne $NB.ClipDay) {
+        # nouveau jour : l'historique d'hier est jete, inutile de finir de l'ecrire
+        $NB.ClipPending = $false
+        if ($NB.ClipSaveTimer) { $NB.ClipSaveTimer.Stop() }
+        $NB.ClipDay = $today; Load-Clips
+    }
 
     if ($text.Length -gt $NB.MaxClipLen) { $text = $text.Substring(0, $NB.MaxClipLen) + ' […]' }
     # deja dans l'historique : on le remonte en haut
@@ -1456,6 +1490,13 @@ function Remove-BoardColumn([string]$colId) {
 # ---------------------------------------------------------------------------
 #  Modification d'une tache (titre + description), enregistree en continu
 # ---------------------------------------------------------------------------
+$NB.MdTimer = New-Object Windows.Threading.DispatcherTimer
+$NB.MdTimer.Interval = [timespan]::FromSeconds(10)
+$NB.MdTimer.Add_Tick({ $NB.MdTimer.Stop(); Invoke-Safe { if ($NB.MdPending) { Write-TodoMd } } })
+$NB.ClipSaveTimer = New-Object Windows.Threading.DispatcherTimer
+$NB.ClipSaveTimer.Interval = [timespan]::FromMilliseconds(2500)
+$NB.ClipSaveTimer.Add_Tick({ $NB.ClipSaveTimer.Stop(); Invoke-Safe { if ($NB.ClipPending) { Save-Clips -Now } } })
+
 $NB.SaveTimer = New-Object Windows.Threading.DispatcherTimer
 $NB.SaveTimer.Interval = [timespan]::FromMilliseconds(700)
 $NB.SaveTimer.Add_Tick({ $NB.SaveTimer.Stop(); Invoke-Safe { Save-Todos } })
@@ -1806,7 +1847,7 @@ $pn.ClipPause.Add_Click({
 $pn.ClipClear.Add_Click({
     Invoke-Safe {
         $r = [Windows.MessageBox]::Show($panel, "Effacer tout l'historique des copier-coller d'aujourd'hui ?`n(Les favoris ⭐ sont conservés.)", 'Orbit', 'YesNo', 'Question')
-        if ($r -eq 'Yes') { $NB.Clips.Clear(); $NB.LastClip = ''; Save-Clips; Render-Clips }
+        if ($r -eq 'Yes') { $NB.Clips.Clear(); $NB.LastClip = ''; Save-Clips -Now; Render-Clips }
     }
 })
 

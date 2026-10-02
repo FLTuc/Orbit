@@ -1,0 +1,33 @@
+name: Tests Windows
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Syntaxe et encodage (PowerShell 5.1)
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\parse.ps1
+
+      - name: Logique (tableaux, focus, sauvegardes, reprise)
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\logic.ps1
+
+      - name: Chargement complet d'Orbit (1er lancement)
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -STA -File tests\selftest.ps1 -Fresh
+
+      - name: 2e lancement (code natif deja en cache)
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -STA -File tests\selftest.ps1
+
+      - name: Blagues
+        shell: cmd
+        run: python tools\check_jokes.py

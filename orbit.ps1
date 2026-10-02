@@ -11,7 +11,8 @@
 param(
     [double]$FocusMinutes = 50,
     [double]$BreakMinutes = 10,
-    [switch]$Demo
+    [switch]$Demo,
+    [switch]$Restarted     # relance automatique apres un plantage
 )
 
 # Durees imposees en ligne de commande (ou mode demo) : elles priment sur le rythme choisi dans le menu
@@ -62,10 +63,18 @@ $DataDir = Join-Path $env:APPDATA 'Orbit'
 $StatsFile = Join-Path $DataDir 'stats.json'
 $SettingsFile = Join-Path $DataDir 'settings.json'
 $LogFile = Join-Path $DataDir 'orbit.log'
+$StateFile = Join-Path $DataDir 'etat.json'
 if (-not (Test-Path $DataDir)) { New-Item -ItemType Directory -Path $DataDir | Out-Null }
 
+# Journal : au-dela de 1 Mo, il est renomme en orbit.old.log et on repart de zero
 function Write-Log([string]$msg) {
-    try { Add-Content -Path $LogFile -Value ("{0:yyyy-MM-dd HH:mm:ss}  {1}" -f (Get-Date), $msg) -Encoding UTF8 } catch {}
+    try {
+        $fi = New-Object IO.FileInfo($LogFile)
+        if ($fi.Exists -and $fi.Length -gt 1MB) {
+            Move-Item -LiteralPath $LogFile -Destination (Join-Path $DataDir 'orbit.old.log') -Force
+        }
+        Add-Content -Path $LogFile -Value ("{0:yyyy-MM-dd HH:mm:ss}  {1}" -f (Get-Date), $msg) -Encoding UTF8
+    } catch {}
 }
 
 # Ecriture "atomique" : on ecrit un fichier a cote puis on l'echange d'un coup avec
@@ -117,6 +126,14 @@ public static class OrbitNative {
     [StructLayout(LayoutKind.Sequential)]
     struct LASTINPUTINFO { public uint cbSize; public uint dwTime; }
     [DllImport("user32.dll")] static extern bool GetLastInputInfo(ref LASTINPUTINFO info);
+
+    [DllImport("kernel32.dll")] static extern IntPtr GetCurrentProcess();
+    [DllImport("kernel32.dll")] static extern bool SetProcessWorkingSetSize(IntPtr proc, IntPtr min, IntPtr max);
+
+    // Rend a Windows la memoire dont Orbit ne se sert pas en ce moment
+    public static void TrimMemory() {
+        SetProcessWorkingSetSize(GetCurrentProcess(), (IntPtr)(-1), (IntPtr)(-1));
+    }
 
     // Temps ecoule depuis la derniere action clavier / souris, en millisecondes
     public static uint IdleMs() {
@@ -347,7 +364,7 @@ function Import-NativeCode {
 try {
     Import-NativeCode
     $Native = $true
-    [OrbitNative]::HideConsole()
+    if (-not $env:ORBIT_SELFTEST) { [OrbitNative]::HideConsole() }
 } catch {
     Write-Log "Fonctions natives indisponibles : $($_.Exception.Message)"
 }
@@ -994,12 +1011,57 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
 </Window>
 '@
 
-$window = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xaml))
-$ui = @{}
-# tous les elements nommes (x:Name) du dessin, accessibles par $ui.Nom
 $nsm = New-Object Xml.XmlNamespaceManager($xaml.NameTable)
 $nsm.AddNamespace('x', 'http://schemas.microsoft.com/winfx/2006/xaml')
+$nsm.AddNamespace('w', 'http://schemas.microsoft.com/winfx/2006/xaml/presentation')
+
+# Les 7 dessins ne sont pas tous construits : on les retire du XAML et on ne
+# fabrique que celui qui est affiche (voir Ensure-Skin). Demarrage plus rapide,
+# et quelques centaines d'elements graphiques en moins en memoire.
+$SkinXml = @{}
+$SkinResources = $xaml.SelectSingleNode("//w:Canvas[@x:Name='Bot']/w:Canvas.Resources", $nsm)
+foreach ($node in @($xaml.SelectNodes("//w:Canvas[@x:Name='Bobber']/w:Canvas[starts-with(@x:Name,'Skin')]", $nsm))) {
+    $SkinXml[$node.GetAttribute('Name', 'http://schemas.microsoft.com/winfx/2006/xaml').Substring(4)] = $node
+    [void]$node.ParentNode.RemoveChild($node)
+}
+$LoadedSkins = @{}    # nom du dessin -> @{ Host = <Canvas>; Names = @(...) }
+
+$window = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xaml))
+$ui = @{}
+# tous les elements nommes (x:Name) de la fenetre, accessibles par $ui.Nom
 foreach ($node in $xaml.SelectNodes('//@x:Name', $nsm)) { $ui[$node.Value] = $window.FindName($node.Value) }
+
+# Construit un dessin s'il ne l'est pas encore, et range ses elements dans $ui
+function Ensure-Skin([string]$name) {
+    if ($LoadedSkins.ContainsKey($name)) { return }
+    $src = $SkinXml[$name]
+    if (-not $src) { throw "Dessin inconnu : $name" }
+    $doc = New-Object Xml.XmlDocument
+    $root = $doc.CreateElement('Canvas', 'http://schemas.microsoft.com/winfx/2006/xaml/presentation')
+    [void]$root.SetAttribute('xmlns:x', 'http://schemas.microsoft.com/winfx/2006/xaml')
+    [void]$doc.AppendChild($root)
+    if ($SkinResources) { [void]$root.AppendChild($doc.ImportNode($SkinResources, $true)) }
+    [void]$root.AppendChild($doc.ImportNode($src, $true))
+    $holder = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $doc))
+    $names = @()
+    foreach ($node in $src.SelectNodes('descendant-or-self::*/@x:Name', $nsm)) {
+        $ui[$node.Value] = $holder.FindName($node.Value)
+        $names += $node.Value
+    }
+    [void]$ui.Bobber.Children.Add($holder)
+    $LoadedSkins[$name] = @{ Host = $holder; Names = $names }
+    if ($name -eq 'Butler') { Start-HudSpin }
+}
+
+# Libere les dessins qui ne sont plus affiches
+function Remove-OtherSkins([string]$keep) {
+    foreach ($k in @($LoadedSkins.Keys)) {
+        if ($k -eq $keep) { continue }
+        $ui.Bobber.Children.Remove($LoadedSkins[$k].Host)
+        foreach ($n in $LoadedSkins[$k].Names) { $ui.Remove($n) }
+        $LoadedSkins.Remove($k)
+    }
+}
 
 # ---------------------------------------------------------------------------
 #  Etat
@@ -1029,6 +1091,8 @@ $O = @{
     LastFrame    = [datetime]::Now
     LastCursor   = $null
     CursorMovedAt = [datetime]::Now
+    NextTrim     = [datetime]::Now.AddSeconds(45)
+    TrimCount    = 0
     Busy         = $false
     LastPid      = 0
     LastTitle    = ''
@@ -1197,6 +1261,7 @@ $Skins = [ordered]@{
 function Load-CustomImage {
     $path = $Config.CustomImage
     if (-not $path -or -not (Test-Path -LiteralPath $path)) { return $false }
+    Ensure-Skin 'Custom'
     try {
         $bmp = New-Object Windows.Media.Imaging.BitmapImage
         $bmp.BeginInit()
@@ -1232,9 +1297,12 @@ function Set-Skin([string]$name, [switch]$Quiet) {
             if ($O.Skin -eq 'Custom') { $name = 'Satellite' } else { return }
         }
     }
-    foreach ($k in $Skins.Keys) { $ui[$Skins[$k].Root].Visibility = if ($k -eq $name) { 'Visible' } else { 'Collapsed' } }
+    Ensure-Skin $name
+    $ui[$Skins[$name].Root].Visibility = 'Visible'
     $O.Skin = $name
+    Remove-OtherSkins $name
     if ($O.Mood) { Set-Mood $O.Mood }
+    Update-Pill
     if (-not $Quiet) {
         $hello = switch ($name) {
             'Satellite' { "Retour en orbite 🛰️" }
@@ -1756,7 +1824,8 @@ function Update-Pill {
             $prefix + $t
         }
     }
-    foreach ($k in $Skins.Keys) { $ui[$Skins[$k].Clock].Text = $txt }
+    $clock = $ui[$Skins[$O.Skin].Clock]
+    if ($clock) { $clock.Text = $txt }
     if ($script:tray) {
         $tip = "Orbit - $txt - $($O.FocusToday) focus aujourd'hui"
         if ($tip.Length -gt 63) { $tip = $tip.Substring(0, 63) }
@@ -2075,13 +2144,99 @@ function Start-Floating {
     $bob.AutoReverse = $true; $bob.RepeatBehavior = $loop; $bob.EasingFunction = $ease
     $tilt = New-Object Windows.Media.Animation.DoubleAnimation(-3, 3, [timespan]::FromSeconds(4.5))
     $tilt.AutoReverse = $true; $tilt.RepeatBehavior = $loop; $tilt.EasingFunction = $ease
-    $hud = New-Object Windows.Media.Animation.DoubleAnimation(0, 360, [timespan]::FromSeconds(25.7))
-    $hud.RepeatBehavior = $loop
     # ~30 images/s suffisent largement pour des mouvements aussi doux
-    foreach ($a in $bob, $tilt, $hud) { [Windows.Media.Animation.Timeline]::SetDesiredFrameRate($a, 30) }
+    foreach ($a in $bob, $tilt) { [Windows.Media.Animation.Timeline]::SetDesiredFrameRate($a, 30) }
     $ui.Bob.BeginAnimation([Windows.Media.TranslateTransform]::YProperty, $bob)
     $ui.Tilt.BeginAnimation([Windows.Media.RotateTransform]::AngleProperty, $tilt)
+}
+
+# l'anneau holographique du majordome (lance quand ce dessin est construit)
+function Start-HudSpin {
+    if (-not $ui.MHud) { return }
+    $hud = New-Object Windows.Media.Animation.DoubleAnimation(0, 360, [timespan]::FromSeconds(25.7))
+    $hud.RepeatBehavior = [Windows.Media.Animation.RepeatBehavior]::Forever
+    [Windows.Media.Animation.Timeline]::SetDesiredFrameRate($hud, 30)
     $ui.MHud.BeginAnimation([Windows.Media.RotateTransform]::AngleProperty, $hud)
+}
+
+# ---------------------------------------------------------------------------
+#  Etat du cycle (etat.json) : enregistre a chaque changement, pour qu'apres un
+#  plantage ou un redemarrage force Orbit reprenne le chrono la ou il en etait.
+#  Une fermeture normale (Quitter) l'efface ; au-dela de 4 h, il est ignore.
+# ---------------------------------------------------------------------------
+function Get-StateMood {
+    switch -Wildcard ($O.State) { 'Focus' { 'Focus' } 'Break' { 'Break' } 'Await*' { 'Await' } default { 'Idle' } }
+}
+
+function Save-State {
+    try {
+        if ($O.State -eq 'Idle') { Remove-Item -LiteralPath $StateFile -Force -ErrorAction SilentlyContinue; return }
+        $data = [ordered]@{
+            state = $O.State; paused = [bool]$O.Paused; endsAt = $O.EndsAt.ToString('o')
+            remainingSec = [math]::Round($O.Remaining.TotalSeconds); sessionMin = $O.SessionMin
+            savedAt = (Get-Date).ToString('o')
+        }
+        Write-FileSafe $StateFile (ConvertTo-Json -InputObject $data)
+    } catch { Write-Log "Ecriture etat : $($_.Exception.Message)" }
+}
+
+# Renvoie la phrase a afficher si un cycle a ete repris, sinon rien
+function Restore-State {
+    if (-not (Test-Path -LiteralPath $StateFile)) { return $null }
+    try {
+        $d = ConvertFrom-Json ([IO.File]::ReadAllText($StateFile))
+        $saved = if ($d.savedAt -is [datetime]) { $d.savedAt } else { [datetime]::Parse([string]$d.savedAt, $null, 'RoundtripKind') }
+        if (((Get-Date) - $saved.ToLocalTime()).TotalHours -gt 4) { return $null }
+        $state = [string]$d.state
+        if ($state -notin 'Focus', 'Break', 'AwaitBreak', 'AwaitFocus') { return $null }
+        $O.State = $state
+        $O.SessionMin = [double]$d.sessionMin
+        $O.Paused = [bool]$d.paused
+        $O.Remaining = [timespan]::FromSeconds([double]$d.remainingSec)
+        $O.EndsAt = if ($d.endsAt -is [datetime]) { $d.endsAt.ToLocalTime() } else { [datetime]::Parse([string]$d.endsAt, $null, 'RoundtripKind').ToLocalTime() }
+        $O.NextReminder = (Get-Date).AddMinutes($Config.ReminderEveryMin)
+        Write-Log "Cycle repris : $state"
+        $intro = if ($Restarted) { "Oups, j'ai eu un petit bug, mais je suis de retour 🛠️" } else { "Je reprends là où on en était 🔄" }
+        switch ($state) {
+            'Focus' {
+                $O.NextMotivation = (Get-Date).AddMinutes($Config.MotivationEveryMin)
+                $left = if ($O.Paused) { $O.Remaining } else { $O.EndsAt - (Get-Date) }
+                if ($left.TotalSeconds -le 0) { return "$intro Ton focus s'est terminé entre-temps." }
+                return "$intro Encore $([math]::Ceiling($left.TotalMinutes)) min de focus$(if ($O.Paused) { ' (en pause ⏸)' }). 🎯"
+            }
+            'Break' {
+                $O.NextJoke = (Get-Date).AddSeconds(40)
+                $left = if ($O.Paused) { $O.Remaining } else { $O.EndsAt - (Get-Date) }
+                if ($left.TotalSeconds -le 0) { return "$intro Ta pause s'est terminée entre-temps." }
+                return "$intro Encore $([math]::Ceiling($left.TotalMinutes)) min de pause ☕"
+            }
+            default { return $null }   # Orbit repose sa question (Show-Status)
+        }
+    } catch { Write-Log "Lecture etat : $($_.Exception.Message)" }
+    return $null
+}
+
+# ---------------------------------------------------------------------------
+#  Menage memoire : quand tu ne touches a rien depuis une minute (ou qu'Orbit
+#  est cache), on libere ce qui ne sert plus et on rend la memoire a Windows.
+#  45 s apres le demarrage, puis toutes les 10 minutes au plus.
+# ---------------------------------------------------------------------------
+function Trim-Memory {
+    $idle = if ($Native) { [OrbitNative]::IdleMs() } else { 120000 }
+    if ($idle -lt 60000 -and $window.IsVisible -and $O.TrimCount -gt 0) {
+        $O.NextTrim = (Get-Date).AddMinutes(1)      # tu es actif : on reessaie plus tard
+        return
+    }
+    $proc = [Diagnostics.Process]::GetCurrentProcess()
+    $before = $proc.WorkingSet64
+    [GC]::Collect(); [GC]::WaitForPendingFinalizers(); [GC]::Collect()
+    if ($Native) { [OrbitNative]::TrimMemory() }
+    $O.TrimCount++
+    $O.NextTrim = (Get-Date).AddMinutes(10)
+    if ($O.TrimCount -eq 1 -or $O.TrimCount % 12 -eq 0) {
+        $proc.Refresh()
+        Write-Log ("Memoire : {0:N0} Mo -> {1:N0} Mo" -f ($before / 1MB), ($proc.WorkingSet64 / 1MB))
+    }
 }
 
 # ---------------------------------------------------------------------------
@@ -2129,6 +2284,9 @@ function On-Second {
     }
 
     if ($script:slowCount % 2 -eq 0) { Check-Idle }
+    if ($now -ge $O.NextTrim) { Trim-Memory }
+    $sig = "$($O.State)|$($O.Paused)|$($O.EndsAt.Ticks)|$($O.SessionMin)"
+    if ($sig -ne $script:StateSig) { $script:StateSig = $sig; Save-State }
     if ($script:slowCount % 10 -eq 0) { Check-TaskReminders }
     if ($Native -or $script:slowCount % 2 -eq 0) { Check-Clipboard }
     if ($script:slowCount % 2 -eq 0 -and $window.Visibility -eq 'Visible') { Check-App }
@@ -2190,6 +2348,9 @@ function Hide-Orbit {
 function Quit-Orbit {
     Save-Stats
     if ($NB.EditId) { End-EditTodo -NoRender } else { Save-Todos }
+    Flush-Notebook
+    # fermeture voulue : au prochain lancement, on repart de zero
+    Remove-Item -LiteralPath $StateFile -Force -ErrorAction SilentlyContinue
     $NB.Quitting = $true
     $script:frameTimer.Stop()
     $script:secondTimer.Stop()
@@ -2351,10 +2512,10 @@ $window.Add_SourceInitialized({
 $window.Add_Loaded({
     Invoke-Safe {
         Set-Skin $O.Skin -Quiet
-        Set-Mood 'Idle'
+        Set-Mood (Get-StateMood)
         Start-Floating
         Update-Pill
-        Show-Status
+        if ($script:ResumeNote) { Show-Bubble $script:ResumeNote -Force -Seconds 8 } else { Show-Status }
         if ($NB.LoadNotice) { Show-Bubble $NB.LoadNotice -Force -Seconds 10; $NB.LoadNotice = '' }
     }
 })
@@ -2378,18 +2539,48 @@ $script:secondTimer.Add_Tick({ Invoke-Safe { On-Second } })
 $window.Left = -10000
 $window.Top = -10000
 Set-Skin $O.Skin -Quiet
-Set-Mood 'Idle'
+$script:ResumeNote = Restore-State
+Set-Mood (Get-StateMood)
+
+# Une erreur imprevue dans un evenement ne doit pas faire tomber Orbit : on la note et on continue
+$script:CrashCount = 0
+$script:Crashed = $false
 
 $app = New-Object Windows.Application
 $app.ShutdownMode = 'OnExplicitShutdown'
+$app.Add_DispatcherUnhandledException({
+    param($s, $e)
+    $script:CrashCount++
+    Write-Log "Erreur imprevue ($($script:CrashCount)) : $($e.Exception.Message)"
+    # au-dela de 50 erreurs, quelque chose est vraiment casse : on laisse tomber (et on se relance)
+    $e.Handled = $script:CrashCount -le 50
+})
 $script:frameTimer.Start()
 $script:secondTimer.Start()
 Write-Log "Orbit demarre (focus $($Config.FocusMinutes) min, pause $($Config.BreakMinutes) min, natif=$Native)"
+if ($env:ORBIT_SELFTEST) { return }    # tests automatiques : tout est charge, on ne lance pas la boucle
 try {
     [void]$app.Run($window)
 } catch {
+    $script:Crashed = $true
     Write-Log "Arret inattendu : $($_.Exception.Message)"
+    try { Save-State; Save-Stats; Save-Todos; Flush-Notebook } catch {}
 } finally {
     if ($script:tray) { $script:tray.Visible = $false; $script:tray.Dispose() }
     $mutex.ReleaseMutex()
+}
+
+# Plantage : Orbit se relance tout seul (une fois toutes les 10 minutes au plus,
+# pour ne pas boucler si le probleme revient a chaque demarrage)
+if ($script:Crashed) {
+    $stamp = Join-Path $DataDir 'derniere-relance.txt'
+    $last = if (Test-Path -LiteralPath $stamp) { (Get-Item -LiteralPath $stamp).LastWriteTime } else { [datetime]::MinValue }
+    if (((Get-Date) - $last).TotalMinutes -ge 10) {
+        Set-Content -LiteralPath $stamp -Value (Get-Date -Format s)
+        Write-Log "Relance automatique"
+        Start-Process -FilePath 'powershell.exe' -WindowStyle Hidden -ArgumentList @(
+            '-NoProfile', '-ExecutionPolicy', 'Bypass', '-STA', '-WindowStyle', 'Hidden', '-File', "`"$OrbitScript`"", '-Restarted')
+    } else {
+        Write-Log "Pas de relance : deja relance il y a moins de 10 minutes"
+    }
 }
