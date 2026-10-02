@@ -1038,6 +1038,8 @@ function Ensure-Skin([string]$name) {
     if (-not $src) { throw "Dessin inconnu : $name" }
     $doc = New-Object Xml.XmlDocument
     $root = $doc.CreateElement('Canvas', 'http://schemas.microsoft.com/winfx/2006/xaml/presentation')
+    # declarations explicites : WPF s'en sert pour comprendre Canvas.Left, x:Name...
+    [void]$root.SetAttribute('xmlns', 'http://schemas.microsoft.com/winfx/2006/xaml/presentation')
     [void]$root.SetAttribute('xmlns:x', 'http://schemas.microsoft.com/winfx/2006/xaml')
     [void]$doc.AppendChild($root)
     if ($SkinResources) { [void]$root.AppendChild($doc.ImportNode($SkinResources, $true)) }
