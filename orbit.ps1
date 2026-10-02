@@ -1739,7 +1739,7 @@ function Get-AwaitBreakButtons {
 function Ask-Break([string]$Text, [switch]$NoTaskInfo) {
     if (-not $Text) { $Text = (Pick $Lines.FocusEnd) -f (Format-Min $O.SessionMin) }
     # bilan des cartes du focus
-    $cards = if ($NoTaskInfo) { @() } else { @(Get-FocusCards -Open) }
+    $cards = @(if (-not $NoTaskInfo) { Get-FocusCards -Open })
     if ($cards.Count -eq 1) {
         $t = $cards[0]
         $Text += "`n`n🎯 Et « $(Short-Text $t.text) », c'est bouclé ?"
@@ -1750,7 +1750,7 @@ function Ask-Break([string]$Text, [switch]$NoTaskInfo) {
         if ($cards.Count -gt 4) { $Text += "`n   … et $($cards.Count - 4) autre(s)" }
         $Text += "`nDes cartes finies ?"
     } elseif ($O.TaskReminders -and -not $NoTaskInfo) {
-        $open = Get-OpenTodos
+        $open = @(Get-OpenTodos)
         if ($open.Count) { $Text += "`n`n📝 Il te reste $($open.Count) tâche(s), dont « $(Short-Text $open[0].text 45) »." }
     }
     $btns = if ($NoTaskInfo) { @($BtnBreak, $BtnStop) } else { Get-AwaitBreakButtons }
@@ -1767,7 +1767,7 @@ function Complete-FocusTask {
 }
 
 function Complete-FocusMessage([int]$n) {
-    $left = (Get-OpenTodos).Count
+    $left = @(Get-OpenTodos).Count
     $msg = if ($n -gt 1) { "Bravo, $n cartes cochées ✅" } elseif ($n -eq 1) { "Bravo, c'est coché ✅" } else { "Pas de souci, elles restent liées au prochain focus 🎯" }
     if ($n -gt 0) {
         if ($left -eq 0) { $msg += " Et toutes tes cartes sont terminées, quelle journée ! 🎉" } else { $msg += " Plus que $left tâche(s)." }

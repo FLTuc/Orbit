@@ -228,7 +228,7 @@ function Set-CardFocus([string]$id, [bool]$on) {
     }
     Save-Todos
     Render-Todos -Cols $t.col
-    $n = (Get-FocusCards -Open).Count
+    $n = @(Get-FocusCards -Open).Count
     $when = if ($O.State -eq 'Focus') { 'ce focus' } else { 'ton prochain focus' }
     if ($on) { Show-Bubble "🎯 « $(Short-Text $t.text 40) » est liée à $when ($n carte(s) en tout)." -Force -Seconds 4 }
     else { Show-Bubble "Ok, « $(Short-Text $t.text 40) » n'est plus liée au focus." -Force -Seconds 3 }
@@ -251,6 +251,7 @@ function Add-FocusToCards([int]$minutes) {
 
 # Fenetre a cases a cocher : renvoie les id choisis, ou $null si on annule
 function Show-CardPicker([string]$title, [string]$intro, $cards, [string[]]$checked, [string]$okLabel, [switch]$AllowNew) {
+    $cards = @($cards)
     $w = New-Object Windows.Window
     $w.Title = $title; $w.Width = 440; $w.SizeToContent = 'Height'; $w.ResizeMode = 'NoResize'
     $w.WindowStartupLocation = 'CenterScreen'; $w.Topmost = $true; $w.ShowInTaskbar = $false
@@ -323,7 +324,7 @@ function Sort-CardsByBoard($cards) {
 
 # Choisir les cartes du focus. -Start : lance le focus juste apres
 function Choose-FocusCards([switch]$Start) {
-    $open = Sort-CardsByBoard (Get-OpenTodos)
+    $open = @(Sort-CardsByBoard (Get-OpenTodos))
     $intro = if ($O.State -eq 'Focus') { "Sur quelles cartes tu travailles pendant ce focus ? (plusieurs possibles)" }
              else { "Sur quelles cartes tu vas travailler ? (plusieurs possibles ; elles restent liées d'un focus à l'autre tant qu'elles ne sont pas finies)" }
     $ok = if ($Start) { '🚀 Lancer le focus' } else { '🎯 Valider' }
@@ -340,7 +341,7 @@ function Choose-FocusCards([switch]$Start) {
 
 # Fin de focus avec plusieurs cartes : lesquelles sont finies ?
 function Choose-DoneFocusCards {
-    $cards = Sort-CardsByBoard (Get-FocusCards -Open)
+    $cards = @(Sort-CardsByBoard (Get-FocusCards -Open))
     $ids = Show-CardPicker '✅ Cartes terminées' "Coche les cartes que tu as finies. Les autres restent liées au prochain focus." $cards @() '✅ Valider'
     if ($null -eq $ids) { Ask-Break; return }
     foreach ($id in $ids) { Set-TodoDone $id $true -Quiet }
@@ -413,7 +414,7 @@ function Get-BackupLabel($f) {
 
 function Show-BackupMenu($btn) {
     $m = New-Object Windows.Controls.ContextMenu
-    $files = Get-BackupFiles
+    $files = @(Get-BackupFiles)
     if (-not $files.Count) {
         $it = New-Object Windows.Controls.MenuItem
         $it.Header = "Pas encore de sauvegarde (une copie est faite chaque jour)"; $it.IsEnabled = $false
@@ -565,7 +566,7 @@ function Add-Todo([string]$text, $prio = $DefaultPrio, [string]$colId = '') {
         doneAt  = $(if ($col.done) { (Get-Date).ToString('s') } else { '' })
         board   = $board.id
         col     = $colId
-        order   = (Get-ColumnCards $colId).Count
+        order   = @(Get-ColumnCards $colId).Count
         pomos   = 0
         focusMin = 0
         lastFocus = ''
@@ -610,7 +611,7 @@ function Remove-Todo([string]$id) {
 # Archive les cartes terminees du tableau affiche (ou d'une seule colonne)
 function Clear-DoneTodos([string]$colId = '') {
     $board = Get-CurrentBoard
-    $done = if ($colId) { @(Get-ColumnCards $colId) } else { @($NB.Todos | Where-Object { $_.done -and $_.board -eq $board.id }) }
+    $done = @(if ($colId) { Get-ColumnCards $colId } else { $NB.Todos | Where-Object { $_.done -and $_.board -eq $board.id } })
     if (-not $done.Count) { return }
     $md = "`r`n## $((Get-Date).ToString('yyyy-MM-dd')) — $($board.name)`r`n" + (($done | ForEach-Object { "- [x] $($_.text)" }) -join "`r`n")
     Add-Content -Path $TodoArchive -Value $md -Encoding UTF8
@@ -627,7 +628,7 @@ function Get-SortedTodos {
     return @($open + $done)
 }
 function Get-OpenTodos { @(Get-SortedTodos | Where-Object { -not $_.done }) }
-function Get-NextTodo { $open = Get-OpenTodos; if ($open.Count) { return $open[0] } }
+function Get-NextTodo { $open = @(Get-OpenTodos); if ($open.Count) { return $open[0] } }
 
 function Get-PrioColor([int]$p) {
     if ($p -le 3) { return '#E03131' }      # urgent
@@ -685,7 +686,7 @@ function Set-TodoReminder([string]$id, $when) {
 # Resume des echeances pour la bulle d'accueil
 function Get-DeadlineSummary {
     $today = (Get-Date).ToString('yyyy-MM-dd')
-    $open = Get-OpenTodos
+    $open = @(Get-OpenTodos)
     $late = @($open | Where-Object { $_.due -and $_.due -lt $today })
     $now = @($open | Where-Object { $_.due -eq $today })
     if (-not $late.Count -and -not $now.Count) { return '' }
@@ -1092,7 +1093,7 @@ function Update-KanbanFooter($board) {
 }
 
 function New-KanbanColumn($board, $col) {
-    $cards = Get-ColumnCards $col.id
+    $cards = @(Get-ColumnCards $col.id)
     $box = New-Object Windows.Controls.Border
     $box.Width = $KanbanColW; $box.Margin = '0,0,10,0'; $box.Padding = '8'; $box.CornerRadius = '12'
     $bg = if ($col.done) { '#E8F6EE' } else { '#EEF0F6' }
@@ -1363,7 +1364,7 @@ function Show-ColumnMenu($button) {
     [void]$m.Items.Add($d)
     [void]$m.Items.Add((New-Object Windows.Controls.Separator))
     $a = New-TaggedItem '🧹  Archiver les cartes de la colonne' $col.id { param($s, $e) Invoke-Safe { Clear-DoneTodos $s.Tag } }
-    $a.IsEnabled = (Get-ColumnCards $col.id).Count -gt 0
+    $a.IsEnabled = @(Get-ColumnCards $col.id).Count -gt 0
     [void]$m.Items.Add($a)
     $x = New-TaggedItem '🗑️  Supprimer la colonne' $col.id { param($s, $e) Invoke-Safe { Remove-BoardColumn $s.Tag } }
     $x.IsEnabled = $board.columns.Count -gt 1
@@ -1475,14 +1476,14 @@ function Remove-BoardColumn([string]$colId) {
     $b = Get-CurrentBoard
     if ($b.columns.Count -le 1) { return }
     $c = Get-Column $b $colId
-    $cards = Get-ColumnCards $colId
+    $cards = @(Get-ColumnCards $colId)
     $other = $null
     foreach ($o in $b.columns) { if ($o.id -ne $colId) { $other = $o; break } }
     $msg = "Supprimer la colonne « $($c.name) » ?"
     if ($cards.Count) { $msg += "`nSes $($cards.Count) carte(s) iront dans « $($other.name) »." }
     if (-not (Confirm-Action $msg)) { return }
     $b.columns.Remove($c)
-    $n = (Get-ColumnCards $other.id).Count
+    $n = @(Get-ColumnCards $other.id).Count
     foreach ($t in $cards) { $t.col = $other.id; $t.order = $n++; $t.done = [bool]$other.done }
     Save-Todos; Render-Todos; Fit-Notebook
 }

@@ -88,6 +88,23 @@ Check 'choisir des cartes + en creer une' (@(Get-FocusCards).Count -eq 2 -and (T
 Load-Todos
 Check 'les liens survivent a la relecture' (@(Get-FocusCards).Count -eq 2)
 
+Section 'Une seule carte (piege de PowerShell 5.1 : une liste d''un element perd son .Count)'
+$solo = New-BoardObject 'Solo'; [void]$NB.Boards.Add($solo); $NB.BoardId = $solo.id
+$saved = @($NB.Todos); $NB.Todos.Clear()
+Add-Todo 'Unique'
+Check 'la carte suivante est trouvee' ((Get-NextTodo).text -eq 'Unique')
+Add-Todo 'Deuxieme'
+Check 'ordre de la 2e carte = 1' ((Card 'Deuxieme').order -eq 1)
+Move-Card (Card 'Unique').id (Get-DoneColumn $solo).id
+Clear-DoneTodos
+Check 'archiver une seule carte finie' (-not (Card 'Unique'))
+$NB.FocusCards.Clear(); Set-CardFocus (Card 'Deuxieme').id $true
+Check 'compte des cartes liees = 1' ($script:Bubble.Text -match '\(1 carte')
+$O.State = 'AwaitBreak'; Ask-Break
+Check 'une carte liee : bouton C''est fait' ($script:Bubble.Buttons -contains "✅ C'est fait !")
+$NB.Todos.Clear(); foreach ($x in $saved) { [void]$NB.Todos.Add($x) }; $NB.FocusCards.Clear(); $NB.BoardId = $NB.Boards[0].id
+Save-Todos
+
 Section 'Sauvegardes quotidiennes'
 $NB.BackupDay = ''; Save-Todos
 $today = Join-Path $BackupDir "kanban-$((Get-Date).ToString('yyyy-MM-dd')).json"
