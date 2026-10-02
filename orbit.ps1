@@ -19,6 +19,7 @@ $CustomDurations = $Demo -or $PSBoundParameters.ContainsKey('FocusMinutes') -or 
 if ($Demo) { $FocusMinutes = 1; $BreakMinutes = 0.5 }
 
 $ErrorActionPreference = 'Stop'
+$OrbitScript = $PSCommandPath
 
 # ---------------------------------------------------------------------------
 #  Reglages
@@ -34,16 +35,25 @@ $Config = @{
     WanderMaxMin        = 9
     BubbleSeconds       = 7
     CornerMargin        = 6
+    Jokes               = $true  # blagues pendant la pause
+    JokeEveryMin        = 2      # une blague toutes les ~2 minutes de pause
+    AppComments         = $true  # commentaires selon l'appli sous la souris
+    Sounds              = $true
+    IdlePause           = $true  # met le focus en pause si tu t'absentes
+    IdleMinutes         = 5
 }
+# (tous ces reglages se modifient aussi depuis clic droit > Reglages)
 
 # Rythmes Pomodoro disponibles : focus / pause, en minutes
 $Rhythms = [ordered]@{
     '50/10' = @{ Focus = 50; Break = 10; Icon = '🚀' }
     '25/5'  = @{ Focus = 25; Break = 5;  Icon = '⚡' }
+    'Perso' = @{ Focus = 40; Break = 8;  Icon = '🎛️' }   # modifiable dans les reglages
 }
 
 $DataDir = Join-Path $env:APPDATA 'Orbit'
 $StatsFile = Join-Path $DataDir 'stats.json'
+$SettingsFile = Join-Path $DataDir 'settings.json'
 $LogFile = Join-Path $DataDir 'orbit.log'
 if (-not (Test-Path $DataDir)) { New-Item -ItemType Directory -Path $DataDir | Out-Null }
 
@@ -84,6 +94,18 @@ public static class OrbitNative {
     [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h, int cmd);
     [DllImport("kernel32.dll")] static extern IntPtr GetConsoleWindow();
     [DllImport("user32.dll")] public static extern uint GetClipboardSequenceNumber();
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct LASTINPUTINFO { public uint cbSize; public uint dwTime; }
+    [DllImport("user32.dll")] static extern bool GetLastInputInfo(ref LASTINPUTINFO info);
+
+    // Temps ecoule depuis la derniere action clavier / souris, en millisecondes
+    public static uint IdleMs() {
+        LASTINPUTINFO info = new LASTINPUTINFO();
+        info.cbSize = (uint)Marshal.SizeOf(info);
+        if (!GetLastInputInfo(ref info)) return 0;
+        return unchecked((uint)Environment.TickCount - info.dwTime);
+    }
 
     public static uint UnderCursor(out string title) {
         title = "";
@@ -443,6 +465,8 @@ $O = @{
     EndsAt       = [datetime]::MinValue
     Paused       = $false
     Remaining    = [timespan]::Zero
+    AutoPaused   = $false
+    AwaySince    = [datetime]::MinValue
     HalfSaid     = $false
     FiveSaid     = $false
     NextMotivation = [datetime]::MaxValue
@@ -502,11 +526,67 @@ function Save-Stats {
     try {
         $today = (Get-Date).ToString('yyyy-MM-dd')
         if ($today -ne $O.Today) { $O.Today = $today; $O.FocusToday = 0; $O.FocusMinToday = 0 }
-        @{ date = $O.Today; focus = $O.FocusToday; minutes = $O.FocusMinToday; quiet = $O.Quiet; wander = $O.Wander
-           rhythm = $O.Rhythm; taskReminders = $O.TaskReminders; jokeSeed = $O.JokeSeed; jokePos = $O.JokePos } |
+        @{ date = $O.Today; focus = $O.FocusToday; minutes = $O.FocusMinToday; jokeSeed = $O.JokeSeed; jokePos = $O.JokePos } |
             ConvertTo-Json | Set-Content -Path $StatsFile -Encoding UTF8
     } catch { Write-Log "Ecriture stats : $($_.Exception.Message)" }
 }
+
+# ---------------------------------------------------------------------------
+#  Preferences (settings.json) : tout ce qu'on regle dans la fenetre Reglages
+# ---------------------------------------------------------------------------
+function Get-SettingsSnapshot {
+    [ordered]@{
+        rhythm             = $O.Rhythm
+        customFocus        = $Rhythms['Perso'].Focus
+        customBreak        = $Rhythms['Perso'].Break
+        quiet              = $O.Quiet
+        wander             = $O.Wander
+        wanderMin          = $Config.WanderMinMin
+        wanderMax          = $Config.WanderMaxMin
+        taskReminders      = $O.TaskReminders
+        reminderEveryMin   = $Config.ReminderEveryMin
+        motivationEveryMin = $Config.MotivationEveryMin
+        jokes              = $Config.Jokes
+        jokeEveryMin       = $Config.JokeEveryMin
+        appComments        = $Config.AppComments
+        sounds             = $Config.Sounds
+        idlePause          = $Config.IdlePause
+        idleMinutes        = $Config.IdleMinutes
+    }
+}
+
+function Apply-SettingsData($d) {
+    if ($null -eq $d) { return }
+    function Has($n) { $null -ne $d.$n }
+    if ((Has 'customFocus') -and [double]$d.customFocus -ge 1) { $Rhythms['Perso'].Focus = [double]$d.customFocus }
+    if ((Has 'customBreak') -and [double]$d.customBreak -ge 1) { $Rhythms['Perso'].Break = [double]$d.customBreak }
+    if ($d.rhythm -and $Rhythms.Contains([string]$d.rhythm)) { $O.Rhythm = [string]$d.rhythm }
+    if (Has 'quiet') { $O.Quiet = [bool]$d.quiet }
+    if (Has 'wander') { $O.Wander = [bool]$d.wander }
+    if (Has 'wanderMin') { $Config.WanderMinMin = [int]$d.wanderMin }
+    if (Has 'wanderMax') { $Config.WanderMaxMin = [int]$d.wanderMax }
+    if (Has 'taskReminders') { $O.TaskReminders = [bool]$d.taskReminders }
+    if (Has 'reminderEveryMin') { $Config.ReminderEveryMin = [int]$d.reminderEveryMin }
+    if (Has 'motivationEveryMin') { $Config.MotivationEveryMin = [int]$d.motivationEveryMin }
+    if (Has 'jokes') { $Config.Jokes = [bool]$d.jokes }
+    if (Has 'jokeEveryMin') { $Config.JokeEveryMin = [double]$d.jokeEveryMin }
+    if (Has 'appComments') { $Config.AppComments = [bool]$d.appComments }
+    if (Has 'sounds') { $Config.Sounds = [bool]$d.sounds }
+    if (Has 'idlePause') { $Config.IdlePause = [bool]$d.idlePause }
+    if (Has 'idleMinutes') { $Config.IdleMinutes = [int]$d.idleMinutes }
+    if ($Config.WanderMaxMin -le $Config.WanderMinMin) { $Config.WanderMaxMin = $Config.WanderMinMin + 1 }
+}
+
+function Save-Settings {
+    try { Get-SettingsSnapshot | ConvertTo-Json | Set-Content -Path $SettingsFile -Encoding UTF8 }
+    catch { Write-Log "Ecriture reglages : $($_.Exception.Message)" }
+}
+
+# les anciennes versions gardaient quelques preferences dans stats.json : elles sont lues
+# plus haut, puis settings.json (s'il existe) a le dernier mot
+try {
+    if (Test-Path $SettingsFile) { Apply-SettingsData (Get-Content $SettingsFile -Raw -Encoding UTF8 | ConvertFrom-Json) }
+} catch { Write-Log "Lecture reglages : $($_.Exception.Message)" }
 
 # ---------------------------------------------------------------------------
 #  Apparence
@@ -620,7 +700,7 @@ function Set-Rhythm([string]$name, [switch]$Quiet) {
     if (-not $Rhythms.Contains($name)) { return }
     $O.Rhythm = $name
     Apply-Rhythm
-    Save-Stats
+    Save-Settings
     if ($Quiet) { return }
     $r = $Rhythms[$name]
     $msg = "Rythme $name : $($r.Focus) min de focus, $($r.Break) min de pause $($r.Icon)"
@@ -635,7 +715,8 @@ function Get-StartButtons {
     $list = @()
     foreach ($name in $Rhythms.Keys) {
         $r = $Rhythms[$name]
-        $list += @{ Label = "$($r.Icon) Focus $name"; Action = [scriptblock]::Create("Set-Rhythm '$name' -Quiet; Start-Focus"); Primary = ($name -eq $O.Rhythm) }
+        $label = if ($name -eq 'Perso') { "$($r.Icon) Focus $($r.Focus)/$($r.Break)" } else { "$($r.Icon) Focus $name" }
+        $list += @{ Label = $label; Action = [scriptblock]::Create("Set-Rhythm '$name' -Quiet; Start-Focus"); Primary = ($name -eq $O.Rhythm) }
     }
     return $list
 }
@@ -752,6 +833,7 @@ function Tell-Joke {
 function Stop-Cycle {
     $O.State = 'Idle'
     $O.Paused = $false
+    $O.AutoPaused = $false
     $O.NextMotivation = [datetime]::MaxValue
     $O.NextReminder = [datetime]::MaxValue
     Set-Mood 'Idle'
@@ -759,8 +841,43 @@ function Stop-Cycle {
     Update-Pill
 }
 
+function Play-Sound {
+    if ($Config.Sounds) { try { [System.Media.SystemSounds]::Asterisk.Play() } catch {} }
+}
+
+# ---------------------------------------------------------------------------
+#  Absence : le focus se met en pause tout seul et Orbit t'accueille au retour
+# ---------------------------------------------------------------------------
+function Check-Idle {
+    if (-not $Native -or -not $Config.IdlePause) { return }
+    $idleS = [OrbitNative]::IdleMs() / 1000.0
+    $now = Get-Date
+    if ($O.State -eq 'Focus' -and -not $O.Paused -and $idleS -ge $Config.IdleMinutes * 60) {
+        # on rend le temps passe loin du clavier : le chrono s'arrete au moment ou tu es parti
+        $away = $now.AddSeconds(-$idleS)
+        $remaining = $O.EndsAt - $away
+        if ($remaining.TotalSeconds -le 5) { return }
+        $O.Remaining = $remaining
+        $O.Paused = $true
+        $O.AutoPaused = $true
+        $O.AwaySince = $away
+        Update-Pill
+        Write-Log "Absence detectee : focus mis en pause"
+    } elseif ($O.AutoPaused -and $idleS -lt 3) {
+        $O.AutoPaused = $false
+        $mins = [math]::Max(1, [math]::Round(($now - $O.AwaySince).TotalMinutes))
+        Ensure-Visible
+        $left = [math]::Ceiling($O.Remaining.TotalMinutes)
+        Show-Bubble ("Re ! 👋 Tu t'es absenté(e) environ $mins min, alors j'ai mis le focus en pause à " +
+            "$($O.AwaySince.ToString('HH:mm')).`nIl te reste $left min. On reprend ?") -Force -Buttons @(
+            @{ Label = '▶ On reprend'; Action = { Toggle-Pause }; Primary = $true },
+            @{ Label = '⏹ Couper le focus'; Action = { Stop-Cycle } })
+    }
+}
+
 function Toggle-Pause {
     if ($O.State -notin 'Focus', 'Break') { return }
+    $O.AutoPaused = $false
     if ($O.Paused) {
         $O.EndsAt = (Get-Date) + $O.Remaining
         $O.Paused = $false
@@ -821,7 +938,7 @@ function Ask-Focus {
 
 function On-TimerEnded {
     Ensure-Visible
-    try { [System.Media.SystemSounds]::Asterisk.Play() } catch {}
+    Play-Sound
     $O.NextReminder = (Get-Date).AddMinutes($Config.ReminderEveryMin)
     Set-Mood 'Await'
     if ($O.State -eq 'Focus') {
@@ -862,7 +979,12 @@ function Update-Pill {
 
 function Show-Status {
     switch ($O.State) {
-        'Idle'       { Show-Bubble (Pick $Lines.Hello) -Buttons (@(Get-StartButtons) + @($BtnTodo, $BtnLater)) -Force }
+        'Idle'       {
+            $hello = Pick $Lines.Hello
+            $due = Get-DeadlineSummary
+            if ($due) { $hello += "`n`n$due" }
+            Show-Bubble $hello -Buttons (@(Get-StartButtons) + @($BtnTodo, $BtnLater)) -Force
+        }
         'AwaitBreak' { Ask-Break }
         'AwaitFocus' { Ask-Focus }
         'Focus' {
@@ -882,7 +1004,7 @@ function Show-Status {
 #  Commentaires sur l'appli survolee
 # ---------------------------------------------------------------------------
 function Check-App {
-    if (-not $Native) { return }
+    if (-not $Native -or -not $Config.AppComments) { return }
     $title = ''
     $procId = [OrbitNative]::UnderCursor([ref]$title)
     if ($procId -eq 0 -or $procId -eq $O.MyPid) { return }
@@ -1084,9 +1206,10 @@ function On-Second {
         $left = $O.EndsAt - $now
         if ($left.TotalSeconds -le 0) { On-TimerEnded; return }
         if ($O.State -eq 'Break' -and $now -ge $O.NextJoke) {
-            # une blague toutes les ~2 minutes pendant la pause (sauf dans les 15 dernieres secondes)
-            $O.NextJoke = $now.AddSeconds((Get-Random -Minimum 80 -Maximum 131))
-            if ($left.TotalSeconds -gt 20) { Tell-Joke }
+            # une blague toutes les ~2 minutes pendant la pause (sauf dans les 20 dernieres secondes)
+            $base = [math]::Max(20, $Config.JokeEveryMin * 60)
+            $O.NextJoke = $now.AddSeconds((Get-Random -Minimum ([int]($base * 0.75)) -Maximum ([int]($base * 1.25) + 1)))
+            if ($Config.Jokes -and $left.TotalSeconds -gt 20) { Tell-Joke }
         }
         if ($O.State -eq 'Focus') {
             $total = $Config.FocusMinutes
@@ -1114,6 +1237,8 @@ function On-Second {
         else { Show-Bubble (Pick $pool) -Buttons @($BtnAgain, $BtnStop) -Force }
     }
 
+    if ($script:slowCount % 2 -eq 0) { Check-Idle }
+    if ($script:slowCount % 10 -eq 0) { Check-TaskReminders }
     if ($Native -or $script:slowCount % 2 -eq 0) { Check-Clipboard }
     if ($script:slowCount % 2 -eq 0 -and $window.Visibility -eq 'Visible') { Check-App }
     if ($script:slowCount % 5 -eq 0 -and $Native -and $O.Hwnd -ne [IntPtr]::Zero -and $window.Visibility -eq 'Visible') {
@@ -1136,22 +1261,24 @@ function New-MenuItem([string]$header, [scriptblock]$action, [switch]$Checkable)
 
 $StartupLink = Join-Path ([Environment]::GetFolderPath('Startup')) 'Orbit.lnk'
 
-function Toggle-Autostart {
-    if (Test-Path $StartupLink) {
-        Remove-Item $StartupLink -Force
-        Show-Bubble "Ok, je ne me lancerai plus au démarrage." -Force
-    } else {
-        $ws = New-Object -ComObject WScript.Shell
-        $lnk = $ws.CreateShortcut($StartupLink)
-        $lnk.TargetPath = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
-        $lnk.Arguments = "-NoProfile -ExecutionPolicy Bypass -STA -WindowStyle Hidden -File `"$PSCommandPath`""
-        $lnk.WorkingDirectory = $PSScriptRoot
-        $lnk.WindowStyle = 7
-        $lnk.Description = 'Orbit - compagnon de focus'
-        $lnk.Save()
-        Show-Bubble "C'est noté, je serai là à chaque démarrage de Windows 🚀 (sans droits admin)" -Force
+function Set-Autostart([bool]$on, [switch]$Silent) {
+    if (-not $on) {
+        if (Test-Path $StartupLink) { Remove-Item $StartupLink -Force }
+        if (-not $Silent) { Show-Bubble "Ok, je ne me lancerai plus au démarrage." -Force }
+        return
     }
+    $ws = New-Object -ComObject WScript.Shell
+    $lnk = $ws.CreateShortcut($StartupLink)
+    $lnk.TargetPath = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    $lnk.Arguments = "-NoProfile -ExecutionPolicy Bypass -STA -WindowStyle Hidden -File `"$OrbitScript`""
+    $lnk.WorkingDirectory = Split-Path $OrbitScript
+    $lnk.WindowStyle = 7
+    $lnk.Description = 'Orbit - compagnon de focus'
+    $lnk.Save()
+    if (-not $Silent) { Show-Bubble "C'est noté, je serai là à chaque démarrage de Windows 🚀 (sans droits admin)" -Force }
 }
+
+function Toggle-Autostart { Set-Autostart (-not (Test-Path $StartupLink)) }
 
 function Set-Mini([bool]$on) {
     $O.Mini = $on
@@ -1182,6 +1309,7 @@ function Quit-Orbit {
 #  Carnet : to-do + historique des copier-coller (voir notebook.ps1)
 # ---------------------------------------------------------------------------
 . (Join-Path $PSScriptRoot 'notebook.ps1')
+. (Join-Path $PSScriptRoot 'settings.ps1')
 
 $menu = New-Object Windows.Controls.ContextMenu
 $miTodo   = New-MenuItem "📝  Ma to-do" { Open-Notebook 'Todo' }
@@ -1190,8 +1318,8 @@ $miFocus  = New-MenuItem "🚀  Lancer un focus" { Start-Focus }
 $miBreak  = New-MenuItem "☕  Prendre ma pause" { Start-Break }
 $miPause  = New-MenuItem "⏸  Mettre le chrono en pause" { Toggle-Pause }
 $miStop   = New-MenuItem "⏹  Couper le chrono" { Stop-Cycle }
-$miQuiet  = New-MenuItem "🤫  Mode silencieux (pas de blagues)" { $O.Quiet = -not $O.Quiet; Save-Stats; if ($O.Quiet) { Hide-Bubble } } -Checkable
-$miWander = New-MenuItem "🚶  Balades sur les écrans" { $O.Wander = -not $O.Wander; $O.Walking = $false; Save-Stats } -Checkable
+$miQuiet  = New-MenuItem "🤫  Mode silencieux (pas de blagues)" { $O.Quiet = -not $O.Quiet; Save-Settings; if ($O.Quiet) { Hide-Bubble } } -Checkable
+$miWander = New-MenuItem "🚶  Balades sur les écrans" { $O.Wander = -not $O.Wander; $O.Walking = $false; Save-Settings } -Checkable
 $miHome   = New-MenuItem "🏠  Revenir en bas à droite" { $O.Pinned = $false; $O.Walking = $false }
 $miMini   = New-MenuItem "🔽  Réduire" { Set-Mini (-not $O.Mini) } -Checkable
 $miHide   = New-MenuItem "🙈  Masquer (icône près de l'horloge)" { Hide-Orbit }
@@ -1207,15 +1335,16 @@ foreach ($name in $Rhythms.Keys) {
     [void]$miRhythm.Items.Add($it)
 }
 $miTasks  = New-MenuItem "🔔  Rappels de tâches (début / fin de focus)" {
-    $O.TaskReminders = -not $O.TaskReminders; Save-Stats
+    $O.TaskReminders = -not $O.TaskReminders; Save-Settings
     Show-Bubble $(if ($O.TaskReminders) { "Je te rappellerai tes tâches au début et à la fin de chaque focus 🔔" } else { "Ok, plus de rappels de tâches 🔕" }) -Force -Seconds 4
 } -Checkable
 $miQuit   = New-MenuItem "❌  Quitter Orbit" { Quit-Orbit }
+$miSettings = New-MenuItem "⚙️  Réglages…" { Open-Settings }
 
 foreach ($i in @($miTodo, $miClip, (New-Object Windows.Controls.Separator),
                  $miFocus, $miBreak, $miPause, $miStop, $miRhythm, $miTasks, (New-Object Windows.Controls.Separator),
                  $miQuiet, $miWander, $miMini, $miHome, $miHide, $miAuto, (New-Object Windows.Controls.Separator),
-                 $miStats, $miQuit)) { [void]$menu.Items.Add($i) }
+                 $miStats, $miSettings, $miQuit)) { [void]$menu.Items.Add($i) }
 
 $menu.Add_Opened({
     $miPause.Header = if ($O.Paused) { "▶  Reprendre le chrono" } else { "⏸  Mettre le chrono en pause" }
@@ -1227,7 +1356,11 @@ $menu.Add_Opened({
     $miHome.IsEnabled = $O.Pinned -or $O.Walking
     $miAuto.IsChecked = Test-Path $StartupLink
     $miTasks.IsChecked = $O.TaskReminders
-    foreach ($name in $rhythmItems.Keys) { $rhythmItems[$name].IsChecked = ($name -eq $O.Rhythm) }
+    foreach ($name in $rhythmItems.Keys) {
+        $r = $Rhythms[$name]
+        $rhythmItems[$name].Header = "$($r.Icon)  $name  ($($r.Focus) min focus / $($r.Break) min pause)"
+        $rhythmItems[$name].IsChecked = ($name -eq $O.Rhythm)
+    }
     $miFocus.Header = "🚀  Lancer un focus ($(Format-Min $Config.FocusMinutes) min)"
     $miBreak.Header = "☕  Prendre ma pause ($(Format-Min $Config.BreakMinutes) min)"
 })
@@ -1289,6 +1422,7 @@ try {
     [void]$cms.Items.Add('Ma to-do', $null, { Invoke-Safe { Open-Notebook 'Todo' } })
     [void]$cms.Items.Add('Mes copier-coller du jour', $null, { Invoke-Safe { Open-Notebook 'Clip' } })
     [void]$cms.Items.Add('-')
+    [void]$cms.Items.Add('Réglages…', $null, { Invoke-Safe { Open-Settings } })
     [void]$cms.Items.Add('Quitter Orbit', $null, { Invoke-Safe { Quit-Orbit } })
     $script:tray.ContextMenuStrip = $cms
     $script:tray.Add_DoubleClick({ Invoke-Safe { Ensure-Visible; Show-Status } })

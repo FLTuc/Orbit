@@ -18,7 +18,7 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
 - **Il te suit** : il se place en bas à droite de l'écran où se trouve ta souris et change d'écran en même temps que toi.
 - **Il se balade** : de temps en temps, il part faire un petit tour sur tes écrans, puis il revient. Son capteur optique suit ta souris, sa balise clignote et son voyant change de couleur selon le moment (bleu = focus, vert = pause, orange = il attend ta réponse).
 - **Il reste au-dessus** de toutes les applications, sans te voler le focus. Le chrono s'affiche sous lui.
-- **Cycle Pomodoro avec confirmation**, en 50/10 ou en 25/5 :
+- **Cycle Pomodoro avec confirmation**, en 50/10, en 25/5 ou avec ton propre rythme (dans les réglages) :
   1. 🚀 focus (50 ou 25 min), puis **il s'arrête et attend** que tu cliques sur « Je prends ma pause » (ou « On arrête là ») ;
   2. ☕ pause (10 ou 5 min), puis **il attend encore** que tu cliques sur « On repart ! » (ou « On arrête là »).
   Tant que tu n'as pas répondu, il te relance toutes les 4 min et sa balise clignote en orange.
@@ -26,6 +26,7 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   - **au début du focus**, il annonce ton objectif (la tâche la plus prioritaire) et les deux suivantes ;
   - **à la fin du focus**, il demande si l'objectif est bouclé, avec un bouton « ✅ C'est fait ! » qui coche la tâche ;
   - **à la fin de la pause**, il rappelle la prochaine tâche au programme.
+- **Pause automatique si tu t'absentes** : si tu ne touches ni la souris ni le clavier pendant 5 min en plein focus, Orbit met le chrono en pause au moment où tu es parti (le temps d'absence ne compte pas). À ton retour, il te dit combien de temps tu as été absent et te propose de reprendre.
 - **Des blagues pendant la pause** : environ une toutes les 2 minutes, piochées parmi **plus de 1000 blagues** (combles, devinettes, « Monsieur et Madame… », bureau, informatique, espace…). Orbit pose la question, puis donne la chute quelques secondes plus tard. Il retient où il en est, même après un redémarrage : aucune blague ne revient tant que toutes ne sont pas passées.
 - **Des bulles de BD** : tout ce que dit Orbit apparaît dans une bulle de bande dessinée avec un « pop ».
   - Bulle de **parole** (avec une pointe) quand il te parle : questions, chrono, indications.
@@ -40,12 +41,21 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   - la description apparaît en aperçu sous la tâche, et Orbit la rappelle au début du focus quand c'est ton objectif ;
   - chaque ajout, coche ou suppression est **enregistré tout de suite**, rien n'est perdu même si le PC plante ;
   - les tâches non faites restent d'un jour à l'autre, et les tâches terminées des jours précédents partent dans une archive ;
-  - Orbit s'en sert pour ses rappels de tâches (voir plus haut).
+  - Orbit s'en sert pour ses rappels de tâches (voir plus haut) ;
+  - **échéance** (📅) : dans la fiche de la tâche, choisis une date. La tâche affiche « aujourd'hui », « demain », « en retard »… en couleur, et Orbit te signale au démarrage (et chaque matin) ce qui est à rendre aujourd'hui ou en retard ;
+  - **rappel à heure fixe** (⏰) : dans la fiche, choisis une date et une heure, ou tape directement « @14h » ou « @14h30 » dans le texte de la tâche (« Appeler Paul @14h »). À l'heure dite, Orbit sonne, réapparaît s'il était caché et affiche la tâche avec trois boutons : « ✅ C'est fait », « ⏰ Dans 15 min » ou « 👍 OK ».
 - **L'historique des copier-coller du jour** (clic droit > 📋 Mes copier-coller du jour) :
   - chaque texte ou fichier copié (Ctrl+C) est noté avec l'heure ;
   - tu peux faire une recherche dedans, et **un clic sur un élément le recopie** pour le recoller ;
   - seule la journée en cours est conservée : l'historique de la veille est effacé automatiquement ;
-  - ce que les gestionnaires de mots de passe marquent comme « à ne pas enregistrer » est ignoré, et une case **Pause** arrête l'enregistrement quand tu veux.
+  - ce que les gestionnaires de mots de passe marquent comme « à ne pas enregistrer » est ignoré, et une case **Pause** arrête l'enregistrement quand tu veux ;
+  - **favoris** ⭐ : clique sur ☆ pour garder un élément (adresse, signature, numéro de dossier…). Les favoris restent en haut de la liste **d'un jour à l'autre** et ne sont pas effacés par « Tout effacer ».
+- **Réglages** (clic droit > ⚙️ Réglages…) : une fenêtre pour tout régler sans toucher au code :
+  - rythme 50/10, 25/5 ou personnalisé ;
+  - pause automatique en cas d'absence, et au bout de combien de minutes ;
+  - rappels de tâches, et fréquence des relances quand Orbit attend ta réponse ;
+  - blagues de pause (oui/non et fréquence), phrases de motivation, commentaires sur les applis, mode silencieux ;
+  - balades (oui/non et fréquence), sons, lancement au démarrage de Windows.
 
 ## Commandes
 
@@ -63,8 +73,8 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
 
 ## Personnaliser
 
-Tout est dans `orbit.ps1` (le carnet est dans `notebook.ps1`, les blagues dans `jokes\`) :
-- les réglages (fréquence des commentaires, des balades, etc.) sont dans le bloc `$Config` en haut du fichier ;
+Le plus simple est de passer par **clic droit > ⚙️ Réglages…**. Pour aller plus loin, tout est dans `orbit.ps1` (le carnet est dans `notebook.ps1`, la fenêtre de réglages dans `settings.ps1`, les blagues dans `jokes\`) :
+- les valeurs par défaut des réglages sont dans le bloc `$Config` en haut de `orbit.ps1` ;
 - les phrases sont dans `$Lines`, `$AppLines` (par application) et `$TitleLines` (par mot-clé dans le titre de la fenêtre). Ajoute les tiennes !
 
 Si tu modifies un fichier, garde l'encodage **UTF-8 avec BOM**, sinon les accents et les emojis s'afficheront mal.
@@ -76,6 +86,8 @@ Tout est enregistré dans `%APPDATA%\Orbit\` :
 | `todo.json` / `todo.md` | ta to-do (le `.md` se lit dans n'importe quel éditeur) |
 | `todo-archive.md` | les tâches terminées, jour par jour |
 | `clipboard\AAAA-MM-JJ.json` | les copier-coller du jour |
+| `clipboard-favoris.json` | les copier-coller mis en favori ⭐ (conservés) |
+| `settings.json` | tes réglages |
 | `stats.json`, `orbit.log` | statistiques et petit journal d'erreurs |
 
 Attention : l'historique des copier-coller est stocké en clair dans ton profil. Si tu copies des données sensibles, utilise la case **Pause** ou le bouton **Tout effacer**.

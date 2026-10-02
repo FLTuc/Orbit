@@ -7,6 +7,7 @@ $TodoFile = Join-Path $DataDir 'todo.json'
 $TodoMd = Join-Path $DataDir 'todo.md'
 $TodoArchive = Join-Path $DataDir 'todo-archive.md'
 $ClipDir = Join-Path $DataDir 'clipboard'
+$FavFile = Join-Path $DataDir 'clipboard-favoris.json'
 if (-not (Test-Path $ClipDir)) { New-Item -ItemType Directory -Path $ClipDir | Out-Null }
 
 $NB = @{
@@ -22,6 +23,8 @@ $NB = @{
     ClipDirty  = $true
     MaxClips   = 150
     MaxClipLen = 10000
+    Favs       = New-Object System.Collections.ArrayList
+    DeadlineDay = ''
     Quitting   = $false
 }
 
@@ -51,6 +54,13 @@ function To-IsoString($v) {
 
 # Priorite : 1 = la plus urgente ... 10 = la moins urgente (5 par defaut)
 $DefaultPrio = 5
+function To-DayString($v) {
+    if ($v -is [datetime]) { return $v.ToString('yyyy-MM-dd') }
+    $s = [string]$v
+    if ($s.Length -ge 10) { return $s.Substring(0, 10) }
+    return ''
+}
+
 function Limit-Prio($p) {
     $n = 0
     if (-not [int]::TryParse([string]$p, [ref]$n)) { return $DefaultPrio }
@@ -70,6 +80,9 @@ function Load-Todos {
                 text    = [string]$t.text
                 desc    = [string]$t.desc
                 prio    = Limit-Prio $t.prio
+                due     = To-DayString $t.due
+                remindAt = To-IsoString $t.remindAt
+                reminded = [bool]$t.reminded
                 done    = [bool]$t.done
                 created = To-IsoString $t.created
                 doneAt  = To-IsoString $t.doneAt
@@ -97,7 +110,10 @@ function Save-Todos {
         Write-FileSafe $TodoFile (ConvertTo-JsonArray $NB.Todos)
         $lines = @("# To-do Orbit", "", "_Mis à jour le $((Get-Date).ToString('dd/MM/yyyy HH:mm'))_", "")
         foreach ($t in (Get-SortedTodos)) {
-            $lines += $(if ($t.done) { "- [x] (P$($t.prio)) $($t.text)" } else { "- [ ] (P$($t.prio)) $($t.text)" })
+            $extra = ''
+            if ($t.due) { $extra += " 📅 $(([datetime]$t.due).ToString('dd/MM'))" }
+            if ($t.remindAt -and -not $t.done) { $extra += " ⏰ $(([datetime]$t.remindAt).ToString('dd/MM HH:mm'))" }
+            $lines += $(if ($t.done) { "- [x] (P$($t.prio)) $($t.text)$extra" } else { "- [ ] (P$($t.prio)) $($t.text)$extra" })
             if ($t.desc) { foreach ($d in ($t.desc -split "`r?`n")) { $lines += "    > $d" } }
         }
         Write-FileSafe $TodoMd ($lines -join "`r`n")
@@ -111,6 +127,15 @@ function Add-Todo([string]$text, $prio = $DefaultPrio) {
         $prio = [int]$Matches[2]
         $text = (($text -replace '(^|\s)!(10|[1-9])(?=\s|$)', ' ') -replace '\s{2,}', ' ').Trim()
     }
+    # raccourci : "@14h", "@14h30" ou "@14:30" programme un rappel (aujourd'hui, ou demain si l'heure est passee)
+    $remindAt = ''
+    $rx = '(^|\s)@([01]?\d|2[0-3])(?:h|:)([0-5]\d)?(?=\s|$)'
+    if ($text -match $rx) {
+        $at = (Get-Date).Date.AddHours([int]$Matches[2]).AddMinutes($(if ($Matches[3]) { [int]$Matches[3] } else { 0 }))
+        if ($at -le (Get-Date)) { $at = $at.AddDays(1) }
+        $remindAt = $at.ToString('s')
+        $text = (($text -replace $rx, ' ') -replace '\s{2,}', ' ').Trim()
+    }
     if (-not $text) { return }
     $prio = Limit-Prio $prio
     [void]$NB.Todos.Add([pscustomobject]@{
@@ -118,6 +143,9 @@ function Add-Todo([string]$text, $prio = $DefaultPrio) {
         text    = $text
         desc    = ''
         prio    = $prio
+        due     = ''
+        remindAt = $remindAt
+        reminded = $false
         done    = $false
         created = (Get-Date).ToString('s')
         doneAt  = ''
@@ -126,6 +154,7 @@ function Add-Todo([string]$text, $prio = $DefaultPrio) {
     Render-Todos
     $msg = Pick @("Noté ! ✍️", "C'est dans la liste 📝", "Hop, enregistré 💾", "Je m'en souviendrai pour toi 🧠")
     if ($prio -le 2) { $msg += " Priorité $prio, je la mets en haut de la pile 🔥" }
+    if ($remindAt) { $msg += " Rappel prévu $(Format-When $remindAt) ⏰" }
     Show-Bubble $msg -Force -Seconds 3
 }
 
@@ -173,7 +202,8 @@ function Clear-DoneTodos {
 
 # Tri : a faire d'abord, par priorite (1 en premier) puis par date d'ajout ; terminees a la fin
 function Get-SortedTodos {
-    $open = @($NB.Todos | Where-Object { -not $_.done } | Sort-Object -Property @{ e = { [int]$_.prio } }, created)
+    $open = @($NB.Todos | Where-Object { -not $_.done } |
+        Sort-Object -Property @{ e = { [int]$_.prio } }, @{ e = { if ($_.due) { $_.due } else { '9999' } } }, created)
     $done = @($NB.Todos | Where-Object { $_.done } | Sort-Object -Property doneAt -Descending)
     return @($open + $done)
 }
@@ -184,6 +214,99 @@ function Get-PrioColor([int]$p) {
     if ($p -le 3) { return '#E03131' }      # urgent
     if ($p -le 6) { return '#F08C00' }      # normal
     return '#7A869A'                        # quand j'ai le temps
+}
+
+# ---------------------------------------------------------------------------
+#  Echeances et rappels
+# ---------------------------------------------------------------------------
+$DayNames = @('dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.')
+
+function Format-Due([string]$due) {
+    if (-not $due) { return '' }
+    $d = [datetime]::ParseExact($due, 'yyyy-MM-dd', $null)
+    $diff = ($d - (Get-Date).Date).Days
+    if ($diff -lt 0) { return "en retard ($($d.ToString('dd/MM')))" }
+    if ($diff -eq 0) { return "aujourd'hui" }
+    if ($diff -eq 1) { return 'demain' }
+    if ($diff -lt 7) { return "$($DayNames[[int]$d.DayOfWeek]) $($d.ToString('dd/MM'))" }
+    return $d.ToString('dd/MM/yyyy')
+}
+
+function Get-DueColor([string]$due) {
+    $diff = ([datetime]::ParseExact($due, 'yyyy-MM-dd', $null) - (Get-Date).Date).Days
+    if ($diff -le 0) { return '#E03131' }
+    if ($diff -eq 1) { return '#F08C00' }
+    return '#5C6B85'
+}
+
+function Format-When([string]$iso) {
+    if (-not $iso) { return '' }
+    $d = [datetime]$iso
+    $day = ($d.Date - (Get-Date).Date).Days
+    if ($day -eq 0) { return "à $($d.ToString('HH:mm'))" }
+    if ($day -eq 1) { return "demain à $($d.ToString('HH:mm'))" }
+    return "le $($d.ToString('dd/MM')) à $($d.ToString('HH:mm'))"
+}
+
+function Set-TodoDue([string]$id, $date) {
+    $t = Find-Todo $id
+    if (-not $t) { return }
+    $t.due = if ($date) { ([datetime]$date).ToString('yyyy-MM-dd') } else { '' }
+    Save-Todos
+}
+
+function Set-TodoReminder([string]$id, $when) {
+    $t = Find-Todo $id
+    if (-not $t) { return }
+    $t.remindAt = if ($when) { ([datetime]$when).ToString('s') } else { '' }
+    $t.reminded = $false
+    Save-Todos
+}
+
+# Resume des echeances pour la bulle d'accueil
+function Get-DeadlineSummary {
+    $today = (Get-Date).ToString('yyyy-MM-dd')
+    $open = Get-OpenTodos
+    $late = @($open | Where-Object { $_.due -and $_.due -lt $today })
+    $now = @($open | Where-Object { $_.due -eq $today })
+    if (-not $late.Count -and -not $now.Count) { return '' }
+    $parts = @()
+    if ($now.Count) { $parts += "📅 À rendre aujourd'hui : " + (($now | Select-Object -First 3 | ForEach-Object { "« $(Short-Text $_.text 35) »" }) -join ', ') }
+    if ($late.Count) { $parts += "⚠️ En retard : " + (($late | Select-Object -First 3 | ForEach-Object { "« $(Short-Text $_.text 35) »" }) -join ', ') }
+    return $parts -join "`n"
+}
+
+# Verifie toutes les 10 secondes si un rappel doit sonner
+function Check-TaskReminders {
+    $now = Get-Date
+    foreach ($t in @($NB.Todos)) {
+        if ($t.done -or $t.reminded -or -not $t.remindAt) { continue }
+        if ([datetime]$t.remindAt -gt $now) { continue }
+        $t.reminded = $true
+        Save-Todos
+        Render-Todos
+        Ensure-Visible
+        Play-Sound
+        $msg = "⏰ Rappel : « $(Short-Text $t.text 80) »"
+        if ($t.desc) { $msg += "`n📄 $(Short-Text $t.desc 120)" }
+        if ($t.due) { $msg += "`n📅 Échéance : $(Format-Due $t.due)" }
+        Show-Bubble $msg -Force -Buttons @(
+            @{ Label = "✅ C'est fait"; Action = [scriptblock]::Create("Set-TodoDone '$($t.id)' `$true"); Primary = $true },
+            @{ Label = '⏰ Dans 15 min'; Action = [scriptblock]::Create("Set-TodoReminder '$($t.id)' ((Get-Date).AddMinutes(15)); Render-Todos; Show-Bubble 'Ok, je te le rappelle dans 15 minutes ⏰' -Force -Seconds 3") },
+            @{ Label = '👍 OK'; Action = { } })
+        Show-Tray "⏰ Rappel Orbit" (Short-Text $t.text 60)
+        return   # un rappel a la fois ; le suivant sonnera au prochain passage
+    }
+    # une fois par jour : le point sur les echeances (au demarrage, c'est la bulle d'accueil qui s'en charge)
+    $today = $now.ToString('yyyy-MM-dd')
+    if ($NB.DeadlineDay -ne $today) {
+        $first = -not $NB.DeadlineDay
+        $NB.DeadlineDay = $today
+        if (-not $first) {
+            $sum = Get-DeadlineSummary
+            if ($sum) { Show-Bubble $sum -Force -Seconds 12 }
+        }
+    }
 }
 
 # Texte court pour les bulles
@@ -216,6 +339,47 @@ function Load-Clips {
         }
         if ($NB.Clips.Count) { $NB.LastClip = $NB.Clips[0].text }
     } catch { Write-Log "Lecture presse-papiers : $($_.Exception.Message)" }
+}
+
+function Load-Favs {
+    $NB.Favs.Clear()
+    if (-not (Test-Path $FavFile)) { return }
+    try {
+        foreach ($c in (ConvertFrom-Json ([IO.File]::ReadAllText($FavFile)))) {
+            [void]$NB.Favs.Add([pscustomobject]@{
+                time  = [string]$c.time
+                kind  = [string]$c.kind
+                text  = [string]$c.text
+                files = @($c.files | Where-Object { $_ })
+            })
+        }
+    } catch { Write-Log "Lecture favoris : $($_.Exception.Message)" }
+}
+
+function Save-Favs {
+    try { Write-FileSafe $FavFile (ConvertTo-JsonArray $NB.Favs) }
+    catch { Write-Log "Ecriture favoris : $($_.Exception.Message)" }
+}
+
+function Find-Fav([string]$text) { foreach ($f in $NB.Favs) { if ($f.text -eq $text) { return $f } } }
+
+# Les favoris sont gardes d'un jour a l'autre (contrairement a l'historique du jour)
+function Toggle-Fav($c) {
+    $f = Find-Fav $c.text
+    if ($f) {
+        $NB.Favs.Remove($f)
+        Show-Bubble "Retiré des favoris." -Force -Seconds 2
+    } else {
+        [void]$NB.Favs.Insert(0, [pscustomobject]@{
+            time  = (Get-Date).ToString('dd/MM/yyyy')
+            kind  = $c.kind
+            text  = $c.text
+            files = @($c.files)
+        })
+        Show-Bubble "⭐ Ajouté aux favoris : je le garde même après aujourd'hui." -Force -Seconds 3
+    }
+    Save-Favs
+    Render-Clips
 }
 
 function Save-Clips {
@@ -461,6 +625,23 @@ function Render-Todos {
                 $dp.TextWrapping = 'Wrap'; $dp.MaxHeight = 32; $dp.TextTrimming = 'CharacterEllipsis'
                 [void]$content.Children.Add($dp)
             }
+            if (($t.due -or $t.remindAt) -and -not $t.done) {
+                $meta = New-Object Windows.Controls.WrapPanel
+                $meta.Margin = '0,2,0,0'
+                if ($t.due) {
+                    $b = New-Object Windows.Controls.TextBlock
+                    $b.Text = "📅 $(Format-Due $t.due)"
+                    $b.FontSize = 11; $b.FontWeight = 'SemiBold'; $b.Foreground = Get-DueColor $t.due; $b.Margin = '0,0,10,0'
+                    [void]$meta.Children.Add($b)
+                }
+                if ($t.remindAt) {
+                    $b = New-Object Windows.Controls.TextBlock
+                    $b.Text = "⏰ $(Format-When $t.remindAt)"
+                    $b.FontSize = 11; $b.Foreground = if ($t.reminded) { '#B0AEC4' } else { '#5C6B85' }
+                    [void]$meta.Children.Add($b)
+                }
+                [void]$content.Children.Add($meta)
+            }
             $content.Add_MouseLeftButtonUp({ param($s, $e) Invoke-Safe { Start-EditTodo $s.Tag } })
         }
         [Windows.Controls.Grid]::SetColumn($content, 2)
@@ -560,6 +741,59 @@ function New-TodoEditor($t) {
     })
     [void]$box.Children.Add($desc)
 
+    # echeance et rappel
+    $grid = New-Object Windows.Controls.Grid
+    $grid.Margin = '0,8,0,0'
+    foreach ($w in 'Auto', '*', 'Auto', 'Auto') { $cd = New-Object Windows.Controls.ColumnDefinition; $cd.Width = $w; $grid.ColumnDefinitions.Add($cd) }
+    foreach ($i in 0..1) { $grid.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition)) }
+
+    $l1 = New-Object Windows.Controls.TextBlock
+    $l1.Text = '📅 Échéance'; $l1.VerticalAlignment = 'Center'; $l1.Margin = '2,0,8,4'; $l1.FontSize = 12
+    [void]$grid.Children.Add($l1)
+    $dueP = New-Object Windows.Controls.DatePicker
+    $dueP.Tag = $t.id; $dueP.Margin = '0,0,0,4'
+    if ($t.due) { $dueP.SelectedDate = [datetime]::ParseExact($t.due, 'yyyy-MM-dd', $null) }
+    $dueP.Add_SelectedDateChanged({ param($s, $e) Invoke-Safe { Set-TodoDue $s.Tag $s.SelectedDate } })
+    [Windows.Controls.Grid]::SetColumn($dueP, 1); [Windows.Controls.Grid]::SetColumnSpan($dueP, 2)
+    [void]$grid.Children.Add($dueP)
+    $dueX = New-Object Windows.Controls.Button
+    $dueX.Content = '✕'; $dueX.Width = 24; $dueX.Margin = '4,0,0,4'; $dueX.Background = 'Transparent'; $dueX.BorderThickness = '0'
+    $dueX.ToolTip = "Retirer l'échéance"; $dueX.Cursor = 'Hand'
+    $dueX.Tag = $dueP
+    $dueX.Add_Click({ param($s, $e) $s.Tag.SelectedDate = $null })
+    [Windows.Controls.Grid]::SetColumn($dueX, 3)
+    [void]$grid.Children.Add($dueX)
+
+    $l2 = New-Object Windows.Controls.TextBlock
+    $l2.Text = '⏰ Rappel'; $l2.VerticalAlignment = 'Center'; $l2.Margin = '2,0,8,0'; $l2.FontSize = 12
+    [Windows.Controls.Grid]::SetRow($l2, 1)
+    [void]$grid.Children.Add($l2)
+    $remP = New-Object Windows.Controls.DatePicker
+    $remP.Tag = $t.id
+    $remT = New-Object Windows.Controls.TextBox
+    $remT.Width = 56; $remT.Margin = '4,0,0,0'; $remT.Padding = '4,3'; $remT.VerticalContentAlignment = 'Center'
+    $remT.ToolTip = 'Heure du rappel, par ex. 14:30'
+    if ($t.remindAt) {
+        $remP.SelectedDate = ([datetime]$t.remindAt).Date
+        $remT.Text = ([datetime]$t.remindAt).ToString('HH:mm')
+    }
+    $remX = New-Object Windows.Controls.Button
+    $remX.Content = '✕'; $remX.Width = 24; $remX.Margin = '4,0,0,0'; $remX.Background = 'Transparent'; $remX.BorderThickness = '0'
+    $remX.ToolTip = 'Retirer le rappel'; $remX.Cursor = 'Hand'
+
+    # les trois controles partagent le meme Tag : l'id de la tache et les champs a relire
+    $ctx = @{ Id = $t.id; Date = $remP; Time = $remT }
+    $remP.Tag = $ctx; $remT.Tag = $ctx; $remX.Tag = $ctx
+    $remP.Add_SelectedDateChanged({ param($s, $e) Invoke-Safe { Apply-ReminderFields $s.Tag } })
+    $remT.Add_TextChanged({ param($s, $e) Invoke-Safe { Apply-ReminderFields $s.Tag } })
+    $remX.Add_Click({ param($s, $e) $s.Tag.Time.Text = ''; $s.Tag.Date.SelectedDate = $null; Invoke-Safe { Apply-ReminderFields $s.Tag } })
+
+    foreach ($c in @(@($remP, 1), @($remT, 2), @($remX, 3))) {
+        [Windows.Controls.Grid]::SetRow($c[0], 1); [Windows.Controls.Grid]::SetColumn($c[0], $c[1])
+        [void]$grid.Children.Add($c[0])
+    }
+    [void]$box.Children.Add($grid)
+
     # Entree dans le titre : on passe a la description
     $title.Add_PreviewKeyDown({ param($s, $e) if ($e.Key -eq 'Return') { $e.Handled = $true; $desc.Focus() | Out-Null } }.GetNewClosure())
 
@@ -582,6 +816,25 @@ function New-TodoEditor($t) {
     return $box
 }
 
+# Le rappel est enregistre des que l'heure est valide (date du jour si aucune date choisie)
+function Apply-ReminderFields($ctx) {
+    $raw = $ctx.Time.Text.Trim()
+    if (-not $raw -and -not $ctx.Date.SelectedDate) {
+        Set-TodoReminder $ctx.Id $null
+        $ctx.Time.ClearValue([Windows.Controls.Control]::BorderBrushProperty)
+        return
+    }
+    if (-not $raw) { return }   # une date sans heure : on attend l'heure
+    if (($raw -replace 'h', ':') -match '^([01]?\d|2[0-3])(?::([0-5]\d)?)?$') {
+        $ts = New-Object TimeSpan([int]$Matches[1], $(if ($Matches[2]) { [int]$Matches[2] } else { 0 }), 0)
+        $day = if ($ctx.Date.SelectedDate) { $ctx.Date.SelectedDate.Value.Date } else { (Get-Date).Date }
+        Set-TodoReminder $ctx.Id ($day + $ts)
+        $ctx.Time.ClearValue([Windows.Controls.Control]::BorderBrushProperty)
+    } else {
+        $ctx.Time.BorderBrush = '#E03131'
+    }
+}
+
 function Show-PrioMenu($button) {
     $m = New-Object Windows.Controls.ContextMenu
     foreach ($p in 1..10) {
@@ -597,61 +850,92 @@ function Show-PrioMenu($button) {
     $m.IsOpen = $true
 }
 
-function Render-Clips {
-    $NB.ClipDirty = $false
-    $pn.ClipList.Children.Clear()
-    $q = $pn.ClipSearch.Text.Trim().ToLowerInvariant()
-    $shown = 0
-    foreach ($c in $NB.Clips) {
-        if ($q -and -not $c.text.ToLowerInvariant().Contains($q)) { continue }
-        if (++$shown -gt 80) { break }   # au-dela, la recherche aide a retrouver
+function New-ClipCard($c, [bool]$isFav) {
+    $card = New-Object Windows.Controls.Border
+    $card.Margin = '0,0,0,6'; $card.Padding = '10,6,6,6'; $card.CornerRadius = '10'
+    if ($isFav) { $card.Background = '#FFF8E1'; $card.BorderBrush = '#FFD166' }
+    else { $card.Background = '#F3F1FF'; $card.BorderBrush = '#DDD8FF' }
+    $card.BorderThickness = '1'
+    $card.Cursor = 'Hand'; $card.Tag = $c
+    $tip = if ($c.text.Length -gt 800) { $c.text.Substring(0, 800) + '…' } else { $c.text }
+    $card.ToolTip = $tip
 
-        $card = New-Object Windows.Controls.Border
-        $card.Margin = '0,0,0,6'; $card.Padding = '10,6,6,6'; $card.CornerRadius = '10'
-        $card.Background = '#F3F1FF'; $card.BorderBrush = '#DDD8FF'; $card.BorderThickness = '1'
-        $card.Cursor = 'Hand'; $card.Tag = $c
-        $tip = if ($c.text.Length -gt 800) { $c.text.Substring(0, 800) + '…' } else { $c.text }
-        $card.ToolTip = $tip
+    $g = New-Object Windows.Controls.Grid
+    foreach ($w in '*', 'Auto', 'Auto') { $cd = New-Object Windows.Controls.ColumnDefinition; $cd.Width = $w; $g.ColumnDefinitions.Add($cd) }
 
-        $g = New-Object Windows.Controls.Grid
-        $gc1 = New-Object Windows.Controls.ColumnDefinition; $gc1.Width = '*'
-        $gc2 = New-Object Windows.Controls.ColumnDefinition; $gc2.Width = 'Auto'
-        $g.ColumnDefinitions.Add($gc1); $g.ColumnDefinitions.Add($gc2)
+    $sp = New-Object Windows.Controls.StackPanel
+    $head = New-Object Windows.Controls.TextBlock
+    $icon = if ($c.kind -eq 'files') { '📁 Fichier(s)' } else { '📝 Texte' }
+    $head.Text = if ($isFav) { "⭐ Favori depuis le $($c.time)  ·  $icon" } else { "$($c.time)  ·  $icon" }
+    $head.FontSize = 11; $head.Foreground = '#8A87A3'
+    $body = New-Object Windows.Controls.TextBlock
+    $preview = ($c.text -replace '\s+', ' ').Trim()
+    if ($preview.Length -gt 220) { $preview = $preview.Substring(0, 220) + '…' }
+    $body.Text = $preview
+    $body.TextWrapping = 'Wrap'; $body.MaxHeight = 38; $body.TextTrimming = 'CharacterEllipsis'
+    $body.Foreground = '#1E1B3A'
+    [void]$sp.Children.Add($head); [void]$sp.Children.Add($body)
+    [void]$g.Children.Add($sp)
 
-        $sp = New-Object Windows.Controls.StackPanel
-        $head = New-Object Windows.Controls.TextBlock
-        $icon = if ($c.kind -eq 'files') { '📁 Fichier(s)' } else { '📝 Texte' }
-        $head.Text = "$($c.time)  ·  $icon"
-        $head.FontSize = 11; $head.Foreground = '#8A87A3'
-        $body = New-Object Windows.Controls.TextBlock
-        $preview = ($c.text -replace '\s+', ' ').Trim()
-        if ($preview.Length -gt 220) { $preview = $preview.Substring(0, 220) + '…' }
-        $body.Text = $preview
-        $body.TextWrapping = 'Wrap'; $body.MaxHeight = 38; $body.TextTrimming = 'CharacterEllipsis'
-        $body.Foreground = '#1E1B3A'
-        [void]$sp.Children.Add($head); [void]$sp.Children.Add($body)
-        [void]$g.Children.Add($sp)
+    $star = New-Object Windows.Controls.Button
+    $on = $isFav -or [bool](Find-Fav $c.text)
+    $star.Content = if ($on) { '★' } else { '☆' }
+    $star.Foreground = if ($on) { '#F5A400' } else { '#B0AEC4' }
+    $star.FontSize = 15; $star.Tag = $c; $star.Width = 24; $star.Height = 22; $star.VerticalAlignment = 'Top'
+    $star.Background = 'Transparent'; $star.BorderThickness = '0'; $star.Cursor = 'Hand'
+    $star.ToolTip = if ($on) { 'Retirer des favoris' } else { 'Garder en favori (même après aujourd''hui)' }
+    $star.Add_Click({ param($s, $e) Invoke-Safe { Toggle-Fav $s.Tag } })
+    [Windows.Controls.Grid]::SetColumn($star, 1)
+    [void]$g.Children.Add($star)
 
+    if (-not $isFav) {
         $del = New-Object Windows.Controls.Button
         $del.Content = '✕'; $del.Tag = $c; $del.Width = 22; $del.Height = 20; $del.VerticalAlignment = 'Top'
         $del.Background = 'Transparent'; $del.BorderThickness = '0'; $del.Foreground = '#B0AEC4'
         $del.Cursor = 'Hand'; $del.ToolTip = "Retirer de l'historique"
         $del.Add_Click({ param($s, $e) Invoke-Safe { $NB.Clips.Remove($s.Tag); Save-Clips; Render-Clips } })
-        [Windows.Controls.Grid]::SetColumn($del, 1)
+        [Windows.Controls.Grid]::SetColumn($del, 2)
         [void]$g.Children.Add($del)
+    }
 
-        $card.Child = $g
-        $card.Add_MouseLeftButtonUp({ param($s, $e) Invoke-Safe { Copy-Clip $s.Tag } })
-        [void]$pn.ClipList.Children.Add($card)
+    $card.Child = $g
+    $card.Add_MouseLeftButtonUp({ param($s, $e) Invoke-Safe { Copy-Clip $s.Tag } })
+    return $card
+}
+
+function New-SectionTitle([string]$text) {
+    $h = New-Object Windows.Controls.TextBlock
+    $h.Text = $text; $h.FontWeight = 'Bold'; $h.FontSize = 12; $h.Foreground = '#4A4766'; $h.Margin = '2,4,0,6'
+    return $h
+}
+
+function Render-Clips {
+    $NB.ClipDirty = $false
+    $pn.ClipList.Children.Clear()
+    $q = $pn.ClipSearch.Text.Trim().ToLowerInvariant()
+
+    # favoris en premier
+    $favs = @($NB.Favs | Where-Object { -not $q -or $_.text.ToLowerInvariant().Contains($q) })
+    if ($favs.Count) {
+        [void]$pn.ClipList.Children.Add((New-SectionTitle "⭐ Favoris ($($favs.Count))"))
+        foreach ($f in $favs) { [void]$pn.ClipList.Children.Add((New-ClipCard $f $true)) }
+        [void]$pn.ClipList.Children.Add((New-SectionTitle "📋 Aujourd'hui"))
+    }
+
+    $shown = 0
+    foreach ($c in $NB.Clips) {
+        if ($q -and -not $c.text.ToLowerInvariant().Contains($q)) { continue }
+        if (++$shown -gt 80) { break }   # au-dela, la recherche aide a retrouver
+        [void]$pn.ClipList.Children.Add((New-ClipCard $c $false))
     }
     if ($shown -eq 0) {
         $empty = New-Object Windows.Controls.TextBlock
-        $empty.Text = if ($q) { "Rien ne correspond à « $q »" } else { "Aucun copier-coller aujourd'hui.`nFais un Ctrl+C quelque part, je m'en souviendrai 📋" }
+        $empty.Text = if ($q) { "Rien ne correspond à « $q »" } else { "Aucun copier-coller aujourd'hui.`nFais un Ctrl+C quelque part, je m'en souviendrai 📋`nClique sur ☆ pour garder un élément en favori." }
         $empty.Foreground = '#9A98B0'; $empty.TextWrapping = 'Wrap'; $empty.Margin = '4,10,4,0'
         $empty.TextAlignment = 'Center'
         [void]$pn.ClipList.Children.Add($empty)
     }
-    $pn.ClipCount.Text = "$($NB.Clips.Count) aujourd'hui"
+    $pn.ClipCount.Text = "$($NB.Clips.Count) aujourd'hui · ⭐ $($NB.Favs.Count)"
     Update-Tabs
 }
 
@@ -719,11 +1003,12 @@ $pn.ClipPause.Add_Click({
 })
 $pn.ClipClear.Add_Click({
     Invoke-Safe {
-        $r = [Windows.MessageBox]::Show($panel, "Effacer tout l'historique des copier-coller d'aujourd'hui ?", 'Orbit', 'YesNo', 'Question')
+        $r = [Windows.MessageBox]::Show($panel, "Effacer tout l'historique des copier-coller d'aujourd'hui ?`n(Les favoris ⭐ sont conservés.)", 'Orbit', 'YesNo', 'Question')
         if ($r -eq 'Yes') { $NB.Clips.Clear(); $NB.LastClip = ''; Save-Clips; Render-Clips }
     }
 })
 
 Load-Todos
 Load-Clips
+Load-Favs
 Update-Tabs
