@@ -413,81 +413,160 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           </TransformGroup>
         </Canvas.RenderTransform>
 
-        <!-- bras porteur des panneaux -->
-        <Rectangle Canvas.Left="34" Canvas.Top="50" Width="52" Height="3" Fill="#6B7380"/>
+        <!-- bras et charnieres des panneaux solaires -->
+        <Rectangle Canvas.Left="35" Canvas.Top="49.6" Width="8" Height="2.4" Fill="#7D8796"/>
+        <Rectangle Canvas.Left="77" Canvas.Top="49.6" Width="8" Height="2.4" Fill="#7D8796"/>
+        <Rectangle Canvas.Left="34.5" Canvas.Top="47.5" Width="3" Height="6.5" RadiusX="0.6" RadiusY="0.6" Fill="#5E6878"/>
+        <Rectangle Canvas.Left="82.5" Canvas.Top="47.5" Width="3" Height="6.5" RadiusX="0.6" RadiusY="0.6" Fill="#5E6878"/>
 
         <!-- panneaux solaires -->
-        <Border Canvas.Left="1" Canvas.Top="38" Width="35" Height="27" CornerRadius="1.5"
-                BorderBrush="#9AA3B2" BorderThickness="1.2">
-          <Border.Background>
-            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-              <GradientStop Color="#34589E" Offset="0"/>
-              <GradientStop Color="#14264F" Offset="1"/>
-            </LinearGradientBrush>
-          </Border.Background>
-          <Path Stroke="#667FA8E0" StrokeThickness="0.8"
-                Data="M 8,0 V 25 M 16,0 V 25 M 24,0 V 25 M 0,8 H 33 M 0,16 H 33"/>
-        </Border>
-        <Border Canvas.Left="84" Canvas.Top="38" Width="35" Height="27" CornerRadius="1.5"
-                BorderBrush="#9AA3B2" BorderThickness="1.2">
-          <Border.Background>
-            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-              <GradientStop Color="#34589E" Offset="0"/>
-              <GradientStop Color="#14264F" Offset="1"/>
-            </LinearGradientBrush>
-          </Border.Background>
-          <Path Stroke="#667FA8E0" StrokeThickness="0.8"
-                Data="M 8,0 V 25 M 16,0 V 25 M 24,0 V 25 M 0,8 H 33 M 0,16 H 33"/>
-        </Border>
+        <Canvas Canvas.Left="2" Canvas.Top="38" Width="34" Height="26" ClipToBounds="True">
+          <Rectangle Width="34" Height="26">
+            <Rectangle.Fill>
+              <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#2B5AA8" Offset="0"/>
+                <GradientStop Color="#163A78" Offset="0.55"/>
+                <GradientStop Color="#0B1F45" Offset="1"/>
+              </LinearGradientBrush>
+            </Rectangle.Fill>
+          </Rectangle>
+          <Path Stroke="#4F7CC4" StrokeThickness="0.5" Opacity="0.8" Data="M 5.67,0 V 26 M 11.33,0 V 26 M 17,0 V 26 M 22.67,0 V 26 M 28.33,0 V 26 M 0,8.67 H 34 M 0,17.33 H 34"/>
+          <!-- reflet du soleil qui balaie le panneau -->
+          <Rectangle Canvas.Left="0" Canvas.Top="-18" Width="8" Height="62" Opacity="0.55">
+            <Rectangle.Fill>
+              <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                <GradientStop Color="#00FFFFFF" Offset="0"/>
+                <GradientStop Color="#CCFFFFFF" Offset="0.5"/>
+                <GradientStop Color="#00FFFFFF" Offset="1"/>
+              </LinearGradientBrush>
+            </Rectangle.Fill>
+            <Rectangle.RenderTransform>
+              <TransformGroup>
+                <RotateTransform Angle="25"/>
+                <TranslateTransform x:Name="GlintL" X="-40"/>
+              </TransformGroup>
+            </Rectangle.RenderTransform>
+          </Rectangle>
+        </Canvas>
+        <Rectangle Canvas.Left="2" Canvas.Top="38" Width="34" Height="26" RadiusX="1" RadiusY="1"
+                   Stroke="#B4BCC8" StrokeThickness="1.1"/>
+        <Canvas Canvas.Left="84" Canvas.Top="38" Width="34" Height="26" ClipToBounds="True">
+          <Rectangle Width="34" Height="26">
+            <Rectangle.Fill>
+              <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#2B5AA8" Offset="0"/>
+                <GradientStop Color="#163A78" Offset="0.55"/>
+                <GradientStop Color="#0B1F45" Offset="1"/>
+              </LinearGradientBrush>
+            </Rectangle.Fill>
+          </Rectangle>
+          <Path Stroke="#4F7CC4" StrokeThickness="0.5" Opacity="0.8" Data="M 5.67,0 V 26 M 11.33,0 V 26 M 17,0 V 26 M 22.67,0 V 26 M 28.33,0 V 26 M 0,8.67 H 34 M 0,17.33 H 34"/>
+          <!-- reflet du soleil qui balaie le panneau -->
+          <Rectangle Canvas.Left="0" Canvas.Top="-18" Width="8" Height="62" Opacity="0.55">
+            <Rectangle.Fill>
+              <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                <GradientStop Color="#00FFFFFF" Offset="0"/>
+                <GradientStop Color="#CCFFFFFF" Offset="0.5"/>
+                <GradientStop Color="#00FFFFFF" Offset="1"/>
+              </LinearGradientBrush>
+            </Rectangle.Fill>
+            <Rectangle.RenderTransform>
+              <TransformGroup>
+                <RotateTransform Angle="25"/>
+                <TranslateTransform x:Name="GlintR" X="-40"/>
+              </TransformGroup>
+            </Rectangle.RenderTransform>
+          </Rectangle>
+        </Canvas>
+        <Rectangle Canvas.Left="84" Canvas.Top="38" Width="34" Height="26" RadiusX="1" RadiusY="1"
+                   Stroke="#B4BCC8" StrokeThickness="1.1"/>
 
-        <!-- antenne parabolique + balise -->
-        <Line X1="60" Y1="31" X2="60" Y2="22" Stroke="#6B7380" StrokeThickness="2"/>
-        <Path Stroke="#4A5260" StrokeThickness="1.2" Data="M 47,14 Q 60,30 73,14 Z">
+        <!-- feux de navigation : rouge a babord, vert a tribord -->
+        <Ellipse x:Name="NavL" Canvas.Left="0.2" Canvas.Top="49.4" Width="3.2" Height="3.2" Fill="#FF4D4D"/>
+        <Ellipse x:Name="NavR" Canvas.Left="116.6" Canvas.Top="49.4" Width="3.2" Height="3.2" Fill="#3DDC84"/>
+
+        <!-- antenne grand gain : mat, parabole, trepied et source, balise -->
+        <Line X1="60" Y1="28" X2="60" Y2="19" Stroke="#7D8796" StrokeThickness="2"/>
+        <Path Stroke="#4A5260" StrokeThickness="1" Data="M 45,11 Q 60,29 75,11 Z">
           <Path.Fill>
             <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-              <GradientStop Color="#F4F6F9" Offset="0"/>
-              <GradientStop Color="#A9B2BF" Offset="1"/>
+              <GradientStop Color="#FAFBFC" Offset="0"/>
+              <GradientStop Color="#A3ACB9" Offset="1"/>
             </LinearGradientBrush>
           </Path.Fill>
         </Path>
-        <Line X1="60" Y1="20" X2="60" Y2="8" Stroke="#6B7380" StrokeThickness="1.2"/>
-        <Ellipse x:Name="Beacon" Canvas.Left="57.5" Canvas.Top="3.5" Width="5" Height="5" Fill="#5FD3FF"/>
+        <Path Stroke="White" StrokeThickness="0.8" Opacity="0.8" Data="M 45.5,11.2 Q 60,14 74.5,11.2"/>
+        <Path Stroke="#8A94A3" StrokeThickness="0.7" Data="M 47,12 L 60,5.5 L 73,12"/>
+        <Rectangle Canvas.Left="58.6" Canvas.Top="4.5" Width="2.8" Height="3.5" RadiusX="0.5" RadiusY="0.5" Fill="#5E6878"/>
+        <Ellipse x:Name="Beacon" Canvas.Left="58" Canvas.Top="0.6" Width="4" Height="4" Fill="#5FD3FF"/>
 
-        <!-- module principal -->
-        <Rectangle Canvas.Left="42" Canvas.Top="30" Width="36" Height="44" RadiusX="4" RadiusY="4"
-                   Stroke="#4A5260" StrokeThickness="1.2">
+        <!-- viseur d'etoiles -->
+        <Rectangle Canvas.Left="70" Canvas.Top="22.5" Width="6" Height="6" RadiusX="1" RadiusY="1"
+                   Fill="#2A3240" Stroke="#4A5260" StrokeThickness="0.6"/>
+        <Ellipse Canvas.Left="71.5" Canvas.Top="24" Width="3" Height="3" Fill="#0E141C" Stroke="#7D8796" StrokeThickness="0.5"/>
+
+        <!-- module principal : plateforme argent + isolation doree (MLI) -->
+        <Rectangle Canvas.Left="42" Canvas.Top="28" Width="36" Height="46" RadiusX="3" RadiusY="3">
           <Rectangle.Fill>
             <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-              <GradientStop Color="#F1F3F6" Offset="0"/>
-              <GradientStop Color="#BAC2CD" Offset="0.55"/>
-              <GradientStop Color="#8C95A4" Offset="1"/>
+              <GradientStop Color="#EEF1F5" Offset="0"/>
+              <GradientStop Color="#C3CAD4" Offset="0.5"/>
+              <GradientStop Color="#8F99A8" Offset="1"/>
             </LinearGradientBrush>
           </Rectangle.Fill>
         </Rectangle>
-        <!-- isolation dorée -->
-        <Rectangle Canvas.Left="42.6" Canvas.Top="60" Width="34.8" Height="10">
+        <Rectangle Canvas.Left="42.6" Canvas.Top="52" Width="34.8" Height="21.4">
           <Rectangle.Fill>
             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-              <GradientStop Color="#EBCB6B" Offset="0"/>
-              <GradientStop Color="#B48A1C" Offset="0.5"/>
-              <GradientStop Color="#DDB84E" Offset="1"/>
+              <GradientStop Color="#F1D27A" Offset="0"/>
+              <GradientStop Color="#C79A2A" Offset="0.35"/>
+              <GradientStop Color="#E9C565" Offset="0.6"/>
+              <GradientStop Color="#A9801A" Offset="1"/>
             </LinearGradientBrush>
           </Rectangle.Fill>
         </Rectangle>
-        <!-- capteur optique : il suit la souris -->
-        <Ellipse Canvas.Left="51" Canvas.Top="36" Width="18" Height="18" Fill="#1B2330"
-                 Stroke="#4A5260" StrokeThickness="1.5"/>
-        <Ellipse x:Name="Lens" Canvas.Left="56" Canvas.Top="41" Width="8" Height="8" Fill="#5FD3FF"/>
-        <Ellipse x:Name="LensGlint" Canvas.Left="57" Canvas.Top="42" Width="2.6" Height="2.6" Fill="#D9FFFFFF"/>
+        <Path Stroke="White" StrokeThickness="0.45" Opacity="0.3"
+              Data="M 44,56 L 49,54.8 L 53,57.6 L 58,55.4 L 63,58.4 L 69,56.2 L 76,57.8 M 44,64 L 50,62 L 55,64.6 L 61,62.4 L 66,65.4 L 72,63.2 L 76,64.6 M 46,70 L 52,68.4 L 58,70.6 L 64,69 L 71,71"/>
+        <Path Stroke="#6B4E0E" StrokeThickness="0.4" Opacity="0.25"
+              Data="M 44,59 L 50,58.2 L 56,60.4 L 62,58.8 L 70,60.6 L 76,60.2 M 45,67.5 L 51,66.4 L 57,68.2 L 64,66.4 L 75,68.2"/>
+        <Rectangle Canvas.Left="42" Canvas.Top="28" Width="36" Height="46" RadiusX="3" RadiusY="3"
+                   Stroke="#4A5260" StrokeThickness="1.1"/>
+        <Line X1="42.6" Y1="52" X2="77.4" Y2="52" Stroke="#6B7380" StrokeThickness="0.7"/>
+        <TextBlock Canvas.Left="42.6" Canvas.Top="53.3" Width="34.8" TextAlignment="Center" Text="ORBIT·1"
+                   FontFamily="Consolas" FontWeight="Bold" FontSize="4.6" Foreground="#5A400C" Opacity="0.9"/>
+
         <!-- voyant d'etat -->
-        <Ellipse x:Name="StatusLed" Canvas.Left="71.5" Canvas.Top="33" Width="4" Height="4" Fill="#5FD3FF"/>
-        <!-- propulseur -->
-        <Rectangle Canvas.Left="52" Canvas.Top="74" Width="16" Height="5" RadiusX="1" RadiusY="1" Fill="#5A6270"/>
+        <Ellipse x:Name="StatusLed" Canvas.Left="44.7" Canvas.Top="30.3" Width="3" Height="3" Fill="#5FD3FF"/>
+
+        <!-- camera : elle suit la souris -->
+        <Ellipse Canvas.Left="52.6" Canvas.Top="32.1" Width="14.8" Height="14.8" Fill="#1B2330"
+                 Stroke="#4A5260" StrokeThickness="1.4"/>
+        <Ellipse Canvas.Left="55" Canvas.Top="34.5" Width="10" Height="10" Stroke="#3A4556" StrokeThickness="0.8"/>
+        <Ellipse x:Name="Lens" Canvas.Left="56.7" Canvas.Top="36.2" Width="6.6" Height="6.6" Fill="#5FD3FF"/>
+        <Ellipse x:Name="LensGlint" Canvas.Left="57.9" Canvas.Top="37.4" Width="2.2" Height="2.2" Fill="#D9FFFFFF"/>
+
+        <!-- afficheur binaire : les minutes restantes, en binaire (clin d'oeil geek) -->
+        <Rectangle Canvas.Left="46" Canvas.Top="46.6" Width="28" Height="4.4" RadiusX="1" RadiusY="1" Fill="#141B24"
+                   ToolTip="Minutes restantes, en binaire 🤓"/>
+        <Rectangle x:Name="Bit0" Canvas.Left="69.5" Canvas.Top="47.6" Width="2.6" Height="2.4" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+        <Rectangle x:Name="Bit1" Canvas.Left="65.1" Canvas.Top="47.6" Width="2.6" Height="2.4" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+        <Rectangle x:Name="Bit2" Canvas.Left="60.7" Canvas.Top="47.6" Width="2.6" Height="2.4" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+        <Rectangle x:Name="Bit3" Canvas.Left="56.3" Canvas.Top="47.6" Width="2.6" Height="2.4" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+        <Rectangle x:Name="Bit4" Canvas.Left="51.9" Canvas.Top="47.6" Width="2.6" Height="2.4" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+        <Rectangle x:Name="Bit5" Canvas.Left="47.5" Canvas.Top="47.6" Width="2.6" Height="2.4" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+
+        <!-- propulseurs et antennes fouet -->
+        <Path Fill="#4D5664" Data="M 50,74 L 56,74 L 57.5,79 L 48.5,79 Z"/>
+        <Path Fill="#4D5664" Data="M 64,74 L 70,74 L 71.5,79 L 62.5,79 Z"/>
+        <Line X1="44" Y1="73" X2="37" Y2="84" Stroke="#8A94A3" StrokeThickness="0.8"/>
+        <Ellipse Canvas.Left="36.1" Canvas.Top="83.1" Width="1.8" Height="1.8" Fill="#8A94A3"/>
+        <Line X1="76" Y1="73" X2="83" Y2="84" Stroke="#8A94A3" StrokeThickness="0.8"/>
+        <Ellipse Canvas.Left="82.1" Canvas.Top="83.1" Width="1.8" Height="1.8" Fill="#8A94A3"/>
       </Canvas>
 
       <!-- chrono -->
-      <Border x:Name="Pill" Canvas.Left="23" Canvas.Top="94" Width="74" Height="22" CornerRadius="4"
-              Background="#EE1B2330" BorderBrush="#5FD3FF" BorderThickness="1.2">
+      <Border x:Name="Pill" Canvas.Left="21" Canvas.Top="94" Width="78" Height="22" CornerRadius="3"
+              Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="1.2">
         <TextBlock x:Name="PillText" Text="▶" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI"
                    FontWeight="Bold" FontSize="12.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
       </Border>
@@ -498,7 +577,8 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
 
 $window = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xaml))
 $ui = @{}
-foreach ($n in 'Root','BubbleWrap','BubblePop','SpeechTail','ThoughtTail','Bubble','BubbleText','BubbleButtons','Bot','BotScale','Bob','Tilt','Beacon','Lens','LensGlint','StatusLed','Pill','PillText') {
+foreach ($n in 'Root','BubbleWrap','BubblePop','SpeechTail','ThoughtTail','Bubble','BubbleText','BubbleButtons','Bot','BotScale','Bob','Tilt','Beacon','Lens','LensGlint','StatusLed','Pill','PillText',
+               'NavL','NavR','GlintL','GlintR','Bit0','Bit1','Bit2','Bit3','Bit4','Bit5') {
     $ui[$n] = $window.FindName($n)
 }
 
@@ -537,6 +617,7 @@ $O = @{
     Hwnd         = [IntPtr]::Zero
     Home         = $null
     MoodBrush    = $null
+    AccentBrush  = $null
     Today        = (Get-Date).ToString('yyyy-MM-dd')
     FocusToday   = 0
     FocusMinToday = 0
@@ -655,6 +736,7 @@ function Set-Mood([string]$mood) {
     $ui.Beacon.Fill = $accent
     $ui.StatusLed.Fill = $accent
     $ui.Pill.BorderBrush = $accent
+    $O.AccentBrush = $accent
     $O.MoodBrush = New-Object Windows.Media.SolidColorBrush((New-Color $c[1]))
 }
 
@@ -1033,14 +1115,15 @@ function On-TimerEnded {
 
 function Update-Pill {
     $txt = switch ($O.State) {
-        'Idle'       { '▶ Orbit' }
+        'Idle'       { '▶ ORBIT' }
         'AwaitBreak' { '☕ ?' }
         'AwaitFocus' { '🚀 ?' }
         default {
             $left = if ($O.Paused) { $O.Remaining } else { $O.EndsAt - (Get-Date) }
             if ($left -lt [timespan]::Zero) { $left = [timespan]::Zero }
             $t = '{0:00}:{1:00}' -f [math]::Floor($left.TotalMinutes), $left.Seconds
-            $prefix = if ($O.Paused) { '⏸ ' } elseif ($O.State -eq 'Break') { '☕ ' } else { '' }
+            # compte a rebours facon controle de mission pendant le focus
+            $prefix = if ($O.Paused) { '⏸ ' } elseif ($O.State -eq 'Break') { '☕ ' } else { 'T-' }
             $prefix + $t
         }
     }
@@ -1178,6 +1261,30 @@ function Ensure-Visible {
     }
 }
 
+$script:BitOff = New-Object Windows.Media.SolidColorBrush((New-Color '#2A3442'))
+function Update-Bits([double]$t) {
+    $on = $O.AccentBrush
+    if (-not $on) { return }
+    $mask = 0; $blink = 1.0
+    switch -Wildcard ($O.State) {
+        'Await*' { $mask = 63; $blink = 0.3 + 0.7 * [math]::Abs([math]::Sin($t * 4)) }
+        'Idle' {
+            $pos = [int][math]::Floor($t * 6) % 10
+            $i = if ($pos -lt 6) { $pos } else { 10 - $pos }
+            $mask = 1 -shl (5 - $i)
+        }
+        default {
+            $left = if ($O.Paused) { $O.Remaining } else { $O.EndsAt - [datetime]::Now }
+            $mask = [int][math]::Min(63, [math]::Max(0, [math]::Ceiling($left.TotalMinutes)))
+            if ($O.Paused) { $blink = if (($t % 1.2) -lt 0.6) { 1 } else { 0.25 } }
+        }
+    }
+    for ($b = 0; $b -lt 6; $b++) {
+        $led = $ui["Bit$b"]
+        if ($mask -band (1 -shl $b)) { $led.Fill = $on; $led.Opacity = $blink } else { $led.Fill = $script:BitOff; $led.Opacity = 1 }
+    }
+}
+
 # ---------------------------------------------------------------------------
 #  Boucle d'animation (~25 images/s)
 # ---------------------------------------------------------------------------
@@ -1202,18 +1309,28 @@ function On-Frame {
         $ui.StatusLed.Opacity = 1
     }
 
-    # le capteur optique suit la souris
+    # la camera suit la souris
     $c = Get-CursorDip
     $scale = $ui.BotScale.ScaleX
     $cx = $window.Left + $window.Width - 60 * $scale
-    $cy = $window.Top + $window.Height - 77 * $scale
+    $cy = $window.Top + $window.Height - 82.5 * $scale
     $vx = $c.X - $cx; $vy = $c.Y - $cy
     $len = [math]::Sqrt($vx * $vx + $vy * $vy)
-    if ($len -gt 1) { $vx = $vx / $len * 3.5; $vy = $vy / $len * 3.5 }
-    [Windows.Controls.Canvas]::SetLeft($ui.Lens, 56 + $vx)
-    [Windows.Controls.Canvas]::SetTop($ui.Lens, 41 + $vy)
-    [Windows.Controls.Canvas]::SetLeft($ui.LensGlint, 57 + $vx)
-    [Windows.Controls.Canvas]::SetTop($ui.LensGlint, 42 + $vy)
+    if ($len -gt 1) { $vx = $vx / $len * 1.8; $vy = $vy / $len * 1.8 }
+    [Windows.Controls.Canvas]::SetLeft($ui.Lens, 56.7 + $vx)
+    [Windows.Controls.Canvas]::SetTop($ui.Lens, 36.2 + $vy)
+    [Windows.Controls.Canvas]::SetLeft($ui.LensGlint, 57.9 + $vx)
+    [Windows.Controls.Canvas]::SetTop($ui.LensGlint, 37.4 + $vy)
+
+    # feux de navigation (flashs alternes) et reflet du soleil sur les panneaux
+    $ui.NavL.Opacity = if (($t % 1.6) -lt 0.12) { 1 } else { 0.25 }
+    $ui.NavR.Opacity = if ((($t + 0.8) % 1.6) -lt 0.12) { 1 } else { 0.25 }
+    $g = $t % 7
+    $ui.GlintL.X = -40 + [math]::Min(1, $g / 1.4) * 90
+    $ui.GlintR.X = -40 + [math]::Min(1, [math]::Max(0, $g - 0.35) / 1.4) * 90
+
+    # afficheur binaire : minutes restantes pendant une session, balayage au repos
+    Update-Bits $t
 
     # chute de la blague en cours
     if ($O.Punch -and $now -ge $O.Punch.At) {

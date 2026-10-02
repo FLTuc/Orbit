@@ -16,7 +16,7 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
 ## Ce qu'il fait
 
 - **Il te suit** : il se place en bas à droite de l'écran où se trouve ta souris et change d'écran en même temps que toi.
-- **Il se balade** : de temps en temps, il part faire un petit tour sur tes écrans, puis il revient. Son capteur optique suit ta souris, sa balise clignote et son voyant change de couleur selon le moment (bleu = focus, vert = pause, orange = il attend ta réponse).
+- **Il se balade** : de temps en temps, il part faire un petit tour sur tes écrans, puis il revient. C'est un vrai petit satellite : panneaux solaires où passe un reflet de soleil, antenne parabolique avec balise, viseur d'étoiles, isolation dorée, feux de navigation rouge et vert, propulseurs. Sa caméra suit ta souris et ses voyants changent de couleur selon le moment (bleu = focus, vert = pause, orange = il attend ta réponse). Clin d'œil geek : la rangée de LED sous la caméra affiche **les minutes restantes en binaire** (au repos, elle fait un balayage), et le chrono s'affiche façon contrôle de mission : `T-24:31`.
 - **Il reste au-dessus** de toutes les applications, sans te voler le focus. Le chrono s'affiche sous lui.
 - **Cycle Pomodoro avec confirmation**, en 50/10, en 25/5 ou avec ton propre rythme (dans les réglages) :
   1. 🚀 focus (50 ou 25 min), puis **il s'arrête et attend** que tu cliques sur « Je prends ma pause » (ou « On arrête là ») ;
