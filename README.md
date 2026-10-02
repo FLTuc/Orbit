@@ -42,17 +42,14 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   - Bulle de **pensée** (avec des petits ronds) pour ses réflexions et ses commentaires sur tes applis.
 - **Des petits commentaires** : de la motivation pendant le focus (mi-parcours, 5 dernières minutes…) et des blagues selon l'application sous ta souris (Excel, Outlook, Teams, PowerPoint, VS Code…). Pendant le focus, il te taquine si tu passes sur YouTube, Netflix, Reddit…
 - **Statistiques** : il compte tes sessions et tes minutes de focus du jour.
-- **Une to-do en vrac** (clic droit > 📝 Ma to-do) :
-  - tape une idée et appuie sur Entrée ;
-  - **priorité de 1 à 10** (1 = la plus urgente, 10 = quand j'ai le temps ; 5 par défaut) : choisis-la dans la liste à côté du champ, ou tape « !2 » dans le texte (« !2 Appeler Paul ») ; clique sur la pastille P1…P10 d'une tâche pour la changer ;
-  - les tâches sont triées par priorité, avec une couleur : rouge (1 à 3), orange (4 à 6), gris (7 à 10) ;
-  - **modifier une tâche** : clique sur son texte (ou sur ✏️). Tu peux changer son titre et lui ajouter une **description** (détails, liens, étapes…), modifiable à tout moment. Tout s'enregistre automatiquement pendant que tu tapes ; Entrée dans le titre passe à la description, Ctrl+Entrée ou Échap termine ;
-  - la description apparaît en aperçu sous la tâche, et Orbit la rappelle au début du focus quand c'est ton objectif ;
-  - chaque ajout, coche ou suppression est **enregistré tout de suite**, rien n'est perdu même si le PC plante ;
-  - les tâches non faites restent d'un jour à l'autre, et les tâches terminées des jours précédents partent dans une archive ;
-  - Orbit s'en sert pour ses rappels de tâches (voir plus haut) ;
-  - **échéance** (📅) : dans la fiche de la tâche, choisis une date. La tâche affiche « aujourd'hui », « demain », « en retard »… en couleur, et Orbit te signale au démarrage (et chaque matin) ce qui est à rendre aujourd'hui ou en retard ;
-  - **rappel à heure fixe** (⏰) : dans la fiche, choisis une date et une heure, ou tape directement « @14h » ou « @14h30 » dans le texte de la tâche (« Appeler Paul @14h »). À l'heure dite, Orbit sonne, réapparaît s'il était caché et affiche la tâche avec trois boutons : « ✅ C'est fait », « ⏰ Dans 15 min » ou « 👍 OK ».
+- **Des tableaux Kanban, façon Trello** (clic droit > 🗂️ Mes tableaux) :
+  - **plusieurs tableaux** (un par projet, un perso…) : liste déroulante pour passer de l'un à l'autre, boutons ＋ Tableau, ✏️ renommer, 🗑️ supprimer ;
+  - chaque tableau a ses **colonnes** (par défaut : À faire, En cours, Terminé) : ＋ Ajouter une colonne, et via le menu ⋯ d'une colonne : renommer (ou double-clic sur son nom), déplacer à gauche/droite, marquer comme colonne « terminé », archiver ses cartes, supprimer ;
+  - **glisse les cartes** d'une colonne à l'autre, ou pour changer leur ordre ; clic droit sur une carte : déplacer vers une colonne, envoyer vers un autre tableau, supprimer ;
+  - chaque carte garde tout ce que faisaient les tâches : **priorité de 1 à 10** (pastille P1…P10, ou « !2 » dans le texte), **description**, **échéance** 📅, **rappel** ⏰ (ou « @14h » dans le texte) ; clic sur une carte pour la modifier, enregistré automatiquement ;
+  - une carte est « terminée » quand elle est dans une colonne marquée ✅ : c'est ce qu'utilisent les rappels de focus d'Orbit (« ✅ C'est fait ! » la range dans Terminé) ;
+  - ajout rapide en haut (dans la 1re colonne du tableau affiché) ou en bas de chaque colonne ; tout est enregistré à chaque modification ;
+  - ton ancienne to-do est reprise automatiquement dans un premier tableau « Mon tableau ».
 - **L'historique des copier-coller du jour** (clic droit > 📋 Mes copier-coller du jour) :
   - chaque texte ou fichier copié (Ctrl+C) est noté avec l'heure ;
   - tu peux faire une recherche dedans, et **un clic sur un élément le recopie** pour le recoller ;
@@ -93,8 +90,8 @@ Tout est enregistré dans `%APPDATA%\Orbit\` :
 
 | Fichier | Contenu |
 |---|---|
-| `todo.json` / `todo.md` | ta to-do (le `.md` se lit dans n'importe quel éditeur) |
-| `todo-archive.md` | les tâches terminées, jour par jour |
+| `kanban.json` / `todo.md` | tes tableaux et leurs cartes (le `.md` se lit dans n'importe quel éditeur) |
+| `todo-archive.md` | les cartes archivées, jour par jour |
 | `clipboard\AAAA-MM-JJ.json` | les copier-coller du jour |
 | `clipboard-favoris.json` | les copier-coller mis en favori ⭐ (conservés) |
 | `settings.json` | tes réglages |

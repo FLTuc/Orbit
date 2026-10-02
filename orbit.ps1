@@ -1325,7 +1325,7 @@ function Get-StartButtons {
 $BtnAgain      = @{ Label = "🚀 On repart !"; Action = { Start-Focus }; Primary = $true }
 $BtnBreak      = @{ Label = "☕ Je prends ma pause"; Action = { Start-Break }; Primary = $true }
 $BtnStop       = @{ Label = "⏹ On arrête là"; Action = { Stop-Cycle } }
-$BtnTodo       = @{ Label = "📝 Ma to-do"; Action = { Open-Notebook 'Todo' } }
+$BtnTodo       = @{ Label = "🗂️ Mes tableaux"; Action = { Open-Notebook 'Todo' } }
 $BtnLater      = @{ Label = "Plus tard"; Action = { Show-Bubble "Ok ! Clique sur moi quand tu veux te lancer 😉" -Force } }
 
 function Start-Focus {
@@ -1355,7 +1355,7 @@ function Start-Focus {
             }
             $secs = 12
         } else {
-            $msg += "`n`nTa to-do est vide : clic droit > 📝 Ma to-do pour noter tes tâches."
+            $msg += "`n`nTes tableaux sont vides : clic droit > 🗂️ Mes tableaux pour noter tes tâches."
             $secs = 8
         }
     }
@@ -1630,7 +1630,7 @@ function Complete-FocusTask {
     $O.FocusTaskId = ''
     $left = (Get-OpenTodos).Count
     $msg = "Bravo, c'est coché ✅"
-    if ($left -eq 0) { $msg += " Et ta to-do est vide, quelle journée ! 🎉" } else { $msg += " Plus que $left tâche(s)." }
+    if ($left -eq 0) { $msg += " Et toutes tes cartes sont terminées, quelle journée ! 🎉" } else { $msg += " Plus que $left tâche(s)." }
     Ask-Break ($msg + "`nOn fait la pause ?") -NoTaskInfo
 }
 
@@ -2075,13 +2075,13 @@ function Quit-Orbit {
 }
 
 # ---------------------------------------------------------------------------
-#  Carnet : to-do + historique des copier-coller (voir notebook.ps1)
+#  Carnet : tableaux Kanban + historique des copier-coller (voir notebook.ps1)
 # ---------------------------------------------------------------------------
 . (Join-Path $PSScriptRoot 'notebook.ps1')
 . (Join-Path $PSScriptRoot 'settings.ps1')
 
 $menu = New-Object Windows.Controls.ContextMenu
-$miTodo   = New-MenuItem "📝  Ma to-do" { Open-Notebook 'Todo' }
+$miTodo   = New-MenuItem "🗂️  Mes tableaux (Kanban)" { Open-Notebook 'Todo' }
 $miClip   = New-MenuItem "📋  Mes copier-coller du jour" { Open-Notebook 'Clip' }
 $miFocus  = New-MenuItem "🚀  Lancer un focus" { Start-Focus }
 $miBreak  = New-MenuItem "☕  Prendre ma pause" { Start-Break }
@@ -2199,7 +2199,7 @@ try {
     [void]$cms.Items.Add('Prendre ma pause', $null, { Invoke-Safe { Ensure-Visible; Start-Break } })
     [void]$cms.Items.Add('Couper le chrono', $null, { Invoke-Safe { Stop-Cycle } })
     [void]$cms.Items.Add('-')
-    [void]$cms.Items.Add('Ma to-do', $null, { Invoke-Safe { Open-Notebook 'Todo' } })
+    [void]$cms.Items.Add('Mes tableaux', $null, { Invoke-Safe { Open-Notebook 'Todo' } })
     [void]$cms.Items.Add('Mes copier-coller du jour', $null, { Invoke-Safe { Open-Notebook 'Clip' } })
     [void]$cms.Items.Add('-')
     [void]$cms.Items.Add('Réglages…', $null, { Invoke-Safe { Open-Settings } })
