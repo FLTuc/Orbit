@@ -1,11 +1,12 @@
 ﻿<#
-    Orbit - petit compagnon de focus (Pomodoro 50/10) pour Windows 10/11.
+    Orbit - petit compagnon de focus (Pomodoro 50/10 ou 25/5) pour Windows 10/11.
 
     Aucune installation, aucun droit administrateur :
     uniquement PowerShell 5.1 + WPF, deja presents dans Windows.
 
     Lancement : double-clic sur Orbit.cmd
     Test rapide : Orbit.cmd -Demo   (focus 1 min, pause 30 s)
+    Le rythme 50/10 ou 25/5 se choisit ensuite dans le menu clic droit.
 #>
 param(
     [double]$FocusMinutes = 50,
@@ -13,6 +14,8 @@ param(
     [switch]$Demo
 )
 
+# Durees imposees en ligne de commande (ou mode demo) : elles priment sur le rythme choisi dans le menu
+$CustomDurations = $Demo -or $PSBoundParameters.ContainsKey('FocusMinutes') -or $PSBoundParameters.ContainsKey('BreakMinutes')
 if ($Demo) { $FocusMinutes = 1; $BreakMinutes = 0.5 }
 
 $ErrorActionPreference = 'Stop'
@@ -31,6 +34,12 @@ $Config = @{
     WanderMaxMin        = 9
     BubbleSeconds       = 7
     CornerMargin        = 6
+}
+
+# Rythmes Pomodoro disponibles : focus / pause, en minutes
+$Rhythms = [ordered]@{
+    '50/10' = @{ Focus = 50; Break = 10; Icon = '🚀' }
+    '25/5'  = @{ Focus = 25; Break = 5;  Icon = '⚡' }
 }
 
 $DataDir = Join-Path $env:APPDATA 'Orbit'
@@ -176,6 +185,38 @@ $Lines = @{
         "Ok, on coupe. Bien joué : {0} session(s) de focus aujourd'hui 🏆",
         "Chrono coupé. {0} session(s) aujourd'hui, respect 🙌"
     )
+    BreakJokes = @(
+        "Pourquoi les astronautes ne se disputent jamais ? Parce qu'ils ont besoin d'espace 🚀",
+        "Le comble pour un astronaute ? Être dans la lune 🌙",
+        "Comment les planètes se coiffent-elles ? Avec des comètes ☄️",
+        "Pourquoi les satellites ne mentent jamais ? Parce qu'on les a toujours à l'œil 🛰️",
+        "Quel est le comble pour un électricien ? De ne pas être au courant ⚡",
+        "Pourquoi les plongeurs plongent-ils en arrière ? Parce que sinon, ils tombent dans le bateau 🤿",
+        "Qu'est-ce qui est jaune et qui attend ? Jonathan 🟡",
+        "Que fait une fraise sur un cheval ? Tagada, tagada 🍓",
+        "Quel est le sport le plus fruité ? La boxe : tu te prends des pêches et tu tombes dans les pommes 🥊",
+        "Pourquoi le livre de maths est-il triste ? Parce qu'il a trop de problèmes 📘",
+        "Qu'est-ce qu'un canif ? Un petit fien 🐶",
+        "Qu'est-ce qui est vert et qui monte et descend ? Un petit pois dans un ascenseur 🟢",
+        "Pourquoi Excel reste toujours calme ? Il a toutes ses cellules sous contrôle 📊",
+        "Quel est le café préféré des développeurs ? Le Java ☕",
+        "Comment appelle-t-on un boomerang qui ne revient pas ? Un bout de bois 🪃",
+        "Deux grains de sable arrivent dans le désert : « Waouh, c'est blindé aujourd'hui ! » 🏜️",
+        "Pourquoi les vaches ferment les yeux pendant la traite ? Pour faire du lait concentré 🐄",
+        "Que dit une imprimante dans l'eau ? « J'ai papier ! » 🖨️",
+        "Monsieur et Madame Térieur ont deux fils. Comment s'appellent-ils ? Alain et Alex 🏠",
+        "Qu'est-ce qu'un crocodile qui surveille la pharmacie ? Un Lacoste-garde 🐊",
+        "Que dit un oignon quand il se cogne ? « Aïe ! » 🧅",
+        "Pourquoi les poissons détestent l'ordinateur ? À cause du Net 🐟",
+        "Que dit un informaticien quand il s'ennuie ? « Je me fichier » 💾",
+        "Pourquoi les fantômes sont-ils de mauvais menteurs ? Parce qu'on lit à travers eux 👻",
+        "Quel est l'animal le plus heureux ? Le hibou, parce que sa femme est chouette 🦉",
+        "Pourquoi les réunions du lundi sont-elles si longues ? Parce que le week-end a laissé des traces 😴",
+        "Comment fait-on aboyer un chat ? On lui donne une tasse de lait, et il la boit 🐱",
+        "Que dit le zéro au huit ? « Joli ta ceinture ! » 8️⃣",
+        "Qu'est-ce qui a des dents mais ne mange jamais ? Un peigne 🪮",
+        "Pourquoi le Wi-Fi est-il si sociable ? Parce qu'il a beaucoup de connexions 📶"
+    )
     Wander = @(
         "Petite balade… 🚶",
         "Je vais voir ce qui se passe par là-bas 🔭",
@@ -253,14 +294,14 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
 [xml]$xaml = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Orbit" Width="320" Height="270"
+        Title="Orbit" Width="320" Height="340"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" ShowActivated="False" ResizeMode="NoResize"
         UseLayoutRounding="True">
   <Grid x:Name="Root">
     <!-- bulle facon bande dessinee : contour epais + queue qui pointe vers Orbit -->
     <Grid x:Name="BubbleWrap" HorizontalAlignment="Right" VerticalAlignment="Bottom"
-          Margin="0,0,10,112" MaxWidth="300" Visibility="Collapsed" RenderTransformOrigin="0.8,1">
+          Margin="0,0,10,126" MaxWidth="300" Visibility="Collapsed" RenderTransformOrigin="0.8,1">
       <Grid.RenderTransform>
         <ScaleTransform x:Name="BubblePop" ScaleX="1" ScaleY="1"/>
       </Grid.RenderTransform>
@@ -274,18 +315,18 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
       <Border x:Name="Bubble" Grid.Row="0" Padding="14,10,14,10" CornerRadius="20"
               Background="White" BorderBrush="#1E1B3A" BorderThickness="2.5">
         <StackPanel>
-          <TextBlock x:Name="BubbleText" TextWrapping="Wrap" FontFamily="Comic Sans MS, Segoe UI"
+          <TextBlock x:Name="BubbleText" TextWrapping="Wrap" FontFamily="Segoe UI"
                      FontSize="13.5" Foreground="#1E1B3A" LineHeight="19"/>
           <WrapPanel x:Name="BubbleButtons" HorizontalAlignment="Right"/>
         </StackPanel>
       </Border>
       <!-- queue de bulle "parole" -->
-      <Path x:Name="SpeechTail" Grid.Row="1" HorizontalAlignment="Right" Margin="0,-3.5,40,0"
+      <Path x:Name="SpeechTail" Grid.Row="1" HorizontalAlignment="Right" Margin="0,-3.5,46,0"
             Fill="White" Stroke="#1E1B3A" StrokeThickness="2.5" StrokeLineJoin="Round"
             Data="M 0,0 Q 8,12 22,20 Q 14,9 16,0"/>
       <!-- queue de bulle "pensee" : petits ronds -->
       <Canvas x:Name="ThoughtTail" Grid.Row="1" HorizontalAlignment="Right" Width="26" Height="22"
-              Margin="0,3,36,0" Visibility="Collapsed">
+              Margin="0,3,44,0" Visibility="Collapsed">
         <Ellipse Canvas.Left="0" Canvas.Top="0" Width="12" Height="10" Fill="White" Stroke="#1E1B3A" StrokeThickness="2.2"/>
         <Ellipse Canvas.Left="14" Canvas.Top="12" Width="7" Height="6" Fill="White" Stroke="#1E1B3A" StrokeThickness="2"/>
       </Canvas>
@@ -297,57 +338,91 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
         <ScaleTransform x:Name="BotScale" ScaleX="1" ScaleY="1"/>
       </Canvas.RenderTransform>
 
-      <Canvas x:Name="Bobber" Width="120" Height="100">
+      <Canvas x:Name="Bobber" Width="120" Height="100" RenderTransformOrigin="0.5,0.5">
         <Canvas.RenderTransform>
-          <TranslateTransform x:Name="Bob" Y="0"/>
+          <TransformGroup>
+            <RotateTransform x:Name="Tilt" Angle="0"/>
+            <TranslateTransform x:Name="Bob" Y="0"/>
+          </TransformGroup>
         </Canvas.RenderTransform>
 
-        <!-- anneau -->
-        <Ellipse x:Name="Ring" Canvas.Left="8" Canvas.Top="48" Width="104" Height="28"
-                 Stroke="#B3A6FF" StrokeThickness="3" Opacity="0.85" Panel.ZIndex="0"
-                 RenderTransformOrigin="0.5,0.5">
-          <Ellipse.RenderTransform>
-            <RotateTransform Angle="-12"/>
-          </Ellipse.RenderTransform>
-        </Ellipse>
+        <!-- bras porteur des panneaux -->
+        <Rectangle Canvas.Left="34" Canvas.Top="50" Width="52" Height="3" Fill="#6B7380"/>
 
-        <Canvas x:Name="BodyGroup" Panel.ZIndex="1">
-          <!-- antenne -->
-          <Line X1="60" Y1="28" X2="60" Y2="13" Stroke="#4B3F9E" StrokeThickness="2.5"/>
-          <Ellipse x:Name="AntennaLight" Canvas.Left="55" Canvas.Top="5" Width="10" Height="10" Fill="#FFD166"/>
-          <!-- corps -->
-          <Ellipse x:Name="Body" Canvas.Left="28" Canvas.Top="26" Width="64" Height="64"
-                   Stroke="#33000000" StrokeThickness="1"/>
-          <!-- reflet -->
-          <Ellipse Canvas.Left="38" Canvas.Top="32" Width="18" Height="10" Fill="#55FFFFFF"/>
-          <!-- joues -->
-          <Ellipse Canvas.Left="36" Canvas.Top="64" Width="9" Height="5" Fill="#66FF8FB1"/>
-          <Ellipse Canvas.Left="75" Canvas.Top="64" Width="9" Height="5" Fill="#66FF8FB1"/>
-          <!-- yeux -->
-          <Canvas x:Name="Eyes" RenderTransformOrigin="0,0">
-            <Canvas.RenderTransform>
-              <ScaleTransform x:Name="EyeScale" CenterY="54" ScaleY="1"/>
-            </Canvas.RenderTransform>
-            <Ellipse Canvas.Left="42" Canvas.Top="46" Width="14" Height="16" Fill="White"/>
-            <Ellipse Canvas.Left="64" Canvas.Top="46" Width="14" Height="16" Fill="White"/>
-            <Ellipse x:Name="PupilL" Canvas.Left="45.5" Canvas.Top="50.5" Width="7" Height="7" Fill="#1E1B3A"/>
-            <Ellipse x:Name="PupilR" Canvas.Left="67.5" Canvas.Top="50.5" Width="7" Height="7" Fill="#1E1B3A"/>
-          </Canvas>
-          <!-- bouche -->
-          <Path x:Name="Mouth" Stroke="#1E1B3A" StrokeThickness="2.2" StrokeStartLineCap="Round"
-                StrokeEndLineCap="Round" Data="M 53,70 Q 60,77 67,70"/>
-        </Canvas>
+        <!-- panneaux solaires -->
+        <Border Canvas.Left="1" Canvas.Top="38" Width="35" Height="27" CornerRadius="1.5"
+                BorderBrush="#9AA3B2" BorderThickness="1.2">
+          <Border.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+              <GradientStop Color="#34589E" Offset="0"/>
+              <GradientStop Color="#14264F" Offset="1"/>
+            </LinearGradientBrush>
+          </Border.Background>
+          <Path Stroke="#667FA8E0" StrokeThickness="0.8"
+                Data="M 8,0 V 25 M 16,0 V 25 M 24,0 V 25 M 0,8 H 33 M 0,16 H 33"/>
+        </Border>
+        <Border Canvas.Left="84" Canvas.Top="38" Width="35" Height="27" CornerRadius="1.5"
+                BorderBrush="#9AA3B2" BorderThickness="1.2">
+          <Border.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+              <GradientStop Color="#34589E" Offset="0"/>
+              <GradientStop Color="#14264F" Offset="1"/>
+            </LinearGradientBrush>
+          </Border.Background>
+          <Path Stroke="#667FA8E0" StrokeThickness="0.8"
+                Data="M 8,0 V 25 M 16,0 V 25 M 24,0 V 25 M 0,8 H 33 M 0,16 H 33"/>
+        </Border>
 
-        <!-- petite lune qui tourne -->
-        <Ellipse x:Name="Moon" Width="11" Height="11" Fill="#FFE29A" Stroke="#C9A43B"
-                 StrokeThickness="1" Panel.ZIndex="2"/>
+        <!-- antenne parabolique + balise -->
+        <Line X1="60" Y1="31" X2="60" Y2="22" Stroke="#6B7380" StrokeThickness="2"/>
+        <Path Stroke="#4A5260" StrokeThickness="1.2" Data="M 47,14 Q 60,30 73,14 Z">
+          <Path.Fill>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+              <GradientStop Color="#F4F6F9" Offset="0"/>
+              <GradientStop Color="#A9B2BF" Offset="1"/>
+            </LinearGradientBrush>
+          </Path.Fill>
+        </Path>
+        <Line X1="60" Y1="20" X2="60" Y2="8" Stroke="#6B7380" StrokeThickness="1.2"/>
+        <Ellipse x:Name="Beacon" Canvas.Left="57.5" Canvas.Top="3.5" Width="5" Height="5" Fill="#5FD3FF"/>
+
+        <!-- module principal -->
+        <Rectangle Canvas.Left="42" Canvas.Top="30" Width="36" Height="44" RadiusX="4" RadiusY="4"
+                   Stroke="#4A5260" StrokeThickness="1.2">
+          <Rectangle.Fill>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+              <GradientStop Color="#F1F3F6" Offset="0"/>
+              <GradientStop Color="#BAC2CD" Offset="0.55"/>
+              <GradientStop Color="#8C95A4" Offset="1"/>
+            </LinearGradientBrush>
+          </Rectangle.Fill>
+        </Rectangle>
+        <!-- isolation dorée -->
+        <Rectangle Canvas.Left="42.6" Canvas.Top="60" Width="34.8" Height="10">
+          <Rectangle.Fill>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+              <GradientStop Color="#EBCB6B" Offset="0"/>
+              <GradientStop Color="#B48A1C" Offset="0.5"/>
+              <GradientStop Color="#DDB84E" Offset="1"/>
+            </LinearGradientBrush>
+          </Rectangle.Fill>
+        </Rectangle>
+        <!-- capteur optique : il suit la souris -->
+        <Ellipse Canvas.Left="51" Canvas.Top="36" Width="18" Height="18" Fill="#1B2330"
+                 Stroke="#4A5260" StrokeThickness="1.5"/>
+        <Ellipse x:Name="Lens" Canvas.Left="56" Canvas.Top="41" Width="8" Height="8" Fill="#5FD3FF"/>
+        <Ellipse x:Name="LensGlint" Canvas.Left="57" Canvas.Top="42" Width="2.6" Height="2.6" Fill="#D9FFFFFF"/>
+        <!-- voyant d'etat -->
+        <Ellipse x:Name="StatusLed" Canvas.Left="71.5" Canvas.Top="33" Width="4" Height="4" Fill="#5FD3FF"/>
+        <!-- propulseur -->
+        <Rectangle Canvas.Left="52" Canvas.Top="74" Width="16" Height="5" RadiusX="1" RadiusY="1" Fill="#5A6270"/>
       </Canvas>
 
       <!-- chrono -->
-      <Border x:Name="Pill" Canvas.Left="25" Canvas.Top="98" Width="70" Height="22" CornerRadius="11"
-              Background="#E61E1B3A">
-        <TextBlock x:Name="PillText" Text="▶" Foreground="White" FontFamily="Segoe UI Semibold"
-                   FontSize="12.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      <Border x:Name="Pill" Canvas.Left="23" Canvas.Top="94" Width="74" Height="22" CornerRadius="4"
+              Background="#EE1B2330" BorderBrush="#5FD3FF" BorderThickness="1.2">
+        <TextBlock x:Name="PillText" Text="▶" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI"
+                   FontWeight="Bold" FontSize="12.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
       </Border>
     </Canvas>
   </Grid>
@@ -356,8 +431,7 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
 
 $window = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xaml))
 $ui = @{}
-foreach ($n in 'Root','BubbleWrap','BubblePop','SpeechTail','ThoughtTail','Bubble','BubbleText','BubbleButtons','Bot','BotScale','Bob','Ring','Body','AntennaLight',
-               'EyeScale','PupilL','PupilR','Mouth','Moon','Pill','PillText') {
+foreach ($n in 'Root','BubbleWrap','BubblePop','SpeechTail','ThoughtTail','Bubble','BubbleText','BubbleButtons','Bot','BotScale','Bob','Tilt','Beacon','Lens','LensGlint','StatusLed','Pill','PillText') {
     $ui[$n] = $window.FindName($n)
 }
 
@@ -385,8 +459,6 @@ $O = @{
     NextWalk     = (Get-Date).AddMinutes((Get-Random -Minimum $Config.WanderMinMin -Maximum $Config.WanderMaxMin))
     Time         = 0.0
     LastFrame    = [datetime]::Now
-    NextBlink    = (Get-Date).AddSeconds(3)
-    BlinkUntil   = [datetime]::MinValue
     LastPid      = 0
     LastTitle    = ''
     AppSince     = [datetime]::Now
@@ -398,6 +470,13 @@ $O = @{
     MoodBrush    = $null
     Today        = (Get-Date).ToString('yyyy-MM-dd')
     FocusToday   = 0
+    FocusMinToday = 0
+    SessionMin   = 0
+    Rhythm       = '50/10'
+    TaskReminders = $true
+    FocusTaskId  = ''
+    NextJoke     = [datetime]::MaxValue
+    JokeQueue    = New-Object System.Collections.ArrayList
     MyPid        = $PID
 }
 
@@ -405,17 +484,23 @@ $O = @{
 try {
     if (Test-Path $StatsFile) {
         $s = Get-Content $StatsFile -Raw -Encoding UTF8 | ConvertFrom-Json
-        if ($s.date -eq $O.Today) { $O.FocusToday = [int]$s.focus }
+        if ($s.date -eq $O.Today) {
+            $O.FocusToday = [int]$s.focus
+            $O.FocusMinToday = if ($null -ne $s.minutes) { [double]$s.minutes } else { $O.FocusToday * 50 }
+        }
         if ($null -ne $s.quiet) { $O.Quiet = [bool]$s.quiet }
         if ($null -ne $s.wander) { $O.Wander = [bool]$s.wander }
+        if ($s.rhythm -and $Rhythms.Contains([string]$s.rhythm)) { $O.Rhythm = [string]$s.rhythm }
+        if ($null -ne $s.taskReminders) { $O.TaskReminders = [bool]$s.taskReminders }
     }
 } catch { Write-Log "Lecture stats : $($_.Exception.Message)" }
 
 function Save-Stats {
     try {
         $today = (Get-Date).ToString('yyyy-MM-dd')
-        if ($today -ne $O.Today) { $O.Today = $today; $O.FocusToday = 0 }
-        @{ date = $O.Today; focus = $O.FocusToday; quiet = $O.Quiet; wander = $O.Wander } |
+        if ($today -ne $O.Today) { $O.Today = $today; $O.FocusToday = 0; $O.FocusMinToday = 0 }
+        @{ date = $O.Today; focus = $O.FocusToday; minutes = $O.FocusMinToday; quiet = $O.Quiet; wander = $O.Wander
+           rhythm = $O.Rhythm; taskReminders = $O.TaskReminders } |
             ConvertTo-Json | Set-Content -Path $StatsFile -Encoding UTF8
     } catch { Write-Log "Ecriture stats : $($_.Exception.Message)" }
 }
@@ -425,28 +510,22 @@ function Save-Stats {
 # ---------------------------------------------------------------------------
 function New-Color([string]$hex) { [Windows.Media.ColorConverter]::ConvertFromString($hex) }
 
+# couleur du voyant / capteur, puis couleur des boutons
 $Moods = @{
-    Idle       = @('#A29BFE', '#6C5CE7', '#FFD166')
-    Focus      = @('#8E7CFF', '#4834D4', '#7CF5FF')
-    Break      = @('#7FE7B0', '#20A36A', '#C6FF7C')
-    Await      = @('#FFC27A', '#E67E22', '#FF6B6B')
+    Idle       = @('#5FD3FF', '#2B6CB0')
+    Focus      = @('#4C8DFF', '#2747A8')
+    Break      = @('#3DDC84', '#1E8E5A')
+    Await      = @('#FF9F1C', '#D9480F')
 }
 
 function Set-Mood([string]$mood) {
     $c = $Moods[$mood]
-    $b = New-Object Windows.Media.RadialGradientBrush
-    $b.GradientOrigin = [Windows.Point]::new(0.35, 0.3)
-    $b.GradientStops.Add((New-Object Windows.Media.GradientStop((New-Color $c[0]), 0.0)))
-    $b.GradientStops.Add((New-Object Windows.Media.GradientStop((New-Color $c[1]), 1.0)))
-    $ui.Body.Fill = $b
-    $ui.AntennaLight.Fill = New-Object Windows.Media.SolidColorBrush((New-Color $c[2]))
+    $accent = New-Object Windows.Media.SolidColorBrush((New-Color $c[0]))
+    $ui.Lens.Fill = $accent
+    $ui.Beacon.Fill = $accent
+    $ui.StatusLed.Fill = $accent
+    $ui.Pill.BorderBrush = $accent
     $O.MoodBrush = New-Object Windows.Media.SolidColorBrush((New-Color $c[1]))
-    $ui.Pill.Background = New-Object Windows.Media.SolidColorBrush((New-Color ('#E6' + $c[1].Substring(1))))
-    switch ($mood) {
-        'Await' { $ui.Mouth.Data = [Windows.Media.Geometry]::Parse('M 56,72 A 4,4 0 1 1 64,72 A 4,4 0 1 1 56,72') }
-        'Break' { $ui.Mouth.Data = [Windows.Media.Geometry]::Parse('M 51,68 Q 60,80 69,68') }
-        default { $ui.Mouth.Data = [Windows.Media.Geometry]::Parse('M 53,70 Q 60,77 67,70') }
-    }
 }
 
 # ---------------------------------------------------------------------------
@@ -528,7 +607,35 @@ function Invoke-Safe([scriptblock]$sb) {
 # ---------------------------------------------------------------------------
 function Format-Min([double]$m) { if ($m -lt 1) { "{0} s" -f [int]($m * 60) } else { "{0}" -f [math]::Round($m, 1) } }
 
-$BtnFocus      = @{ Label = "🚀 Go, {0} min de focus" -f (Format-Min $Config.FocusMinutes); Action = { Start-Focus }; Primary = $true }
+function Apply-Rhythm {
+    if ($CustomDurations) { return }
+    $Config.FocusMinutes = $Rhythms[$O.Rhythm].Focus
+    $Config.BreakMinutes = $Rhythms[$O.Rhythm].Break
+}
+
+function Set-Rhythm([string]$name, [switch]$Quiet) {
+    if (-not $Rhythms.Contains($name)) { return }
+    $O.Rhythm = $name
+    Apply-Rhythm
+    Save-Stats
+    if ($Quiet) { return }
+    $r = $Rhythms[$name]
+    $msg = "Rythme $name : $($r.Focus) min de focus, $($r.Break) min de pause $($r.Icon)"
+    if ($CustomDurations) { $msg = "Durées imposées au lancement ($(Format-Min $Config.FocusMinutes)/$(Format-Min $Config.BreakMinutes)) : le rythme $name s'appliquera au prochain démarrage normal." }
+    elseif ($O.State -in 'Focus', 'Break') { $msg += "`nÇa s'appliquera à la prochaine session." }
+    Show-Bubble $msg -Force -Seconds 5
+}
+Apply-Rhythm
+
+# un bouton par rythme dans la bulle d'accueil ; celui choisi en dernier est mis en avant
+function Get-StartButtons {
+    $list = @()
+    foreach ($name in $Rhythms.Keys) {
+        $r = $Rhythms[$name]
+        $list += @{ Label = "$($r.Icon) Focus $name"; Action = [scriptblock]::Create("Set-Rhythm '$name' -Quiet; Start-Focus"); Primary = ($name -eq $O.Rhythm) }
+    }
+    return $list
+}
 $BtnAgain      = @{ Label = "🚀 On repart !"; Action = { Start-Focus }; Primary = $true }
 $BtnBreak      = @{ Label = "☕ Je prends ma pause"; Action = { Start-Break }; Primary = $true }
 $BtnStop       = @{ Label = "⏹ On arrête là"; Action = { Stop-Cycle } }
@@ -539,15 +646,33 @@ function Start-Focus {
     $O.State = 'Focus'
     $O.Paused = $false
     $O.EndsAt = (Get-Date).AddMinutes($Config.FocusMinutes)
+    $O.SessionMin = $Config.FocusMinutes
     $O.HalfSaid = $false
     $O.FiveSaid = $false
     $O.NextMotivation = (Get-Date).AddMinutes($Config.MotivationEveryMin)
     $O.NextReminder = [datetime]::MaxValue
     Set-Mood 'Focus'
     $msg = (Pick $Lines.FocusStart) -f (Format-Min $Config.FocusMinutes)
-    $next = Get-NextTodo
-    if ($next) { $msg += "`nEt si tu attaquais : « $($next.text) » ?" }
-    Show-Bubble $msg -Force -Seconds 7
+    $O.FocusTaskId = ''
+    $secs = 6
+    if ($O.TaskReminders) {
+        # rappel des taches au debut du focus
+        $open = Get-OpenTodos
+        if ($open.Count) {
+            $O.FocusTaskId = $open[0].id
+            $msg += "`n`n🎯 Objectif : « $(Short-Text $open[0].text) »"
+            if ($open.Count -gt 1) {
+                $msg += "`n📝 Ensuite :"
+                foreach ($t in ($open | Select-Object -Skip 1 -First 2)) { $msg += "`n   • $(Short-Text $t.text 45)" }
+                if ($open.Count -gt 3) { $msg += "`n   … et $($open.Count - 3) autre(s)" }
+            }
+            $secs = 12
+        } else {
+            $msg += "`n`nTa to-do est vide : clic droit > 📝 Ma to-do pour noter tes tâches."
+            $secs = 8
+        }
+    }
+    Show-Bubble $msg -Force -Seconds $secs
     Update-Pill
 }
 
@@ -555,11 +680,22 @@ function Start-Break {
     $O.State = 'Break'
     $O.Paused = $false
     $O.EndsAt = (Get-Date).AddMinutes($Config.BreakMinutes)
+    $O.NextJoke = (Get-Date).AddSeconds(40)
     $O.NextMotivation = [datetime]::MaxValue
     $O.NextReminder = [datetime]::MaxValue
     Set-Mood 'Break'
     Show-Bubble (Pick $Lines.BreakStart) -Force -Seconds 8
     Update-Pill
+}
+
+# Blagues pendant la pause, sans repetition tant que toute la liste n'est pas passee
+function Get-NextJoke {
+    if ($O.JokeQueue.Count -eq 0) {
+        $O.JokeQueue.AddRange(@($Lines.BreakJokes | Get-Random -Count $Lines.BreakJokes.Count))
+    }
+    $j = $O.JokeQueue[0]
+    $O.JokeQueue.RemoveAt(0)
+    return $j
 }
 
 function Stop-Cycle {
@@ -586,11 +722,50 @@ function Toggle-Pause {
     Update-Pill
 }
 
-function Ask-Break {
-    Show-Bubble ((Pick $Lines.FocusEnd) -f (Format-Min $Config.FocusMinutes)) -Buttons @($BtnBreak, $BtnStop) -Force
+# La tache "objectif" de la session, si elle est toujours a faire
+function Get-FocusTask {
+    if (-not $O.TaskReminders -or -not $O.FocusTaskId) { return $null }
+    $t = Find-Todo $O.FocusTaskId
+    if ($t -and -not $t.done) { return $t }
+    return $null
 }
+
+$BtnTaskDone = @{ Label = "✅ C'est fait !"; Action = { Complete-FocusTask } }
+
+function Get-AwaitBreakButtons {
+    if (Get-FocusTask) { return @($BtnBreak, $BtnTaskDone, $BtnStop) }
+    return @($BtnBreak, $BtnStop)
+}
+
+function Ask-Break([string]$Text, [switch]$NoTaskInfo) {
+    if (-not $Text) { $Text = (Pick $Lines.FocusEnd) -f (Format-Min $O.SessionMin) }
+    # rappel des taches a la fin du focus
+    $task = Get-FocusTask
+    if ($task) { $Text += "`n`n🎯 Et « $(Short-Text $task.text) », c'est bouclé ?" }
+    elseif ($O.TaskReminders -and -not $NoTaskInfo) {
+        $open = Get-OpenTodos
+        if ($open.Count) { $Text += "`n`n📝 Il te reste $($open.Count) tâche(s), dont « $(Short-Text $open[0].text 45) »." }
+    }
+    Show-Bubble $Text -Buttons (Get-AwaitBreakButtons) -Force
+}
+
+function Complete-FocusTask {
+    $task = Get-FocusTask
+    if ($task) { Set-TodoDone $task.id $true -Quiet }
+    $O.FocusTaskId = ''
+    $left = (Get-OpenTodos).Count
+    $msg = "Bravo, c'est coché ✅"
+    if ($left -eq 0) { $msg += " Et ta to-do est vide, quelle journée ! 🎉" } else { $msg += " Plus que $left tâche(s)." }
+    Ask-Break ($msg + "`nOn fait la pause ?") -NoTaskInfo
+}
+
 function Ask-Focus {
-    Show-Bubble ((Pick $Lines.BreakEnd) -f (Format-Min $Config.FocusMinutes)) -Buttons @($BtnAgain, $BtnStop) -Force
+    $Text = (Pick $Lines.BreakEnd) -f (Format-Min $Config.FocusMinutes)
+    if ($O.TaskReminders) {
+        $next = Get-NextTodo
+        if ($next) { $Text += "`n`n🎯 Au programme : « $(Short-Text $next.text) »" }
+    }
+    Show-Bubble $Text -Buttons @($BtnAgain, $BtnStop) -Force
 }
 
 function On-TimerEnded {
@@ -600,6 +775,7 @@ function On-TimerEnded {
     Set-Mood 'Await'
     if ($O.State -eq 'Focus') {
         $O.FocusToday++
+        $O.FocusMinToday += $O.SessionMin
         Save-Stats
         $O.State = 'AwaitBreak'
         Ask-Break
@@ -635,7 +811,7 @@ function Update-Pill {
 
 function Show-Status {
     switch ($O.State) {
-        'Idle'       { Show-Bubble (Pick $Lines.Hello) -Buttons @($BtnFocus, $BtnTodo, $BtnLater) -Force }
+        'Idle'       { Show-Bubble (Pick $Lines.Hello) -Buttons (@(Get-StartButtons) + @($BtnTodo, $BtnLater)) -Force }
         'AwaitBreak' { Ask-Break }
         'AwaitFocus' { Ask-Focus }
         'Focus' {
@@ -765,42 +941,31 @@ function On-Frame {
     $O.Time += $dt
     $t = $O.Time
 
-    # flottement + lune en orbite
-    $ui.Bob.Y = 3 * [math]::Sin($t * 2.2)
-    $speed = if ($O.State -eq 'Focus' -and -not $O.Paused) { 1.6 } else { 0.9 }
-    $a = $t * $speed
-    $dx = 52 * [math]::Cos($a); $dy = 14 * [math]::Sin($a)
-    $th = -12 * [math]::PI / 180
-    $mx = 60 + $dx * [math]::Cos($th) - $dy * [math]::Sin($th)
-    $my = 62 + $dx * [math]::Sin($th) + $dy * [math]::Cos($th)
-    [Windows.Controls.Canvas]::SetLeft($ui.Moon, $mx - 5.5)
-    [Windows.Controls.Canvas]::SetTop($ui.Moon, $my - 5.5)
-    [Windows.Controls.Panel]::SetZIndex($ui.Moon, $(if ([math]::Sin($a) -gt 0) { 2 } else { 0 }))
+    # derive lente dans l'espace
+    $ui.Bob.Y = 2.5 * [math]::Sin($t * 1.6)
+    $ui.Tilt.Angle = 3 * [math]::Sin($t * 0.7)
 
-    # clignement
-    if ($now -ge $O.NextBlink) {
-        $O.BlinkUntil = $now.AddMilliseconds(130)
-        $O.NextBlink = $now.AddSeconds(2.5 + (Get-Random -Maximum 40) / 10)
-    }
-    $ui.EyeScale.ScaleY = if ($now -lt $O.BlinkUntil) { 0.1 } else { 1 }
-
-    # attente : la lumiere de l'antenne clignote
+    # balise : un flash regulier, clignotement rapide quand Orbit attend une reponse
     if ($O.State -like 'Await*') {
-        $ui.AntennaLight.Opacity = 0.4 + 0.6 * [math]::Abs([math]::Sin($t * 3))
-    } else { $ui.AntennaLight.Opacity = 1 }
+        $ui.Beacon.Opacity = 0.3 + 0.7 * [math]::Abs([math]::Sin($t * 4))
+        $ui.StatusLed.Opacity = $ui.Beacon.Opacity
+    } else {
+        $ui.Beacon.Opacity = if (($t % 2.0) -lt 0.18) { 1 } else { 0.35 }
+        $ui.StatusLed.Opacity = 1
+    }
 
-    # les yeux suivent la souris
+    # le capteur optique suit la souris
     $c = Get-CursorDip
     $scale = $ui.BotScale.ScaleX
     $cx = $window.Left + $window.Width - 60 * $scale
-    $cy = $window.Top + $window.Height - 68 * $scale
+    $cy = $window.Top + $window.Height - 77 * $scale
     $vx = $c.X - $cx; $vy = $c.Y - $cy
     $len = [math]::Sqrt($vx * $vx + $vy * $vy)
-    if ($len -gt 1) { $vx = $vx / $len * 3; $vy = $vy / $len * 3.5 }
-    [Windows.Controls.Canvas]::SetLeft($ui.PupilL, 45.5 + $vx)
-    [Windows.Controls.Canvas]::SetTop($ui.PupilL, 50.5 + $vy)
-    [Windows.Controls.Canvas]::SetLeft($ui.PupilR, 67.5 + $vx)
-    [Windows.Controls.Canvas]::SetTop($ui.PupilR, 50.5 + $vy)
+    if ($len -gt 1) { $vx = $vx / $len * 3.5; $vy = $vy / $len * 3.5 }
+    [Windows.Controls.Canvas]::SetLeft($ui.Lens, 56 + $vx)
+    [Windows.Controls.Canvas]::SetTop($ui.Lens, 41 + $vy)
+    [Windows.Controls.Canvas]::SetLeft($ui.LensGlint, 57 + $vx)
+    [Windows.Controls.Canvas]::SetTop($ui.LensGlint, 42 + $vy)
 
     # bulle temporaire
     if ($ui.BubbleWrap.Visibility -eq 'Visible' -and $now -ge $O.BubbleUntil) { Hide-Bubble }
@@ -830,7 +995,7 @@ function On-Frame {
         $step = [math]::Min($d, 140 * $dt)      # balade tranquille
         $window.Left += $wx / $d * $step
         $window.Top += $wy / $d * $step
-        $ui.Bob.Y = $ui.Bob.Y - [math]::Abs(4 * [math]::Sin($t * 9))   # petits sauts
+        $ui.Tilt.Angle += 6 * $wx / $d   # s'incline dans le sens du deplacement
         return
     }
 
@@ -858,6 +1023,11 @@ function On-Second {
     if (($O.State -in 'Focus', 'Break') -and -not $O.Paused) {
         $left = $O.EndsAt - $now
         if ($left.TotalSeconds -le 0) { On-TimerEnded; return }
+        if ($O.State -eq 'Break' -and $now -ge $O.NextJoke) {
+            # une blague toutes les ~2 minutes pendant la pause (sauf dans les 15 dernieres secondes)
+            $O.NextJoke = $now.AddSeconds((Get-Random -Minimum 80 -Maximum 131))
+            if ($left.TotalSeconds -gt 15) { Show-Bubble (Get-NextJoke) -Seconds 10 }
+        }
         if ($O.State -eq 'Focus') {
             $total = $Config.FocusMinutes
             if (-not $O.HalfSaid -and $total -ge 20 -and $left.TotalMinutes -le $total / 2) {
@@ -880,8 +1050,8 @@ function On-Second {
         $O.NextReminder = $now.AddMinutes($Config.ReminderEveryMin)
         Ensure-Visible
         $pool = if ($O.State -eq 'AwaitBreak') { $Lines.AwaitBreak } else { $Lines.AwaitFocus }
-        $btns = if ($O.State -eq 'AwaitBreak') { @($BtnBreak, $BtnStop) } else { @($BtnAgain, $BtnStop) }
-        Show-Bubble (Pick $pool) -Buttons $btns -Force
+        if ($O.State -eq 'AwaitBreak') { Ask-Break (Pick $pool) }
+        else { Show-Bubble (Pick $pool) -Buttons @($BtnAgain, $BtnStop) -Force }
     }
 
     if ($Native -or $script:slowCount % 2 -eq 0) { Check-Clipboard }
@@ -928,9 +1098,9 @@ function Set-Mini([bool]$on) {
     $s = if ($on) { 0.55 } else { 1 }
     $ui.BotScale.ScaleX = $s
     $ui.BotScale.ScaleY = $s
-    $ui.BubbleWrap.Margin = if ($on) { '0,0,10,58' } else { '0,0,10,112' }
-    $ui.SpeechTail.Margin = if ($on) { '0,-3.5,18,0' } else { '0,-3.5,40,0' }
-    $ui.ThoughtTail.Margin = if ($on) { '0,3,14,0' } else { '0,3,36,0' }
+    $ui.BubbleWrap.Margin = if ($on) { '0,0,10,70' } else { '0,0,10,126' }
+    $ui.SpeechTail.Margin = if ($on) { '0,-3.5,20,0' } else { '0,-3.5,46,0' }
+    $ui.ThoughtTail.Margin = if ($on) { '0,3,18,0' } else { '0,3,44,0' }
     if ($on) { $O.Walking = $false }
 }
 
@@ -966,11 +1136,24 @@ $miHome   = New-MenuItem "🏠  Revenir en bas à droite" { $O.Pinned = $false; 
 $miMini   = New-MenuItem "🔽  Réduire" { Set-Mini (-not $O.Mini) } -Checkable
 $miHide   = New-MenuItem "🙈  Masquer (icône près de l'horloge)" { Hide-Orbit }
 $miAuto   = New-MenuItem "⚡  Lancer au démarrage de Windows" { Toggle-Autostart } -Checkable
-$miStats  = New-MenuItem "🏆  Mes stats du jour" { Show-Bubble ("Aujourd'hui : {0} session(s) de focus, soit {1} min. 🔥" -f $O.FocusToday, [math]::Round($O.FocusToday * $Config.FocusMinutes)) -Force }
+$miStats  = New-MenuItem "🏆  Mes stats du jour" { Show-Bubble ("Aujourd'hui : {0} session(s) de focus, soit {1} min. 🔥" -f $O.FocusToday, [math]::Round($O.FocusMinToday)) -Force }
+$miRhythm = New-Object Windows.Controls.MenuItem
+$miRhythm.Header = "⏱  Rythme"
+$rhythmItems = @{}
+foreach ($name in $Rhythms.Keys) {
+    $r = $Rhythms[$name]
+    $it = New-MenuItem "$($r.Icon)  $name  ($($r.Focus) min focus / $($r.Break) min pause)" ([scriptblock]::Create("Set-Rhythm '$name'")) -Checkable
+    $rhythmItems[$name] = $it
+    [void]$miRhythm.Items.Add($it)
+}
+$miTasks  = New-MenuItem "🔔  Rappels de tâches (début / fin de focus)" {
+    $O.TaskReminders = -not $O.TaskReminders; Save-Stats
+    Show-Bubble $(if ($O.TaskReminders) { "Je te rappellerai tes tâches au début et à la fin de chaque focus 🔔" } else { "Ok, plus de rappels de tâches 🔕" }) -Force -Seconds 4
+} -Checkable
 $miQuit   = New-MenuItem "❌  Quitter Orbit" { Quit-Orbit }
 
 foreach ($i in @($miTodo, $miClip, (New-Object Windows.Controls.Separator),
-                 $miFocus, $miBreak, $miPause, $miStop, (New-Object Windows.Controls.Separator),
+                 $miFocus, $miBreak, $miPause, $miStop, $miRhythm, $miTasks, (New-Object Windows.Controls.Separator),
                  $miQuiet, $miWander, $miMini, $miHome, $miHide, $miAuto, (New-Object Windows.Controls.Separator),
                  $miStats, $miQuit)) { [void]$menu.Items.Add($i) }
 
@@ -983,6 +1166,10 @@ $menu.Add_Opened({
     $miMini.IsChecked = $O.Mini
     $miHome.IsEnabled = $O.Pinned -or $O.Walking
     $miAuto.IsChecked = Test-Path $StartupLink
+    $miTasks.IsChecked = $O.TaskReminders
+    foreach ($name in $rhythmItems.Keys) { $rhythmItems[$name].IsChecked = ($name -eq $O.Rhythm) }
+    $miFocus.Header = "🚀  Lancer un focus ($(Format-Min $Config.FocusMinutes) min)"
+    $miBreak.Header = "☕  Prendre ma pause ($(Format-Min $Config.BreakMinutes) min)"
 })
 $ui.Bot.ContextMenu = $menu
 
@@ -1034,7 +1221,8 @@ try {
     $script:tray.Text = 'Orbit'
     $cms = New-Object System.Windows.Forms.ContextMenuStrip
     [void]$cms.Items.Add('Afficher / masquer Orbit', $null, { Invoke-Safe { if ($window.Visibility -eq 'Visible') { $window.Hide() } else { Ensure-Visible } } })
-    [void]$cms.Items.Add('Lancer un focus', $null, { Invoke-Safe { Ensure-Visible; Start-Focus } })
+    [void]$cms.Items.Add('Lancer un focus 50/10', $null, { Invoke-Safe { Ensure-Visible; Set-Rhythm '50/10' -Quiet; Start-Focus } })
+    [void]$cms.Items.Add('Lancer un focus 25/5', $null, { Invoke-Safe { Ensure-Visible; Set-Rhythm '25/5' -Quiet; Start-Focus } })
     [void]$cms.Items.Add('Prendre ma pause', $null, { Invoke-Safe { Ensure-Visible; Start-Break } })
     [void]$cms.Items.Add('Couper le chrono', $null, { Invoke-Safe { Stop-Cycle } })
     [void]$cms.Items.Add('-')

@@ -106,14 +106,14 @@ function Add-Todo([string]$text) {
 
 function Find-Todo([string]$id) { foreach ($t in $NB.Todos) { if ($t.id -eq $id) { return $t } } }
 
-function Set-TodoDone([string]$id, [bool]$done) {
+function Set-TodoDone([string]$id, [bool]$done, [switch]$Quiet) {
     $t = Find-Todo $id
     if (-not $t) { return }
     $t.done = $done
     $t.doneAt = if ($done) { (Get-Date).ToString('s') } else { '' }
     Save-Todos
     Render-Todos
-    if ($done) {
+    if ($done -and -not $Quiet) {
         $left = @($NB.Todos | Where-Object { -not $_.done }).Count
         if ($left -eq 0) { Show-Bubble "Tout est coché ! Tu es une machine 🎉" -Force -Seconds 5 }
         else { Show-Bubble (Pick @("Bien joué ✅", "Une de moins ! 💪", "Coché, ça fait du bien hein 😌")) -Force -Seconds 3 }
@@ -136,6 +136,14 @@ function Clear-DoneTodos {
 }
 
 function Get-NextTodo { foreach ($t in $NB.Todos) { if (-not $t.done) { return $t } } }
+function Get-OpenTodos { @($NB.Todos | Where-Object { -not $_.done }) }
+
+# Texte court pour les bulles
+function Short-Text([string]$text, [int]$max = 60) {
+    $text = ($text -replace '\s+', ' ').Trim()
+    if ($text.Length -gt $max) { return $text.Substring(0, $max - 1) + '…' }
+    return $text
+}
 
 # ---------------------------------------------------------------------------
 #  Historique des copier-coller (de la journee uniquement)
