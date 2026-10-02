@@ -14,7 +14,9 @@ function Load-Notes {
     $NB.Notes.Clear()
     if (-not (Test-Path -LiteralPath $NotesFile)) { return }
     try {
-        foreach ($n in @(ConvertFrom-Json ([IO.File]::ReadAllText($NotesFile)))) {
+        # (PowerShell 5.1 renvoie la liste d'un bloc : on la parcourt avec foreach, sans @())
+        $data = ConvertFrom-Json ([IO.File]::ReadAllText($NotesFile))
+        foreach ($n in $data) {
             if (-not $n -or -not [string]$n.text) { continue }
             [void]$NB.Notes.Add([pscustomobject]@{
                 id = $(if ($n.id) { [string]$n.id } else { New-Id }); text = [string]$n.text
