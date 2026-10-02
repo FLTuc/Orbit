@@ -146,6 +146,73 @@ try {
     Write-Host "  ($([math]::Round((Get-Item $zip).Length / 1KB)) Ko, $($names.Count) fichiers)"
 } catch { Check 'export sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
 
+Section 'Stabilite : endurance (30 cycles complets)'
+try {
+    Add-Type -Namespace OrbitTest -Name Gui -MemberDefinition '[DllImport("user32.dll")] public static extern uint GetGuiResources(IntPtr h, uint flags);'
+    function Get-Res {
+        [GC]::Collect(); [GC]::WaitForPendingFinalizers(); [GC]::Collect()
+        $p = [Diagnostics.Process]::GetCurrentProcess(); $p.Refresh()
+        [pscustomobject]@{ Handles = $p.HandleCount; Gdi = [OrbitTest.Gui]::GetGuiResources($p.Handle, 0); User = [OrbitTest.Gui]::GetGuiResources($p.Handle, 1); Mem = [math]::Round($p.PrivateMemorySize64 / 1MB) }
+    }
+    $skinsList = @($Skins.Keys | Where-Object { $_ -ne 'Custom' })
+    function Invoke-Cycle([int]$i) {
+        Start-Focus
+        for ($f = 0; $f -lt 20; $f++) { On-Frame }
+        Update-TrayIcon
+        $O.EndsAt = (Get-Date).AddSeconds(-1); On-Second            # fin du focus -> question
+        Start-Break; Update-TrayIcon; Tell-Joke
+        $O.EndsAt = (Get-Date).AddSeconds(-1); On-Second            # fin de la pause -> question
+        Show-QuickNote; $qn.QnText.Text = "endurance $i"; Close-QuickNote
+        Open-Notebook 'Todo'; Render-Todos; Select-Tab 'Search'; $pn.SearchBox.Text = 'endurance'; Render-Search; Close-Notebook
+        Set-Skin $skinsList[$i % $skinsList.Count] -Quiet
+        Show-Bubble "cycle $i" -Force -Seconds 1; Hide-Bubble
+    }
+    for ($i = 0; $i -lt 3; $i++) { Invoke-Cycle $i }      # echauffement
+    $r0 = Get-Res
+    $sw0 = [Diagnostics.Stopwatch]::StartNew()
+    for ($i = 3; $i -lt 33; $i++) { Invoke-Cycle $i }
+    $r1 = Get-Res
+    Write-Host ("  30 cycles en {0:N1} s - poignees {1} -> {2}, GDI {3} -> {4}, USER {5} -> {6}, memoire {7} -> {8} Mo" -f ($sw0.ElapsedMilliseconds / 1000), $r0.Handles, $r1.Handles, $r0.Gdi, $r1.Gdi, $r0.User, $r1.User, $r0.Mem, $r1.Mem)
+    Check 'pas de fuite de poignees Windows (+300 max)' (($r1.Handles - $r0.Handles) -lt 300) "$($r1.Handles - $r0.Handles)"
+    Check 'pas de fuite d''objets graphiques GDI (+40 max)' (($r1.Gdi - $r0.Gdi) -lt 40) "$($r1.Gdi - $r0.Gdi)"
+    Check 'pas de fuite d''objets fenetres USER (+40 max)' (($r1.User - $r0.User) -lt 40) "$($r1.User - $r0.User)"
+    Check 'memoire stable (+80 Mo max)' (($r1.Mem - $r0.Mem) -lt 80) "$($r1.Mem - $r0.Mem) Mo"
+    Stop-Cycle
+} catch { Check 'endurance sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
+
+Section 'Stabilite : gros volumes (500 cartes)'
+try {
+    $saved = @($NB.Todos)
+    $b = Get-CurrentBoard
+    $c0 = (Get-OpenColumn $b).id
+    for ($i = 0; $i -lt 500; $i++) {
+        $x = ConvertTo-Card ([pscustomobject]@{ text = "Carte de volume $i"; desc = ('description ' * 20); prio = ($i % 10) + 1
+                checks = @(@{ text = 'a'; done = $false }, @{ text = 'b'; done = $true }) }) $b.id $c0 $i
+        [void]$NB.Todos.Add($x)
+    }
+    $t = [Diagnostics.Stopwatch]::StartNew(); Save-Todos; $tSave = $t.ElapsedMilliseconds
+    $t.Restart(); Load-Todos; $tLoad = $t.ElapsedMilliseconds
+    $t.Restart(); $NB.LastAddedId = ''; Add-Todo 'Une de plus'; $tAdd = $t.ElapsedMilliseconds
+    $t.Restart(); $r = Find-Everything 'volume 42'; $tFind = $t.ElapsedMilliseconds
+    $t.Restart(); [void](Get-PlanCards 3); $tPlan = $t.ElapsedMilliseconds
+    Open-Notebook 'Todo'
+    $t.Restart(); Render-Todos; $tRender = $t.ElapsedMilliseconds
+    Close-Notebook
+    Write-Host "  enregistrer $tSave ms, relire $tLoad ms, ajouter une carte $tAdd ms, chercher $tFind ms, plan $tPlan ms, afficher le tableau $tRender ms"
+    Check 'enregistrer 500 cartes < 3 s' ($tSave -lt 3000) "$tSave ms"
+    Check 'relire 500 cartes < 5 s' ($tLoad -lt 5000) "$tLoad ms"
+    Check 'ajouter une carte (avec 500 autres) < 1,5 s' ($tAdd -lt 1500) "$tAdd ms"
+    Check 'recherche < 2 s et resultat juste' ($tFind -lt 2000 -and @($r.Cards | Where-Object { $_.text -eq 'Carte de volume 42' }).Count -eq 1) "$tFind ms"
+    Check 'plan du matin < 2 s' ($tPlan -lt 2000) "$tPlan ms"
+    Check 'afficher un tableau de 500 cartes < 8 s' ($tRender -lt 8000) "$tRender ms"
+    $NB.Todos.Clear(); foreach ($x in $saved) { [void]$NB.Todos.Add($x) }; Save-Todos
+} catch { Check 'volumes sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
+
+Section 'Stabilite : journal d''erreurs'
+$errLines = @(Get-Content $LogFile -ErrorAction SilentlyContinue | Where-Object { $_ -match 'Erreur :|Erreur imprevue' })
+foreach ($l in ($errLines | Select-Object -First 10)) { Write-Host "  $l" -ForegroundColor Yellow }
+Check 'aucune erreur imprevue pendant tous ces tests' ($errLines.Count -eq 0) "$($errLines.Count) erreur(s)"
+
 Section 'Copier-coller et fichiers'
 Add-Clip 'text' 'bonjour selftest' @()
 Check 'enregistrement du presse-papiers differe' ($NB.ClipPending)

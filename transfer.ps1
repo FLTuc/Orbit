@@ -102,8 +102,42 @@ function Import-OrbitData([string]$src, [switch]$NoConfirm) {
         $j = $j.Replace((& $esc $old), (& $esc $DataDir))
         Write-FileSafe $set $j
     }
+    Protect-ImportedSettings $set
     Write-Log "Import depuis $src (export du $when)"
     return $true
+}
+
+# Securite : des reglages venus d'un autre PC (ou d'un export recu de quelqu'un) ne
+# doivent pas faire lire ou ecrire Orbit ailleurs que dans son propre dossier.
+# Sinon un chemin reseau (\\serveur\partage) pourrait servir a recuperer tes notes
+# (copie automatique) ou a faire se connecter ton PC a une machine inconnue (image, sons).
+function Protect-ImportedSettings([string]$set) {
+    if (-not (Test-Path -LiteralPath $set)) { return }
+    try {
+        $d = ConvertFrom-Json ([IO.File]::ReadAllText($set))
+        $root = [IO.Path]::GetFullPath($DataDir).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+        $inside = {
+            param($p)
+            if (-not $p) { return $false }
+            try { return [IO.Path]::GetFullPath([string]$p).StartsWith($root, [StringComparison]::OrdinalIgnoreCase) } catch { return $false }
+        }
+        $changed = $false
+        if ($d.PSObject.Properties['notesMirror'] -and $d.notesMirror) { $d.notesMirror = ''; $changed = $true }   # a rechoisir sur ce PC
+        if ($d.PSObject.Properties['customImage'] -and $d.customImage -and -not (& $inside $d.customImage)) { $d.customImage = ''; $changed = $true }
+        if ($d.PSObject.Properties['endSoundFile'] -and $d.endSoundFile -and -not (& $inside $d.endSoundFile)) { $d.endSoundFile = ''; $changed = $true }
+        if ($d.PSObject.Properties['bubbleSoundFiles']) {
+            $keep = @(@($d.bubbleSoundFiles) | Where-Object { & $inside $_ })
+            if ($keep.Count -ne @($d.bubbleSoundFiles | Where-Object { $_ }).Count) { $d.bubbleSoundFiles = $keep; $changed = $true }
+        }
+        if ($changed) {
+            Write-FileSafe $set (ConvertTo-Json -InputObject $d)
+            Write-Log "Import : chemins hors du dossier d'Orbit retires des reglages"
+        }
+    } catch {
+        # reglages illisibles : on les ecarte plutot que de les appliquer a l'aveugle
+        Remove-Item -LiteralPath $set -Force -ErrorAction SilentlyContinue
+        Write-Log "Import : reglages illisibles ignores ($($_.Exception.Message))"
+    }
 }
 
 # Au demarrage : un dossier « donnees » a cote d'Orbit = un export a recuperer (une seule fois)

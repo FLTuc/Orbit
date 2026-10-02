@@ -25,7 +25,7 @@ $NB.NotesBackupDay = ''
 
 function ConvertTo-Note($n) {
     $c = [pscustomobject]@{
-        id = $(if ($n.id) { [string]$n.id } else { New-Id }); text = [string]$n.text
+        id = (Get-SafeId $n.id); text = [string]$n.text
         created = To-IsoString $n.created; updated = To-IsoString $n.updated; pinned = [bool]$n.pinned
     }
     if (-not $c.updated) { $c.updated = $(if ($c.created) { $c.created } else { (Get-Date).ToString('s') }) }

@@ -16,7 +16,11 @@ jobs:
         shell: cmd
         run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\parse.ps1
 
-      - name: Logique (tableaux, focus, sauvegardes, reprise)
+      - name: Securite (analyse du code)
+        shell: pwsh
+        run: ./tests/security.ps1
+
+      - name: Tests unitaires et logique (dont attaques simulees)
         shell: cmd
         run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\logic.ps1
 

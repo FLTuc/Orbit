@@ -13,7 +13,7 @@ foreach ($a in Get-ScriptAssignments (Join-Path $Root 'orbit.ps1') '^\$Btn(TaskD
 $script:Logs = @(); function Write-Log($m) { $script:Logs += $m }
 function Pick($l) { $l[0] }
 $script:Bubble = $null
-function Show-Bubble { param($Text, $Buttons, [switch]$Force, $Seconds, [switch]$Thought) $script:Bubble = @{ Text = $Text; Buttons = @($Buttons | ForEach-Object { $_.Label }) } }
+function Show-Bubble { param($Text, $Buttons, [switch]$Force, $Seconds, [switch]$Thought) $script:Bubble = @{ Text = $Text; Buttons = @($Buttons | ForEach-Object { $_.Label }); Actions = @($Buttons | ForEach-Object { $_.Action }) } }
 function Render-Todos {}; function Fit-Notebook {}; function Confirm-Action { $true }; function Set-Mood {}; function Update-Pill {}
 $Lines = @{ FocusStart = @('Focus {0} !'); FocusEnd = @('Fini ({0}).'); BreakEnd = @('Pause finie, focus {0} ?') }
 $Config = @{ FocusMinutes = 50; MotivationEveryMin = 9; ReminderEveryMin = 4 }
@@ -260,6 +260,114 @@ Check 'enregistrer une copie lisible' ((Get-Content $copy -Raw) -match 'Encore u
 Load-Notes
 Check 'notes.json abime : repris de la sauvegarde' ($NB.Notes.Count -ge 1 -and $NB.LoadNotice -match 'notes')
 Check 'et le fichier abime est garde a part' (@(Get-ChildItem $T -Filter 'notes-illisible-*').Count -eq 1)
+
+Section 'Tests unitaires des petites fonctions'
+Check 'Limit-Prio : 0 -> 1, 11 -> 10, texte -> 5' ((Limit-Prio 0) -eq 1 -and (Limit-Prio 11) -eq 10 -and (Limit-Prio 'abc') -eq 5)
+Check 'Short-Text coupe proprement' ((Short-Text 'abcdefghij' 5).Length -le 5 -and (Short-Text 'court' 50) -eq 'court')
+Check 'Get-SearchKey : accents et majuscules' ((Get-SearchKey 'ÉCOLE Été Ça Œuvre') -eq 'ecole ete ca oeuvre')
+Check 'Format-Due : aujourd''hui, demain, en retard' ((Format-Due (Get-Date).ToString('yyyy-MM-dd')) -eq "aujourd'hui" -and (Format-Due (Get-Date).AddDays(1).ToString('yyyy-MM-dd')) -eq 'demain' -and (Format-Due (Get-Date).AddDays(-3).ToString('yyyy-MM-dd')) -match 'retard')
+Check 'To-IsoString accepte une date ou un texte' ((To-IsoString ([datetime]'2026-01-02 03:04:05')) -eq '2026-01-02T03:04:05' -and (To-IsoString 'abc') -eq 'abc')
+$mo = Get-NextOccurrence 'monthly' ([datetime]'2027-01-31')
+Check 'mensuel le 31 : fin de mois respectee (28 ou 29 fevrier)' ($mo.Month -eq 2 -and $mo.Day -ge 28)
+$ck = ConvertTo-Checks @([pscustomobject]@{ text = 'a'; done = $true }, $null, [pscustomobject]@{ text = ''; done = $true }) -Reset
+Check 'ConvertTo-Checks : ignore le vide, -Reset decoche' ($ck.Count -eq 1 -and -not $ck[0].done)
+Check 'Get-SafeId : accepte un id normal, refuse le reste' ((Get-SafeId 'abc_123-X') -eq 'abc_123-X' -and (Get-SafeId "a'; b") -ne "a'; b" -and (Get-SafeId '') -match '^[a-f0-9]{32}$')
+$NB.LastAddedId = ''; Add-Todo 'Rendez-vous @25h !11'
+$rv = Find-Todo $NB.LastAddedId
+Check 'raccourcis invalides (@25h, !11) laisses dans le texte' ($rv.text -eq 'Rendez-vous @25h !11' -and -not $rv.remindAt -and $rv.prio -eq 5)
+Remove-Todo $rv.id
+Check 'Get-PlanCards sans carte : liste vide' ($(
+    $sv = @($NB.Todos); $NB.Todos.Clear(); $r0 = @(Get-PlanCards 3).Count; foreach ($x in $sv) { [void]$NB.Todos.Add($x) }; $r0) -eq 0)
+Check 'Find-Everything : recherche vide = aucun resultat' (@((Find-Everything '   ').Cards).Count -eq 0)
+
+Section 'Securite : tentatives d''attaque (elles doivent toutes echouer)'
+function Ensure-Visible {}; function Play-Sound {}; function Show-Tray {}
+foreach ($def in Get-ScriptFunctions (Join-Path $Root 'transfer.ps1')) { . ([scriptblock]::Create($def)) }
+foreach ($a5 in Get-ScriptAssignments (Join-Path $Root 'transfer.ps1') '^\$Export') { . ([scriptblock]::Create($a5)) }
+$pwned = Join-Path $T 'PIRATE.txt'
+# 1. un fichier kanban.json trafique : du code cache dans l'identifiant d'une carte
+$evilId = "x'; Set-Content -LiteralPath '$pwned' -Value 1 #"
+$evil = [ordered]@{
+    current = 'b1'
+    boards = @(@{ id = 'b1'; name = 'Tableau'; columns = @(@{ id = 'c1'; name = 'A faire'; done = $false }, @{ id = 'c2'; name = 'Fini'; done = $true }) },
+               @{ id = "b2'; Remove-Item x; '"; name = 'Piege'; columns = @(@{ id = 'c3'; name = 'X'; done = $false }) })
+    cards = @(@{ id = $evilId; text = 'Carte piegee'; prio = 3; board = 'b1'; col = 'c1'; order = 0; remindAt = (Get-Date).AddMinutes(-1).ToString('s') })
+    focus = @($evilId)
+}
+$savedKanban = [IO.File]::ReadAllText($KanbanFile)
+[IO.File]::WriteAllText($KanbanFile, (ConvertTo-Json -InputObject $evil -Depth 6))
+Load-Todos
+$pc = Card 'Carte piegee'
+Check 'id piege remplace par un id neuf au chargement' ($pc -and $pc.id -match '^[a-f0-9]{32}$')
+Check 'tableau a id piege ignore' (-not ($NB.Boards | Where-Object { $_.name -eq 'Piege' }))
+Check 'id piege retire des cartes liees au focus' (-not ($NB.FocusCards | Where-Object { $_ -match "'" }))
+$NB.Upcoming.Clear()
+Check-TaskReminders
+Check 'le rappel s''affiche' ($script:Bubble.Text -match 'Carte piegee')
+& $script:Bubble.Actions[0]
+Check 'bouton « C''est fait » : la carte est terminee' ((Card 'Carte piegee').done)
+Check 'et AUCUN code cache n''a ete execute' (-not (Test-Path $pwned))
+# 2. du code dans le texte d'une carte ou d'une note : garde tel quel, jamais execute
+$payload = '$(Set-Content -LiteralPath "' + $pwned + '" -Value 2) `"guillemets`" ''apostrophes'' ; & calc.exe'
+$NB.LastAddedId = ''; Add-Todo $payload
+$pt = Find-Todo $NB.LastAddedId
+$nn = Add-Note $payload
+Save-Todos; Load-Todos; Load-Notes
+Check 'texte de carte garde a l''identique' ((Find-Todo $pt.id).text -eq $payload.Trim())
+Check 'texte de note garde a l''identique' ((Find-Note $nn.id).text -eq $payload.Trim())
+Check 'recherche sur ce texte sans effet de bord' (@((Find-Everything 'guillemets').Cards).Count -ge 1 -and -not (Test-Path $pwned))
+[IO.File]::WriteAllText($KanbanFile, $savedKanban); Load-Todos
+# 3. une note avec un id piege
+[IO.File]::WriteAllText($NotesFile, (ConvertTo-Json -InputObject @(@{ id = "n'; calc; '"; text = 'note piegee'; updated = (Get-Date).ToString('s') })))
+Load-Notes
+Check 'note a id piege : id remplace' ($NB.Notes.Count -eq 1 -and $NB.Notes[0].id -match '^[a-f0-9]{32}$')
+# 4. un export recu de quelqu'un : chemins reseau et fichier de code
+$foreign = Join-Path $T 'export-etranger'
+New-Item -ItemType Directory -Force -Path $foreign | Out-Null
+[IO.File]::WriteAllText((Join-Path $foreign 'orbit-export.json'), '{"from":"C:\\Users\\autre\\AppData\\Roaming\\Orbit","date":"2026-01-01T10:00:00"}')
+[IO.File]::WriteAllText((Join-Path $foreign 'settings.json'), (ConvertTo-Json -InputObject ([ordered]@{
+    notesMirror = '\\serveur-pirate\partage'; customImage = '\\serveur-pirate\img.png'
+    endSoundFile = 'C:\Windows\Media\chimes.wav'; bubbleSoundFiles = @('\\serveur-pirate\a.wav', (Join-Path (Join-Path $T 'pc-victime') 'sons/ok.wav')); skin = 'Robot' })))
+Set-Content -Path (Join-Path $foreign 'native-0123456789abcdef.dll') -Value 'faux code'
+Set-Content -Path (Join-Path $foreign 'etat.json') -Value '{}'
+$OldData2 = $DataDir
+$DataDir = Join-Path $T 'pc-victime'; New-Item -ItemType Directory -Force -Path $DataDir | Out-Null
+[void](Import-OrbitData $foreign -NoConfirm)
+$imp = ConvertFrom-Json ([IO.File]::ReadAllText((Join-Path $DataDir 'settings.json')))
+Check 'import : copie des notes vers un partage reseau supprimee' (-not $imp.notesMirror)
+Check 'import : image sur un partage reseau supprimee' (-not $imp.customImage)
+Check 'import : son hors du dossier d''Orbit supprime' (-not $imp.endSoundFile -and @($imp.bubbleSoundFiles).Count -eq 1)
+Check 'import : le reste des reglages est garde' ($imp.skin -eq 'Robot')
+Check 'import : aucun fichier de code (dll) copie' (@(Get-ChildItem $DataDir -Filter 'native-*').Count -eq 0)
+Check 'import : pas d''etat de chrono importe' (-not (Test-Path (Join-Path $DataDir 'etat.json')))
+[IO.File]::WriteAllText((Join-Path $foreign 'settings.json'), '{ pas du json')
+[void](Import-OrbitData $foreign -NoConfirm)
+Check 'import : reglages illisibles ecartes (pas appliques a l''aveugle)' (-not (Test-Path (Join-Path $DataDir 'settings.json')))
+$DataDir = $OldData2
+# 5. archive zip piegee (« zip slip ») : un fichier qui essaie de sortir du dossier
+try {
+    try { Add-Type -AssemblyName System.IO.Compression.FileSystem } catch {}
+    $zp = Join-Path $T 'piege.zip'
+    $fs = [IO.File]::Open($zp, 'Create')
+    $za = New-Object IO.Compression.ZipArchive($fs, [IO.Compression.ZipArchiveMode]::Create)
+    $en = $za.CreateEntry('../ECHAPPE.txt'); $w = New-Object IO.StreamWriter($en.Open()); $w.Write('x'); $w.Dispose()
+    $za.Dispose(); $fs.Dispose()
+    $dest = Join-Path $T 'extraction'
+    $blocked = $false
+    try { [IO.Compression.ZipFile]::ExtractToDirectory($zp, $dest) } catch { $blocked = $true }
+    Check 'zip piege : extraction refusee, rien ecrit hors du dossier' ($blocked -and -not (Test-Path (Join-Path $T 'ECHAPPE.txt')))
+} catch { Check 'zip piege' $false $_.Exception.Message }
+
+Section 'Robustesse : fichiers en lecture seule, gros textes'
+$ro = Get-Item $KanbanFile
+$ro.IsReadOnly = $true
+$ok = $true
+try { Add-Todo 'Pendant lecture seule'; Save-Todos } catch { $ok = $false }
+$ro.IsReadOnly = $false
+Check 'fichier en lecture seule : pas de plantage (erreur notee dans le journal)' $ok
+$big = 'x' * 200000
+$NB.LastAddedId = ''; Add-Todo 'Carte avec tres longue description'; (Find-Todo $NB.LastAddedId).desc = $big; Save-Todos; Load-Todos
+Check 'description de 200 000 caracteres : enregistree et relue' ((Card 'Carte avec tres longue description').desc.Length -eq 200000)
 
 Section 'Transfert vers un autre PC'
 foreach ($def in Get-ScriptFunctions (Join-Path $Root 'transfer.ps1')) { . ([scriptblock]::Create($def)) }

@@ -141,6 +141,16 @@ Il peut quand même être bloqué si ton service informatique a verrouillé Powe
 
 Si seule la compilation des fonctions natives est bloquée, Orbit fonctionne quand même, mais sans les commentaires liés à l'application survolée.
 
+### Sécurité
+
+- **Aucun accès réseau** : Orbit ne contacte aucun serveur, rien ne sort de ton PC (sauf si tu choisis toi-même un dossier OneDrive/réseau pour la copie des notes).
+- **Aucun droit administrateur** : il n'écrit que dans ton profil (`%APPDATA%\Orbit`, ton dossier *Démarrage* si tu le demandes, et le réglage d'affichage de son icône dans ta partie du registre, HKCU).
+- **Tes données ne sont jamais exécutées** : le texte des cartes, notes, copier-coller et les fichiers lus sur le disque sont traités comme du texte, jamais comme du code. Les identifiants lus dans les fichiers sont filtrés (un fichier trafiqué ne peut pas glisser une commande).
+- **Import d'un export reçu de quelqu'un** : aucun fichier de code n'est copié (code compilé, état du chrono), et les réglages qui pointeraient hors du dossier d'Orbit (partage réseau pour la copie des notes, image ou sons distants) sont retirés. Les archives zip « piégées » (fichiers qui essaient de sortir du dossier) sont refusées.
+- **Copier-coller** : ce que les gestionnaires de mots de passe marquent « à ne pas enregistrer » est ignoré ; l'historique du jour n'est jamais inclus dans un export. Attention : un **favori** ⭐ que tu épingles, lui, est gardé et exporté.
+- **Vérifié automatiquement à chaque modification** (`tests\security.ps1` + attaques simulées dans `tests\logic.ps1`, voir plus bas).
+- Limite connue : quelqu'un qui a déjà accès à ta session Windows peut modifier les fichiers d'Orbit (comme n'importe quel programme ou document de ton profil).
+
 ### Léger et solide
 
 - **Peu de processeur** : Orbit ne s'anime à pleine vitesse que quand il se déplace ou que ta souris bouge (ses yeux la suivent). Le reste du temps il tourne au ralenti, et il ne calcule plus rien quand il est caché. Son flottement est confié à Windows, qui le dessine sans effort.

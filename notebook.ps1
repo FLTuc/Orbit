@@ -86,6 +86,15 @@ function Limit-Prio($p) {
 # ---------------------------------------------------------------------------
 function New-Id { [guid]::NewGuid().ToString('N') }
 
+# Identifiant lu sur le disque : seulement lettres, chiffres, - et _ (sinon on en cree un neuf).
+# Protege contre un fichier trafique (par ex. dans un export recu de quelqu'un d'autre).
+function Get-SafeId($v) {
+    $s = [string]$v
+    if ($s -match '^[A-Za-z0-9_-]{1,64}$') { return $s }
+    return (New-Id)
+}
+function Test-SafeId($v) { return ([string]$v -match '^[A-Za-z0-9_-]{1,64}$') }
+
 function New-Column([string]$name, [bool]$done = $false) { [pscustomobject]@{ id = (New-Id); name = $name; done = $done } }
 
 function New-BoardObject([string]$name) {
@@ -114,7 +123,7 @@ function Get-ColumnCards([string]$colId) { @($NB.Todos | Where-Object { $_.col -
 
 function ConvertTo-Card($t, [string]$board, [string]$col, [double]$order) {
     [pscustomobject]@{
-        id = $(if ($t.id) { [string]$t.id } else { [guid]::NewGuid().ToString('N') }); text = [string]$t.text; desc = [string]$t.desc; prio = Limit-Prio $t.prio
+        id = (Get-SafeId $t.id); text = [string]$t.text; desc = [string]$t.desc; prio = Limit-Prio $t.prio
         due = To-DayString $t.due; remindAt = To-IsoString $t.remindAt; reminded = [bool]$t.reminded
         done = [bool]$t.done; created = To-IsoString $t.created; doneAt = To-IsoString $t.doneAt
         board = $board; col = $col; order = $order
@@ -137,12 +146,13 @@ function Import-KanbanData($data) {
     $NB.Todos.Clear(); $NB.Boards.Clear()
     foreach ($b in $data.boards) {
         $cols = New-Object System.Collections.ArrayList
-        foreach ($c in $b.columns) { [void]$cols.Add([pscustomobject]@{ id = [string]$c.id; name = [string]$c.name; done = [bool]$c.done }) }
+        if (-not (Test-SafeId $b.id)) { continue }
+        foreach ($c in $b.columns) { if (Test-SafeId $c.id) { [void]$cols.Add([pscustomobject]@{ id = [string]$c.id; name = [string]$c.name; done = [bool]$c.done }) } }
         if ($cols.Count) { [void]$NB.Boards.Add([pscustomobject]@{ id = [string]$b.id; name = [string]$b.name; columns = $cols }) }
     }
     $NB.BoardId = [string]$data.current
     $NB.FocusCards.Clear()
-    foreach ($id in @($data.focus)) { if ($id) { [void]$NB.FocusCards.Add([string]$id) } }
+    foreach ($id in @($data.focus)) { if (Test-SafeId $id) { [void]$NB.FocusCards.Add([string]$id) } }
     $NB.Upcoming.Clear(); $NB.Templates.Clear()
     foreach ($u in @($data.upcoming)) {
         if (-not $u -or -not $u.showAt) { continue }
@@ -356,8 +366,10 @@ function Set-CardCheck([string]$id, [int]$index, [bool]$done) {
     Save-Todos
     $n = @($t.checks | Where-Object { $_.done }).Count
     if ($done -and $n -eq $t.checks.Count -and -not $t.done) {
+        $script:BubbleCardId = $t.id
         Show-Bubble "Toutes les sous-tâches de « $(Short-Text $t.text 40) » sont cochées ✅ Tu la ranges dans Terminé ?" -Force -Seconds 6 -Buttons @(
-            @{ Label = '✅ Oui, terminée'; Action = [scriptblock]::Create("End-EditTodo -NoRender; Set-TodoDone '$id' `$true"); Primary = $true },
+            # (securite : l'identifiant passe par une variable, jamais dans du code genere)
+            @{ Label = '✅ Oui, terminée'; Action = { End-EditTodo -NoRender; Set-TodoDone $script:BubbleCardId $true }; Primary = $true },
             @{ Label = 'Pas encore'; Action = { } })
     }
 }
@@ -384,7 +396,7 @@ function Set-CardRepeat([string]$id, [string]$repeat) {
 # ---------------------------------------------------------------------------
 function New-TemplateObject([string]$name, $src) {
     [pscustomobject]@{
-        id = $(if ($src.id -and $src.name) { [string]$src.id } else { New-Id }); name = $name
+        id = $(if ($src.id -and $src.name) { Get-SafeId $src.id } else { New-Id }); name = $name
         text = [string]$src.text; desc = [string]$src.desc; prio = Limit-Prio $src.prio
         checks = (ConvertTo-Checks $src.checks -Reset); repeat = [string]$src.repeat
     }
@@ -973,9 +985,11 @@ function Check-TaskReminders {
         $msg = "⏰ Rappel : « $(Short-Text $t.text 80) »"
         if ($t.desc) { $msg += "`n📄 $(Short-Text $t.desc 120)" }
         if ($t.due) { $msg += "`n📅 Échéance : $(Format-Due $t.due)" }
+        # (securite : l'identifiant passe par une variable, jamais dans du code genere)
+        $script:BubbleCardId = $t.id
         Show-Bubble $msg -Force -Buttons @(
-            @{ Label = "✅ C'est fait"; Action = [scriptblock]::Create("Set-TodoDone '$($t.id)' `$true"); Primary = $true },
-            @{ Label = '⏰ Dans 15 min'; Action = [scriptblock]::Create("Set-TodoReminder '$($t.id)' ((Get-Date).AddMinutes(15)); Render-Todos; Show-Bubble 'Ok, je te le rappelle dans 15 minutes ⏰' -Force -Seconds 3") },
+            @{ Label = "✅ C'est fait"; Action = { Set-TodoDone $script:BubbleCardId $true }; Primary = $true },
+            @{ Label = '⏰ Dans 15 min'; Action = { Set-TodoReminder $script:BubbleCardId ((Get-Date).AddMinutes(15)); Render-Todos; Show-Bubble 'Ok, je te le rappelle dans 15 minutes ⏰' -Force -Seconds 3 } },
             @{ Label = '👍 OK'; Action = { } })
         Show-Tray "⏰ Rappel Orbit" (Short-Text $t.text 60)
         return   # un rappel a la fois ; le suivant sonnera au prochain passage
@@ -1605,20 +1619,20 @@ function New-KanbanColumn($board, $col) {
     # pied : ajout d'une carte dans cette colonne
     $foot = New-Object Windows.Controls.Grid
     $foot.Margin = '0,6,0,0'
-    $input = New-Object Windows.Controls.TextBox
-    $input.Padding = '6,4'; $input.BorderBrush = '#C9C3F5'; $input.BorderThickness = '1.2'
+    $addBox = New-Object Windows.Controls.TextBox
+    $addBox.Padding = '6,4'; $addBox.BorderBrush = '#C9C3F5'; $addBox.BorderThickness = '1.2'
     $hint = New-Object Windows.Controls.TextBlock
     $hint.Text = '＋ Ajouter une carte…'; $hint.Margin = '8,0,0,0'; $hint.VerticalAlignment = 'Center'
     $hint.Foreground = '#9A98B0'; $hint.IsHitTestVisible = $false
-    $input.Tag = @{ Col = $col.id; Hint = $hint }
-    $input.Add_TextChanged({ param($s, $e) $s.Tag.Hint.Visibility = if ($s.Text) { 'Collapsed' } else { 'Visible' } })
-    $input.Add_KeyDown({
+    $addBox.Tag = @{ Col = $col.id; Hint = $hint }
+    $addBox.Add_TextChanged({ param($s, $e) $s.Tag.Hint.Visibility = if ($s.Text) { 'Collapsed' } else { 'Visible' } })
+    $addBox.Add_KeyDown({
         param($s, $e)
         if ($e.Key -eq 'Return') { $e.Handled = $true; $NB.FocusCol = $s.Tag.Col; Invoke-Safe { Add-Todo $s.Text $DefaultPrio $s.Tag.Col } }
     })
     # apres un ajout, le curseur reste dans cette colonne pour enchainer les cartes
-    if ($NB.FocusCol -eq $col.id) { $NB.FocusCol = ''; $input.Add_Loaded({ param($s, $e) $s.Focus() | Out-Null }) }
-    [void]$foot.Children.Add($input); [void]$foot.Children.Add($hint)
+    if ($NB.FocusCol -eq $col.id) { $NB.FocusCol = ''; $addBox.Add_Loaded({ param($s, $e) $s.Focus() | Out-Null }) }
+    [void]$foot.Children.Add($addBox); [void]$foot.Children.Add($hint)
     [Windows.Controls.DockPanel]::SetDock($foot, 'Bottom')
     [void]$dock.Children.Add($foot)
 
@@ -2336,7 +2350,6 @@ function Render-Clips {
 
 # Largeur de la fenetre : large pour les tableaux, etroite pour les copier-coller
 function Fit-Notebook {
-    $p = [System.Windows.Forms.Cursor]::Position
     $wa = Get-WorkArea ([System.Windows.Forms.Screen]::FromPoint([System.Drawing.Point]::new([int]$panel.Left + 20, [int]$panel.Top + 20)))
     if ($NB.Tab -eq 'Todo') {
         $cols = (Get-CurrentBoard).columns.Count
