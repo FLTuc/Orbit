@@ -41,6 +41,8 @@ $NB = @{
     TodoDirty  = $true
     BackupDay  = ''
     FocusCards = New-Object System.Collections.ArrayList   # cartes liees au focus en cours / au prochain
+    Upcoming   = New-Object System.Collections.ArrayList   # prochaines occurrences des cartes recurrentes
+    Templates  = New-Object System.Collections.ArrayList   # modeles de cartes
     LastAddedId = ''
     MdPending  = $false
     ClipPending = $false
@@ -117,7 +119,18 @@ function ConvertTo-Card($t, [string]$board, [string]$col, [double]$order) {
         done = [bool]$t.done; created = To-IsoString $t.created; doneAt = To-IsoString $t.doneAt
         board = $board; col = $col; order = $order
         pomos = [int]$t.pomos; focusMin = [int]$t.focusMin; lastFocus = To-IsoString $t.lastFocus
+        checks = ConvertTo-Checks $t.checks; repeat = [string]$t.repeat; spawned = [bool]$t.spawned
     }
+}
+
+# sous-taches d'une carte : liste de { text ; done }
+function ConvertTo-Checks($list, [switch]$Reset) {
+    $r = New-Object System.Collections.ArrayList
+    foreach ($c in @($list)) {
+        if ($null -eq $c -or -not [string]$c.text) { continue }
+        [void]$r.Add([pscustomobject]@{ text = [string]$c.text; done = $(if ($Reset) { $false } else { [bool]$c.done }) })
+    }
+    return , $r
 }
 
 function Import-KanbanData($data) {
@@ -130,6 +143,17 @@ function Import-KanbanData($data) {
     $NB.BoardId = [string]$data.current
     $NB.FocusCards.Clear()
     foreach ($id in @($data.focus)) { if ($id) { [void]$NB.FocusCards.Add([string]$id) } }
+    $NB.Upcoming.Clear(); $NB.Templates.Clear()
+    foreach ($u in @($data.upcoming)) {
+        if (-not $u -or -not $u.showAt) { continue }
+        $c = ConvertTo-Card $u ([string]$u.board) '' 0
+        $c | Add-Member -NotePropertyName showAt -NotePropertyValue (To-DayString $u.showAt)
+        [void]$NB.Upcoming.Add($c)
+    }
+    foreach ($m in @($data.templates)) {
+        if (-not $m -or -not $m.name) { continue }
+        [void]$NB.Templates.Add((New-TemplateObject ([string]$m.name) $m))
+    }
     foreach ($t in $data.cards) {
         $b = Get-Board ([string]$t.board)
         if (-not $b) { continue }
@@ -167,6 +191,231 @@ function Load-Todos {
         Save-Todos
     }
     [void](Get-CurrentBoard)
+}
+
+# ---------------------------------------------------------------------------
+#  Plan du matin : les cartes les plus urgentes du jour, tous tableaux confondus
+#  (en retard, a rendre aujourd'hui ou demain, rappel du jour, deja commencees,
+#  puis priorite). Renvoie @{ Card ; Score ; Why } du plus urgent au moins urgent.
+# ---------------------------------------------------------------------------
+function Get-PlanCards([int]$count = 3) {
+    $today = (Get-Date).Date
+    $scored = foreach ($t in @(Get-OpenTodos)) {
+        $score = (11 - [int]$t.prio) * 20
+        $why = @()
+        if ($t.due) {
+            $days = ([datetime]::ParseExact($t.due, 'yyyy-MM-dd', $null) - $today).Days
+            if ($days -lt 0) { $score += 1000 + [math]::Min(30, -$days) * 10; $why += '⚠️ en retard' }
+            elseif ($days -eq 0) { $score += 800; $why += "📅 à rendre aujourd'hui" }
+            elseif ($days -eq 1) { $score += 500; $why += '📅 pour demain' }
+            elseif ($days -le 3) { $score += 300; $why += "📅 pour $(Format-Due $t.due)" }
+            elseif ($days -le 7) { $score += 100 }
+        }
+        if ($t.remindAt -and -not $t.reminded) {
+            try { if (([datetime]$t.remindAt).Date -eq $today) { $score += 100; $why += "⏰ rappel $(Format-When $t.remindAt)" } } catch {}
+        }
+        $b = Get-Board $t.board
+        if ($b -and $t.col -ne (Get-OpenColumn $b).id) { $score += 150; $why += '▶ déjà commencée' }
+        if ($NB.FocusCards.Contains($t.id)) { $score += 60 }
+        if ([int]$t.prio -le 2) { $why += "🔥 P$($t.prio)" }
+        [pscustomobject]@{ Card = $t; Score = $score; Why = ($why -join ' · ') }
+    }
+    return @($scored | Sort-Object -Property @{ e = { $_.Score }; Descending = $true }, @{ e = { [int]$_.Card.prio } } | Select-Object -First $count)
+}
+
+# ---------------------------------------------------------------------------
+#  Cartes recurrentes : quand une carte qui se repete est terminee, sa prochaine
+#  occurrence est mise de cote (NB.Upcoming) et reapparait toute seule dans la
+#  1re colonne de son tableau le jour venu, avec ses sous-taches decochees.
+# ---------------------------------------------------------------------------
+$RepeatChoices = [ordered]@{
+    ''         = 'Ne se répète pas'
+    'workdays' = 'Chaque jour ouvré (lun.–ven.)'
+    'daily'    = 'Chaque jour'
+    'weekly'   = 'Chaque semaine'
+    'biweekly' = 'Toutes les 2 semaines'
+    'monthly'  = 'Chaque mois'
+}
+
+function Get-RepeatLabel($t) {
+    if (-not $t.repeat) { return '' }
+    $ref = Get-RepeatReference $t
+    switch ($t.repeat) {
+        'weekly'   { return "chaque $($DayFull[[int]$ref.DayOfWeek])" }
+        'biweekly' { return "un $($DayFull[[int]$ref.DayOfWeek]) sur deux" }
+        'monthly'  { return "le $($ref.Day) de chaque mois" }
+        default    { return $RepeatChoices[$t.repeat].ToLower() }
+    }
+}
+
+# jour de reference : l'echeance si la carte en a une, sinon le jour de sa creation
+function Get-RepeatReference($t) {
+    if ($t.due) { return [datetime]::ParseExact($t.due, 'yyyy-MM-dd', $null) }
+    if ($t.created) { try { return ([datetime]$t.created).Date } catch {} }
+    return (Get-Date).Date
+}
+
+# Prochaine date apres $from, et forcement apres aujourd'hui
+function Get-NextOccurrence([string]$repeat, [datetime]$from) {
+    $d = $from.Date
+    $today = (Get-Date).Date
+    for ($guard = 0; $guard -lt 4000; $guard++) {
+        switch ($repeat) {
+            'daily'    { $d = $d.AddDays(1) }
+            'workdays' { do { $d = $d.AddDays(1) } while ($d.DayOfWeek -eq 'Saturday' -or $d.DayOfWeek -eq 'Sunday') }
+            'weekly'   { $d = $d.AddDays(7) }
+            'biweekly' { $d = $d.AddDays(14) }
+            'monthly'  { $d = $from.Date.AddMonths($guard + 1) }
+            default    { return $null }
+        }
+        if ($d -gt $today) { return $d }
+    }
+    return $null
+}
+
+function Add-NextOccurrence($t) {
+    if (-not $t.repeat -or $t.spawned) { return $null }
+    $next = Get-NextOccurrence $t.repeat (Get-RepeatReference $t)
+    if (-not $next) { return $null }
+    $t.spawned = $true
+    $c = ConvertTo-Card ([pscustomobject]@{
+        id = (New-Id); text = $t.text; desc = $t.desc; prio = $t.prio; repeat = $t.repeat
+        due = $(if ($t.due) { $next.ToString('yyyy-MM-dd') } else { '' })
+        checks = (ConvertTo-Checks $t.checks -Reset); created = (Get-Date).ToString('s')
+    }) $t.board '' 0
+    $c | Add-Member -NotePropertyName showAt -NotePropertyValue $next.ToString('yyyy-MM-dd')
+    [void]$NB.Upcoming.Add($c)
+    return $c
+}
+
+# Fait apparaitre les occurrences du jour (au demarrage et toutes les 10 s). Renvoie les cartes revenues.
+function Release-Upcoming {
+    $today = (Get-Date).ToString('yyyy-MM-dd')
+    $back = @()
+    foreach ($u in @($NB.Upcoming)) {
+        if ($u.showAt -gt $today) { continue }
+        $b = Get-Board $u.board
+        if (-not $b) { $b = $NB.Boards[0] }
+        if (-not $b) { continue }
+        $col = Get-OpenColumn $b
+        $card = ConvertTo-Card $u $b.id $col.id (@(Get-ColumnCards $col.id).Count)
+        $card.created = (Get-Date).ToString('s'); $card.done = $false; $card.spawned = $false
+        [void]$NB.Todos.Add($card)
+        $NB.Upcoming.Remove($u)
+        $back += $card
+    }
+    if ($back.Count) { Save-Todos; Render-Todos -Cols @($back | ForEach-Object { $_.col }) }
+    return $back
+}
+
+function Get-BoardUpcoming([string]$boardId) { @($NB.Upcoming | Where-Object { $_.board -eq $boardId } | Sort-Object showAt) }
+
+function Remove-Upcoming([string]$id) {
+    foreach ($u in @($NB.Upcoming)) { if ($u.id -eq $id) { $NB.Upcoming.Remove($u) } }
+    Save-Todos
+    Update-KanbanFooter (Get-CurrentBoard)
+    Show-Bubble "Ok, cette carte ne reviendra plus 🔁✖" -Force -Seconds 3
+}
+
+function Show-Upcoming([string]$id) {
+    foreach ($u in @($NB.Upcoming)) { if ($u.id -eq $id) { $u.showAt = (Get-Date).ToString('yyyy-MM-dd') } }
+    [void](Release-Upcoming)
+}
+
+# Menu des cartes a venir (clic sur le compteur en bas du tableau)
+function Show-UpcomingMenu($target) {
+    $list = Get-BoardUpcoming (Get-CurrentBoard).id
+    if (-not $list.Count) { return }
+    $m = New-Object Windows.Controls.ContextMenu
+    foreach ($u in $list) {
+        $it = New-Object Windows.Controls.MenuItem
+        $it.Header = "🔁 $(Short-Text $u.text 40) — $(Format-Due $u.showAt)"
+        [void]$it.Items.Add((New-TaggedItem '⤴️  La faire apparaître maintenant' $u.id { param($s, $e) Invoke-Safe { Show-Upcoming $s.Tag } }))
+        [void]$it.Items.Add((New-TaggedItem '🗑️  Ne plus la répéter' $u.id { param($s, $e) Invoke-Safe { Remove-Upcoming $s.Tag } }))
+        [void]$m.Items.Add($it)
+    }
+    $m.PlacementTarget = $target
+    $m.IsOpen = $true
+}
+
+# --- sous-taches ---
+function Add-CardCheck([string]$id, [string]$text) {
+    $t = Find-Todo $id
+    $text = $text.Trim()
+    if (-not $t -or -not $text) { return }
+    [void]$t.checks.Add([pscustomobject]@{ text = $text; done = $false })
+    $NB.FocusChecklist = $id
+    Save-Todos
+    Render-Todos -Cols $t.col
+}
+
+function Set-CardCheck([string]$id, [int]$index, [bool]$done) {
+    $t = Find-Todo $id
+    if (-not $t -or $index -ge $t.checks.Count) { return }
+    $t.checks[$index].done = $done
+    Save-Todos
+    $n = @($t.checks | Where-Object { $_.done }).Count
+    if ($done -and $n -eq $t.checks.Count -and -not $t.done) {
+        Show-Bubble "Toutes les sous-tâches de « $(Short-Text $t.text 40) » sont cochées ✅ Tu la ranges dans Terminé ?" -Force -Seconds 6 -Buttons @(
+            @{ Label = '✅ Oui, terminée'; Action = [scriptblock]::Create("End-EditTodo -NoRender; Set-TodoDone '$id' `$true"); Primary = $true },
+            @{ Label = 'Pas encore'; Action = { } })
+    }
+}
+
+function Remove-CardCheck([string]$id, [int]$index) {
+    $t = Find-Todo $id
+    if (-not $t -or $index -ge $t.checks.Count) { return }
+    $t.checks.RemoveAt($index)
+    Save-Todos
+    Render-Todos -Cols $t.col
+}
+
+function Set-CardRepeat([string]$id, [string]$repeat) {
+    $t = Find-Todo $id
+    if (-not $t) { return }
+    $t.repeat = $repeat
+    $t.spawned = $false
+    Save-Todos
+}
+
+# ---------------------------------------------------------------------------
+#  Modeles de cartes : une carte type (texte, description, sous-taches,
+#  priorite, repetition) qu'on recree en un clic depuis le menu ⋯ d'une colonne
+# ---------------------------------------------------------------------------
+function New-TemplateObject([string]$name, $src) {
+    [pscustomobject]@{
+        id = $(if ($src.id -and $src.name) { [string]$src.id } else { New-Id }); name = $name
+        text = [string]$src.text; desc = [string]$src.desc; prio = Limit-Prio $src.prio
+        checks = (ConvertTo-Checks $src.checks -Reset); repeat = [string]$src.repeat
+    }
+}
+
+function Save-CardAsTemplate([string]$id) {
+    $t = Find-Todo $id
+    if (-not $t) { return }
+    $name = Show-Prompt 'Nouveau modèle' 'Nom du modèle :' $t.text
+    if (-not $name) { return }
+    foreach ($m in @($NB.Templates)) { if ($m.name -eq $name) { $NB.Templates.Remove($m) } }
+    [void]$NB.Templates.Add((New-TemplateObject $name $t))
+    Save-Todos
+    Show-Bubble "📋 Modèle « $name » enregistré. Menu ⋯ d'une colonne > Nouvelle carte depuis un modèle." -Force -Seconds 5
+}
+
+function New-CardFromTemplate([string]$tplId, [string]$colId) {
+    $m = $NB.Templates | Where-Object { $_.id -eq $tplId } | Select-Object -First 1
+    if (-not $m) { return }
+    $NB.LastAddedId = ''
+    Add-Todo $m.text $m.prio $colId
+    $t = Find-Todo $NB.LastAddedId
+    if (-not $t) { return }
+    $t.desc = $m.desc; $t.repeat = $m.repeat; $t.checks = ConvertTo-Checks $m.checks -Reset
+    Save-Todos
+    Start-EditTodo $t.id
+}
+
+function Remove-Template([string]$tplId) {
+    foreach ($m in @($NB.Templates)) { if ($m.id -eq $tplId) { $NB.Templates.Remove($m) } }
+    Save-Todos
 }
 
 # ---------------------------------------------------------------------------
@@ -323,12 +572,13 @@ function Sort-CardsByBoard($cards) {
 }
 
 # Choisir les cartes du focus. -Start : lance le focus juste apres
-function Choose-FocusCards([switch]$Start) {
+function Choose-FocusCards([switch]$Start, [string[]]$Preselect) {
     $open = @(Sort-CardsByBoard (Get-OpenTodos))
     $intro = if ($O.State -eq 'Focus') { "Sur quelles cartes tu travailles pendant ce focus ? (plusieurs possibles)" }
              else { "Sur quelles cartes tu vas travailler ? (plusieurs possibles ; elles restent liées d'un focus à l'autre tant qu'elles ne sont pas finies)" }
     $ok = if ($Start) { '🚀 Lancer le focus' } else { '🎯 Valider' }
-    $ids = Show-CardPicker '🎯 Cartes du focus' $intro $open @($NB.FocusCards) $ok -AllowNew
+    $checked = if ($Preselect) { $Preselect } else { @($NB.FocusCards) }
+    $ids = Show-CardPicker '🎯 Cartes du focus' $intro $open $checked $ok -AllowNew
     if ($null -eq $ids) {
         if ($O.State -eq 'AwaitFocus') { Ask-Focus }
         return
@@ -473,7 +723,8 @@ function Restore-Kanban([string]$path) {
 function Save-Todos {
     Backup-Kanban
     try {
-        $data = [ordered]@{ current = $NB.BoardId; boards = @($NB.Boards); cards = @($NB.Todos); focus = @($NB.FocusCards) }
+        $data = [ordered]@{ current = $NB.BoardId; boards = @($NB.Boards); cards = @($NB.Todos); focus = @($NB.FocusCards)
+                   upcoming = @($NB.Upcoming); templates = @($NB.Templates) }
         Write-FileSafe $KanbanFile (ConvertTo-Json -InputObject $data -Depth 6)
     } catch { Write-Log "Ecriture tableaux : $($_.Exception.Message)" }
     if ($NB.MdTimer) {
@@ -522,12 +773,14 @@ function Move-Card([string]$id, [string]$colId, [int]$index = -1, [switch]$Quiet
     $t.board = $board.id; $t.col = $col.id
     $t.done = [bool]$col.done
     if ($t.done -and -not $wasDone) { $t.doneAt = (Get-Date).ToString('s') } elseif (-not $t.done) { $t.doneAt = '' }
+    $next = if ($t.done -and -not $wasDone) { Add-NextOccurrence $t } else { $null }
     Save-Todos
     Render-Todos -Cols @($oldCol, $col.id)
     if ($t.done -and -not $wasDone -and -not $Quiet) {
         $left = @($NB.Todos | Where-Object { -not $_.done -and $_.board -eq $board.id }).Count
-        if ($left -eq 0) { Show-Bubble "Tout le tableau « $($board.name) » est terminé ! 🎉" -Force -Seconds 5 }
-        else { Show-Bubble (Pick @("Bien joué ✅", "Une de moins ! 💪", "Terminé, ça fait du bien hein 😌")) -Force -Seconds 3 }
+        $again = if ($next) { "`n🔁 Elle reviendra $(Format-Due $next.showAt)." } else { '' }
+        if ($left -eq 0) { Show-Bubble "Tout le tableau « $($board.name) » est terminé ! 🎉$again" -Force -Seconds 5 }
+        else { Show-Bubble ((Pick @("Bien joué ✅", "Une de moins ! 💪", "Terminé, ça fait du bien hein 😌")) + $again) -Force -Seconds 4 }
     }
 }
 
@@ -570,6 +823,9 @@ function Add-Todo([string]$text, $prio = $DefaultPrio, [string]$colId = '') {
         pomos   = 0
         focusMin = 0
         lastFocus = ''
+        checks  = (New-Object System.Collections.ArrayList)
+        repeat  = ''
+        spawned = $false
     })
     $NB.LastAddedId = $NB.Todos[$NB.Todos.Count - 1].id
     Save-Todos
@@ -603,7 +859,7 @@ function Set-TodoDone([string]$id, [bool]$done, [switch]$Quiet) {
 function Remove-Todo([string]$id) {
     $t = Find-Todo $id
     if ($t) {
-        if ($NB.EditId -eq $id) { $NB.EditId = ''; $NB.SaveTimer.Stop() }
+        if ($NB.EditId -eq $id) { $NB.EditId = ''; if ($NB.SaveTimer) { $NB.SaveTimer.Stop() } }
         $NB.Todos.Remove($t); Save-Todos; Render-Todos -Cols $t.col
     }
 }
@@ -640,6 +896,7 @@ function Get-PrioColor([int]$p) {
 #  Echeances et rappels
 # ---------------------------------------------------------------------------
 $DayNames = @('dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.')
+$DayFull = @('dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi')
 
 function Format-Due([string]$due) {
     if (-not $due) { return '' }
@@ -699,6 +956,12 @@ function Get-DeadlineSummary {
 # Verifie toutes les 10 secondes si un rappel doit sonner
 function Check-TaskReminders {
     $now = Get-Date
+    $back = @(Release-Upcoming)
+    if ($back.Count) {
+        $msg = "🔁 De retour : « $(Short-Text $back[0].text 50) »"
+        if ($back.Count -gt 1) { $msg += " et $($back.Count - 1) autre(s) carte(s) récurrente(s)" }
+        Show-Bubble $msg -Seconds 6
+    }
     foreach ($t in @($NB.Todos)) {
         if ($t.done -or $t.reminded -or -not $t.remindAt) { continue }
         if ([datetime]$t.remindAt -gt $now) { continue }
@@ -722,7 +985,8 @@ function Check-TaskReminders {
     if ($NB.DeadlineDay -ne $today) {
         $first = -not $NB.DeadlineDay
         $NB.DeadlineDay = $today
-        if (-not $first) {
+        # avec le plan du matin, les echeances du jour y sont deja
+        if (-not $first -and -not $Config.MorningPlan) {
             $sum = Get-DeadlineSummary
             if ($sum) { Show-Bubble $sum -Force -Seconds 12 }
         }
@@ -895,6 +1159,173 @@ function Copy-Clip($c) {
 }
 
 # ---------------------------------------------------------------------------
+#  Recherche globale : cartes (titre, description, sous-taches) de tous les
+#  tableaux, cartes recurrentes a venir, copier-coller et favoris, archives.
+#  Tous les mots doivent y etre ; accents et majuscules ignores.
+# ---------------------------------------------------------------------------
+$SearchFold = @{
+    'à' = 'a'; 'â' = 'a'; 'ä' = 'a'; 'á' = 'a'; 'ã' = 'a'; 'å' = 'a'; 'é' = 'e'; 'è' = 'e'; 'ê' = 'e'; 'ë' = 'e'
+    'î' = 'i'; 'ï' = 'i'; 'í' = 'i'; 'ì' = 'i'; 'ô' = 'o'; 'ö' = 'o'; 'ó' = 'o'; 'ò' = 'o'; 'õ' = 'o'; 'ù' = 'u'
+    'û' = 'u'; 'ü' = 'u'; 'ú' = 'u'; 'ç' = 'c'; 'ÿ' = 'y'; 'ñ' = 'n'; 'œ' = 'oe'; 'æ' = 'ae'
+}
+$SearchFold[[string][char]0x2019] = "'"   # apostrophe typographique
+
+# texte en minuscules sans accents, pour comparer « Réunion » et « reunion »
+function Get-SearchKey([string]$text) {
+    if (-not $text) { return '' }
+    $sb = New-Object Text.StringBuilder
+    foreach ($ch in $text.ToLowerInvariant().ToCharArray()) {
+        $k = [string]$ch
+        if ($SearchFold.ContainsKey($k)) { [void]$sb.Append($SearchFold[$k]) } else { [void]$sb.Append($ch) }
+    }
+    return $sb.ToString()
+}
+
+function Test-SearchMatch([string]$haystack, [string[]]$words) {
+    $h = Get-SearchKey $haystack
+    foreach ($w in $words) { if (-not $h.Contains($w)) { return $false } }
+    return $true
+}
+
+function Find-Everything([string]$query) {
+    $words = @((Get-SearchKey $query) -split '\s+' | Where-Object { $_ })
+    $r = @{ Cards = @(); Upcoming = @(); Clips = @(); Archives = @() }
+    if (-not $words.Count) { return $r }
+    $r.Cards = @($NB.Todos | Where-Object {
+            Test-SearchMatch ("$($_.text) $($_.desc) " + (($_.checks | ForEach-Object { $_.text }) -join ' ')) $words } |
+        Sort-Object -Property @{ e = { [int][bool]$_.done } }, @{ e = { [int]$_.prio } })
+    $r.Upcoming = @($NB.Upcoming | Where-Object { Test-SearchMatch "$($_.text) $($_.desc)" $words })
+    $seen = @{}
+    $r.Clips = @(@($NB.Favs) + @($NB.Clips) | Where-Object {
+            $_ -and -not $seen.ContainsKey($_.text) -and ($seen[$_.text] = $true) -and (Test-SearchMatch $_.text $words) } |
+        Select-Object -First 40)
+    if (Test-Path -LiteralPath $TodoArchive) {
+        $section = ''
+        $found = foreach ($line in [IO.File]::ReadAllLines($TodoArchive)) {
+            if ($line -match '^##\s+(.*)$') { $section = $Matches[1]; continue }
+            if ($line -match '^- \[.\]\s*(.+)$' -and (Test-SearchMatch $Matches[1] $words)) {
+                [pscustomobject]@{ text = $Matches[1]; section = $section }
+            }
+        }
+        $r.Archives = @(@($found) | Select-Object -Last 30)
+        [array]::Reverse($r.Archives)
+    }
+    return $r
+}
+
+function New-SearchResult([string]$title, [string]$sub, [string]$tip, $tag, [scriptblock]$onClick, [bool]$dim = $false) {
+    $b = New-Object Windows.Controls.Border
+    $b.Margin = '0,0,0,5'; $b.Padding = '10,5,8,6'; $b.CornerRadius = '9'
+    $b.Background = '#F6F5FD'; $b.BorderBrush = '#E2DFF5'; $b.BorderThickness = '1'
+    $sp = New-Object Windows.Controls.StackPanel
+    $t1 = New-Object Windows.Controls.TextBlock
+    $t1.Text = $title; $t1.TextWrapping = 'Wrap'; $t1.FontWeight = 'SemiBold'
+    $t1.Foreground = if ($dim) { '#9A98B0' } else { '#1E1B3A' }
+    if ($dim) { $t1.TextDecorations = [Windows.TextDecorations]::Strikethrough }
+    [void]$sp.Children.Add($t1)
+    if ($sub) {
+        $t2 = New-Object Windows.Controls.TextBlock
+        $t2.Text = $sub; $t2.FontSize = 11.5; $t2.Foreground = '#7A7794'; $t2.TextWrapping = 'Wrap'; $t2.MaxHeight = 34
+        $t2.TextTrimming = 'CharacterEllipsis'
+        [void]$sp.Children.Add($t2)
+    }
+    $b.Child = $sp
+    if ($tip) { $b.ToolTip = $tip }
+    if ($onClick) { $b.Cursor = 'Hand'; $b.Tag = $tag; $b.Add_MouseLeftButtonUp($onClick) }
+    return $b
+}
+
+# extrait de la description autour du premier mot cherche
+function Get-Snippet([string]$text, [string]$word, [int]$len = 90) {
+    $flat = ($text -replace '\s+', ' ').Trim()
+    if (-not $flat) { return '' }
+    $i = (Get-SearchKey $flat).IndexOf($word)
+    if ($i -lt 0 -or $flat.Length -le $len) { return (Short-Text $flat $len) }
+    $start = [math]::Max(0, $i - 25)
+    $out = $flat.Substring($start, [math]::Min($len, $flat.Length - $start))
+    if ($start -gt 0) { $out = '…' + $out }
+    if ($start + $len -lt $flat.Length) { $out += '…' }
+    return $out
+}
+
+function Render-Search {
+    if (-not $pn.SearchList) { return }
+    $pn.SearchList.Children.Clear()
+    $q = $pn.SearchBox.Text.Trim()
+    if ($q.Length -lt 2) {
+        $pn.SearchCount.Text = 'Plusieurs mots : ils doivent tous y être. Les accents et majuscules ne comptent pas.'
+        return
+    }
+    $r = Find-Everything $q
+    $first = @((Get-SearchKey $q) -split '\s+' | Where-Object { $_ })[0]
+    if ($r.Cards.Count) {
+        [void]$pn.SearchList.Children.Add((New-SectionTitle "🗂️ Cartes ($($r.Cards.Count))"))
+        foreach ($t in ($r.Cards | Select-Object -First 60)) {
+            $b = Get-Board $t.board
+            $col = if ($b) { Get-Column $b $t.col }
+            $sub = "$(if ($b) { $b.name }) › $(if ($col) { $col.name })"
+            if ($t.due -and -not $t.done) { $sub += " · 📅 $(Format-Due $t.due)" }
+            if ($t.checks.Count) { $sub += " · ☑ $(@($t.checks | Where-Object { $_.done }).Count)/$($t.checks.Count)" }
+            $snip = Get-Snippet $t.desc $first
+            if ($snip) { $sub += "`n📄 $snip" }
+            [void]$pn.SearchList.Children.Add((New-SearchResult "P$($t.prio)  $($t.text)" $sub 'Clic : ouvrir la carte' $t.id {
+                        param($s, $e) Invoke-Safe { Reveal-Card $s.Tag } } ([bool]$t.done)))
+        }
+    }
+    if ($r.Upcoming.Count) {
+        [void]$pn.SearchList.Children.Add((New-SectionTitle "🔁 Cartes récurrentes à venir ($($r.Upcoming.Count))"))
+        foreach ($u in $r.Upcoming) {
+            $b = Get-Board $u.board
+            [void]$pn.SearchList.Children.Add((New-SearchResult $u.text "Revient $(Format-Due $u.showAt)$(if ($b) { " dans « $($b.name) »" })" $null $null $null))
+        }
+    }
+    if ($r.Clips.Count) {
+        [void]$pn.SearchList.Children.Add((New-SectionTitle "📋 Copier-coller ($($r.Clips.Count))"))
+        foreach ($c in $r.Clips) {
+            $fav = $NB.Favs -contains $c
+            $title = "$(if ($fav) { '⭐ ' })$(Short-Text (($c.text -replace '\s+', ' ').Trim()) 120)"
+            [void]$pn.SearchList.Children.Add((New-SearchResult $title $(if ($c.time) { "à $($c.time)" }) 'Clic : recopier' $c {
+                        param($s, $e) Invoke-Safe { Copy-Clip $s.Tag } }))
+        }
+    }
+    if ($r.Archives.Count) {
+        [void]$pn.SearchList.Children.Add((New-SectionTitle "📦 Archives ($($r.Archives.Count))"))
+        foreach ($a in $r.Archives) {
+            [void]$pn.SearchList.Children.Add((New-SearchResult $a.text "archivée : $($a.section)" 'Clic : recopier le texte' ([pscustomobject]@{ kind = 'text'; text = $a.text; files = @() }) {
+                        param($s, $e) Invoke-Safe { Copy-Clip $s.Tag } } $true))
+        }
+    }
+    $n = $r.Cards.Count + $r.Upcoming.Count + $r.Clips.Count + $r.Archives.Count
+    if (-not $n) {
+        $empty = New-Object Windows.Controls.TextBlock
+        $empty.Text = "Rien trouvé pour « $q »"; $empty.Foreground = '#9A98B0'; $empty.Margin = '4,10,4,0'; $empty.TextAlignment = 'Center'
+        [void]$pn.SearchList.Children.Add($empty)
+    }
+    $pn.SearchCount.Text = "$n résultat(s) · clic sur une carte pour l'ouvrir, sur un copier-coller pour le recopier"
+}
+
+# Ouvre une carte trouvee : bon tableau, editeur ouvert, et on la fait defiler a l'ecran
+function Reveal-Card([string]$id) {
+    $t = Find-Todo $id
+    if (-not $t) { return }
+    if ($NB.EditId) { End-EditTodo -NoRender }
+    $NB.BoardId = $t.board
+    Select-Tab 'Todo'
+    Start-EditTodo $id
+    $NB.RevealId = $id
+    [void]$panel.Dispatcher.BeginInvoke([Windows.Threading.DispatcherPriority]::Loaded, [Action]{ Invoke-Safe { Show-RevealedCard } })
+}
+
+function Show-RevealedCard {
+    foreach ($colBox in $pn.TodoList.Children) {
+        if ($colBox.Tag -isnot [hashtable]) { continue }
+        foreach ($el in $colBox.Tag.Stack.Children) {
+            if ($el.Tag -eq $NB.RevealId) { $el.BringIntoView(); return }
+        }
+    }
+}
+
+# ---------------------------------------------------------------------------
 #  Fenetre du carnet
 # ---------------------------------------------------------------------------
 [xml]$panelXaml = @'
@@ -922,6 +1353,8 @@ function Copy-Clip($c) {
                 BorderBrush="#1E1B3A" FontWeight="SemiBold"/>
         <Button x:Name="TabClip" Padding="12,5" Cursor="Hand" BorderThickness="2"
                 BorderBrush="#1E1B3A" FontWeight="SemiBold"/>
+        <Button x:Name="TabSearch" Content="🔍" Padding="10,5" Margin="6,0,0,0" Cursor="Hand" BorderThickness="2"
+                BorderBrush="#1E1B3A" FontWeight="SemiBold" ToolTip="Rechercher partout (Ctrl+F)"/>
       </StackPanel>
 
       <Grid>
@@ -992,27 +1425,41 @@ function Copy-Clip($c) {
             <StackPanel x:Name="ClipList"/>
           </ScrollViewer>
         </DockPanel>
+
+        <!-- ===== Recherche globale ===== -->
+        <DockPanel x:Name="SearchPanel" Margin="14,0,14,12" Visibility="Collapsed">
+          <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+            <TextBox x:Name="SearchBox" Padding="8,6" BorderBrush="#1E1B3A" BorderThickness="2"
+                     VerticalContentAlignment="Center"/>
+            <TextBlock x:Name="SearchHint" Text="🔍 Chercher dans les cartes, sous-tâches, copier-coller, archives…" Margin="12,0,0,0"
+                       VerticalAlignment="Center" Foreground="#9A98B0" IsHitTestVisible="False"/>
+          </Grid>
+          <TextBlock x:Name="SearchCount" DockPanel.Dock="Bottom" Margin="0,8,0,0" Foreground="#6B6880"
+                     Text="Plusieurs mots : ils doivent tous y être. Les accents et majuscules ne comptent pas."/>
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="SearchList"/>
+          </ScrollViewer>
+        </DockPanel>
       </Grid>
     </DockPanel>
   </Border>
 </Window>
 '@
 
-$panel = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $panelXaml))
+# La fenetre du carnet est construite a la demande (Initialize-Notebook) :
+# a la premiere ouverture, ou quelques secondes apres le demarrage d'Orbit.
+$panel = $null
 $pn = @{}
-foreach ($n in 'Header','CloseBtn','TabTodo','TabClip','TodoPanel','TodoInput','TodoHint','TodoPrio','TodoAdd','TodoCount',
-               'BoardPick','BoardAdd','BoardRename','BoardDel','BoardHistory','KanbanScroll',
-               'TodoClear','TodoList','ClipPanel','ClipSearch','ClipHint','ClipCount','ClipPause','ClipClear','ClipList') {
-    $pn[$n] = $panel.FindName($n)
-}
 
 function Update-Tabs {
+    if (-not $panel) { return }
     $open = @($NB.Todos | Where-Object { -not $_.done }).Count
     $pn.TabTodo.Content = "🗂️ Tableaux ($open)"
     $pn.TabClip.Content = "📋 Copier-coller ($($NB.Clips.Count))"
     $on = '#FFD166'; $off = '#FFFFFF'
     $pn.TabTodo.Background = if ($NB.Tab -eq 'Todo') { $on } else { $off }
     $pn.TabClip.Background = if ($NB.Tab -eq 'Clip') { $on } else { $off }
+    $pn.TabSearch.Background = if ($NB.Tab -eq 'Search') { $on } else { $off }
 }
 
 function Format-Day([string]$iso) {
@@ -1087,7 +1534,14 @@ function Render-Todos([string[]]$Cols) {
 function Update-KanbanFooter($board) {
     $cards = @($NB.Todos | Where-Object { $_.board -eq $board.id })
     $done = @($cards | Where-Object { $_.done }).Count
-    $pn.TodoCount.Text = "$($cards.Count) carte(s), $done terminée(s) · glisse les cartes d'une colonne à l'autre, clic droit pour plus d'options"
+    $txt = "$($cards.Count) carte(s), $done terminée(s) · glisse les cartes d'une colonne à l'autre, clic droit pour plus d'options"
+    $up = Get-BoardUpcoming $board.id
+    if ($up.Count) {
+        $txt = "🔁 $($up.Count) à venir · $txt"
+        $pn.TodoCount.Cursor = 'Hand'
+        $pn.TodoCount.ToolTip = (($up | ForEach-Object { "🔁 $($_.text) — $(Format-Due $_.showAt)" }) -join "`n") + "`n(clic pour gérer)"
+    } else { $pn.TodoCount.Cursor = $null; $pn.TodoCount.ToolTip = $null }
+    $pn.TodoCount.Text = $txt
     $pn.TodoClear.IsEnabled = $done -gt 0
     Update-Tabs
 }
@@ -1227,7 +1681,7 @@ function New-KanbanCard($t) {
         [void]$content.Children.Add($dp)
     }
     $inFocus = $NB.FocusCards.Contains($t.id) -and -not $t.done
-    if ($t.pomos -or $inFocus) {
+    if ($t.pomos -or $inFocus -or $t.checks.Count -or $t.repeat) {
         $fm = New-Object Windows.Controls.WrapPanel
         $fm.Margin = '0,3,0,0'
         if ($inFocus) {
@@ -1244,6 +1698,20 @@ function New-KanbanCard($t) {
             $b.Text = "🍅 $($t.pomos) · $(Format-FocusTime $t.focusMin)"
             $b.FontSize = 11; $b.Foreground = '#B4532A'
             $b.ToolTip = "$($t.pomos) session(s) de focus sur cette carte$(if ($t.lastFocus) { ", la dernière le $(([datetime]$t.lastFocus).ToString('dd/MM à HH:mm'))" })"
+            [void]$fm.Children.Add($b)
+        }
+        if ($t.checks.Count) {
+            $n = @($t.checks | Where-Object { $_.done }).Count
+            $b = New-Object Windows.Controls.TextBlock
+            $b.Text = "☑ $n/$($t.checks.Count)"; $b.FontSize = 11; $b.Margin = '0,0,8,0'
+            $b.Foreground = if ($n -eq $t.checks.Count) { '#2F9E44' } else { '#5C6B85' }
+            $b.ToolTip = ($t.checks | ForEach-Object { "$(if ($_.done) { '☑' } else { '☐' }) $($_.text)" }) -join "`n"
+            [void]$fm.Children.Add($b)
+        }
+        if ($t.repeat) {
+            $b = New-Object Windows.Controls.TextBlock
+            $b.Text = '🔁'; $b.FontSize = 11; $b.Margin = '0,0,8,0'; $b.Foreground = '#5C6B85'
+            $b.ToolTip = "Revient $(Get-RepeatLabel $t)"
             [void]$fm.Children.Add($b)
         }
         [void]$content.Children.Add($fm)
@@ -1342,6 +1810,7 @@ function Show-CardMenu($card) {
         }
         [void]$m.Items.Add($sb)
     }
+    [void]$m.Items.Add((New-TaggedItem '📋  Enregistrer comme modèle' $t.id { param($s, $e) Invoke-Safe { Save-CardAsTemplate $s.Tag } }))
     [void]$m.Items.Add((New-Object Windows.Controls.Separator))
     [void]$m.Items.Add((New-TaggedItem '🗑️  Supprimer la carte' $t.id { param($s, $e) Invoke-Safe { Remove-Todo $s.Tag } }))
     $m.PlacementTarget = $card
@@ -1369,6 +1838,24 @@ function Show-ColumnMenu($button) {
     $x = New-TaggedItem '🗑️  Supprimer la colonne' $col.id { param($s, $e) Invoke-Safe { Remove-BoardColumn $s.Tag } }
     $x.IsEnabled = $board.columns.Count -gt 1
     [void]$m.Items.Add($x)
+    [void]$m.Items.Add((New-Object Windows.Controls.Separator))
+    $tp = New-Object Windows.Controls.MenuItem; $tp.Header = '📋  Nouvelle carte depuis un modèle'
+    if ($NB.Templates.Count) {
+        foreach ($tpl in $NB.Templates) {
+            $label = $tpl.name
+            if ($tpl.checks.Count) { $label += "  (☑ $($tpl.checks.Count))" }
+            [void]$tp.Items.Add((New-TaggedItem $label "$($tpl.id)|$($col.id)" { param($s, $e) Invoke-Safe { $p = $s.Tag.Split('|'); New-CardFromTemplate $p[0] $p[1] } }))
+        }
+        [void]$tp.Items.Add((New-Object Windows.Controls.Separator))
+        $del = New-Object Windows.Controls.MenuItem; $del.Header = '🗑️  Supprimer un modèle'
+        foreach ($tpl in $NB.Templates) { [void]$del.Items.Add((New-TaggedItem $tpl.name $tpl.id { param($s, $e) Invoke-Safe { Remove-Template $s.Tag } })) }
+        [void]$tp.Items.Add($del)
+    } else {
+        $none = New-Object Windows.Controls.MenuItem
+        $none.Header = 'Aucun modèle : clic droit sur une carte > Enregistrer comme modèle'; $none.IsEnabled = $false
+        [void]$tp.Items.Add($none)
+    }
+    [void]$m.Items.Add($tp)
     $m.PlacementTarget = $button
     $m.IsOpen = $true
 }
@@ -1395,7 +1882,9 @@ function Show-Prompt([string]$title, [string]$label, [string]$default = '') {
 }
 
 function Confirm-Action([string]$text) {
-    ([Windows.MessageBox]::Show($panel, $text, 'Orbit', 'YesNo', 'Question')) -eq 'Yes'
+    $r = if ($panel -and $panel.IsVisible) { [Windows.MessageBox]::Show($panel, $text, 'Orbit', 'YesNo', 'Question') }
+         else { [Windows.MessageBox]::Show($text, 'Orbit', 'YesNo', 'Question') }
+    $r -eq 'Yes'
 }
 
 # --- tableaux ---
@@ -1500,9 +1989,9 @@ $NB.ClipSaveTimer.Add_Tick({ $NB.ClipSaveTimer.Stop(); Invoke-Safe { if ($NB.Cli
 
 $NB.SaveTimer = New-Object Windows.Threading.DispatcherTimer
 $NB.SaveTimer.Interval = [timespan]::FromMilliseconds(700)
-$NB.SaveTimer.Add_Tick({ $NB.SaveTimer.Stop(); Invoke-Safe { Save-Todos } })
+$NB.SaveTimer.Add_Tick({ if ($NB.SaveTimer) { $NB.SaveTimer.Stop() }; Invoke-Safe { Save-Todos } })
 
-function Queue-SaveTodos { $NB.SaveTimer.Stop(); $NB.SaveTimer.Start() }
+function Queue-SaveTodos { if ($NB.SaveTimer) { $NB.SaveTimer.Stop() }; $NB.SaveTimer.Start() }
 
 function Start-EditTodo([string]$id) {
     $cols = @()
@@ -1527,7 +2016,7 @@ function End-EditTodo([switch]$NoRender) {
         $t.desc = $t.desc.TrimEnd()
     }
     $NB.EditId = ''
-    $NB.SaveTimer.Stop()
+    if ($NB.SaveTimer) { $NB.SaveTimer.Stop() }
     Save-Todos
     if (-not $NoRender) { if ($t) { Render-Todos -Cols $t.col } else { Render-Todos } }
 }
@@ -1563,6 +2052,56 @@ function New-TodoEditor($t) {
         }
     })
     [void]$box.Children.Add($desc)
+
+    # sous-taches : on coche directement, Entree pour en ajouter une
+    $focusChecks = $NB.FocusChecklist -eq $t.id
+    if ($focusChecks) { $NB.FocusChecklist = '' }
+    $l3 = New-Object Windows.Controls.TextBlock
+    $nDone = @($t.checks | Where-Object { $_.done }).Count
+    $l3.Text = if ($t.checks.Count) { "☑ Sous-tâches ($nDone/$($t.checks.Count))" } else { '☑ Sous-tâches' }
+    $l3.Margin = '2,8,0,2'; $l3.FontSize = 12
+    [void]$box.Children.Add($l3)
+    for ($i = 0; $i -lt $t.checks.Count; $i++) {
+        $row = New-Object Windows.Controls.DockPanel
+        $row.Margin = '2,1,0,1'
+        $cx = New-Object Windows.Controls.Button
+        $cx.Content = '✕'; $cx.Width = 20; $cx.Background = 'Transparent'; $cx.BorderThickness = '0'; $cx.Foreground = '#B0AEC4'
+        $cx.Cursor = 'Hand'; $cx.ToolTip = 'Supprimer cette sous-tâche'; $cx.Tag = "$($t.id)|$i"
+        $cx.Add_Click({ param($s, $e) $p = $s.Tag.Split('|'); Invoke-Safe { Remove-CardCheck $p[0] ([int]$p[1]) } })
+        [Windows.Controls.DockPanel]::SetDock($cx, 'Right')
+        [void]$row.Children.Add($cx)
+        $cb = New-Object Windows.Controls.CheckBox
+        $lab = New-Object Windows.Controls.TextBlock
+        $lab.Text = $t.checks[$i].text; $lab.TextWrapping = 'Wrap'
+        $cb.Content = $lab; $cb.IsChecked = [bool]$t.checks[$i].done; $cb.Tag = @{ Key = "$($t.id)|$i"; Label = $l3; Card = $t.id }
+        $cb.Add_Click({
+            param($s, $e)
+            $p = $s.Tag.Key.Split('|')
+            Invoke-Safe {
+                Set-CardCheck $p[0] ([int]$p[1]) ([bool]$s.IsChecked)
+                $x = Find-Todo $s.Tag.Card
+                if ($x) { $s.Tag.Label.Text = "☑ Sous-tâches ($(@($x.checks | Where-Object { $_.done }).Count)/$($x.checks.Count))" }
+            }
+        })
+        [void]$row.Children.Add($cb)
+        [void]$box.Children.Add($row)
+    }
+    $addG = New-Object Windows.Controls.Grid
+    $addG.Margin = '0,2,0,0'
+    $addT = New-Object Windows.Controls.TextBox
+    $addT.Padding = '5,3'; $addT.BorderBrush = '#C9C3F5'; $addT.BorderThickness = '1.2'
+    $addH = New-Object Windows.Controls.TextBlock
+    $addH.Text = '＋ Ajouter une sous-tâche (Entrée)'; $addH.Margin = '7,0,0,0'; $addH.VerticalAlignment = 'Center'
+    $addH.Foreground = '#9A98B0'; $addH.IsHitTestVisible = $false; $addH.FontSize = 11.5
+    $addT.Tag = @{ Id = $t.id; Hint = $addH }
+    $addT.Add_TextChanged({ param($s, $e) $s.Tag.Hint.Visibility = if ($s.Text) { 'Collapsed' } else { 'Visible' } })
+    $addT.Add_PreviewKeyDown({
+        param($s, $e)
+        if ($e.Key -eq 'Return') { $e.Handled = $true; Invoke-Safe { Add-CardCheck $s.Tag.Id $s.Text } }
+    })
+    if ($focusChecks) { $addT.Add_Loaded({ param($s, $e) $s.Focus() | Out-Null }) }
+    [void]$addG.Children.Add($addT); [void]$addG.Children.Add($addH)
+    [void]$box.Children.Add($addG)
 
     # echeance et rappel, l'un sous l'autre (pour tenir dans une carte)
     $l1 = New-Object Windows.Controls.TextBlock
@@ -1608,6 +2147,22 @@ function New-TodoEditor($t) {
     [void]$remRow.Children.Add($remX); [void]$remRow.Children.Add($remT); [void]$remRow.Children.Add($remP)
     [void]$box.Children.Add($remRow)
 
+    # repetition
+    $l4 = New-Object Windows.Controls.TextBlock
+    $l4.Text = '🔁 Répéter'; $l4.Margin = '2,6,0,2'; $l4.FontSize = 12
+    [void]$box.Children.Add($l4)
+    $rc = New-Object Windows.Controls.ComboBox
+    foreach ($k in $RepeatChoices.Keys) {
+        $it = New-Object Windows.Controls.ComboBoxItem
+        $it.Content = $RepeatChoices[$k]; $it.Tag = $k
+        [void]$rc.Items.Add($it)
+        if ($k -eq [string]$t.repeat) { $rc.SelectedItem = $it }
+    }
+    $rc.Tag = $t.id
+    $rc.ToolTip = "Une fois terminée, la carte revient toute seule dans la 1re colonne à la date suivante (calculée depuis son échéance, sinon depuis son jour de création), sous-tâches décochées."
+    $rc.Add_SelectionChanged({ param($s, $e) if ($s.SelectedItem) { Invoke-Safe { Set-CardRepeat $s.Tag ([string]$s.SelectedItem.Tag) } } })
+    [void]$box.Children.Add($rc)
+
     # Entree dans le titre : on passe a la description
     $title.Add_PreviewKeyDown({ param($s, $e) if ($e.Key -eq 'Return') { $e.Handled = $true; $desc.Focus() | Out-Null } }.GetNewClosure())
 
@@ -1625,8 +2180,8 @@ function New-TodoEditor($t) {
     [void]$foot.Children.Add($info)
     [void]$box.Children.Add($foot)
 
-    # le curseur se place directement dans le titre
-    $title.Add_Loaded({ param($s, $e) $s.Focus() | Out-Null; $s.CaretIndex = $s.Text.Length })
+    # le curseur se place directement dans le titre (ou dans les sous-taches si on vient d'en ajouter une)
+    if (-not $focusChecks) { $title.Add_Loaded({ param($s, $e) $s.Focus() | Out-Null; $s.CaretIndex = $s.Text.Length }) }
     return $box
 }
 
@@ -1761,6 +2316,8 @@ function Fit-Notebook {
         $cols = (Get-CurrentBoard).columns.Count
         $want = if ($NB.KanbanW -gt 0) { $NB.KanbanW } else { 60 + ($KanbanColW + 10) * $cols + 180 }
         $panel.Width = [math]::Max(560, [math]::Min($want, $wa.R - $wa.L - 20))
+    } elseif ($NB.Tab -eq 'Search') {
+        $panel.Width = 470
     } else {
         $panel.Width = 380
     }
@@ -1774,12 +2331,15 @@ function Select-Tab([string]$tab) {
     Fit-Notebook
     $pn.TodoPanel.Visibility = if ($tab -eq 'Todo') { 'Visible' } else { 'Collapsed' }
     $pn.ClipPanel.Visibility = if ($tab -eq 'Clip') { 'Visible' } else { 'Collapsed' }
+    $pn.SearchPanel.Visibility = if ($tab -eq 'Search') { 'Visible' } else { 'Collapsed' }
     if ($tab -eq 'Clip') { Render-Clips; $pn.ClipSearch.Focus() | Out-Null }
+    elseif ($tab -eq 'Search') { Render-Search; $pn.SearchBox.Focus() | Out-Null; $pn.SearchBox.SelectAll() }
     else { Render-Todos; $pn.TodoInput.Focus() | Out-Null }
     Update-Tabs
 }
 
 function Open-Notebook([string]$tab = 'Todo') {
+    Initialize-Notebook
     if ($panel.Visibility -ne 'Visible') {
         # au-dessus d'Orbit, dans le coin de l'ecran ou se trouve la souris
         $p = [System.Windows.Forms.Cursor]::Position
@@ -1799,63 +2359,91 @@ function Close-Notebook {
 }
 
 # --- evenements du carnet ---
-$pn.Header.Add_MouseLeftButtonDown({ try { $panel.DragMove() } catch {} })
-$pn.CloseBtn.Add_Click({ Close-Notebook })
-$panel.Add_Closing({ param($s, $e) if (-not $NB.Quitting) { $e.Cancel = $true; Close-Notebook } })
-$panel.Add_PreviewKeyDown({
-    param($s, $e)
-    if ($e.Key -eq 'Escape') {
-        $e.Handled = $true
-        if ($NB.EditId) { Invoke-Safe { End-EditTodo } } else { Close-Notebook }
-    }
-})
-$pn.TabTodo.Add_Click({ Invoke-Safe { Select-Tab 'Todo' } })
-$pn.TabClip.Add_Click({ Invoke-Safe { Select-Tab 'Clip' } })
-
-$pn.TodoInput.Add_TextChanged({ $pn.TodoHint.Visibility = if ($pn.TodoInput.Text) { 'Collapsed' } else { 'Visible' } })
-$pn.TodoInput.Add_KeyDown({
-    param($s, $e)
-    if ($e.Key -eq 'Return') {
-        $e.Handled = $true
-        Invoke-Safe { Add-Todo $pn.TodoInput.Text ($pn.TodoPrio.SelectedIndex + 1); $pn.TodoInput.Clear() }
-    }
-})
-$pn.TodoAdd.Add_Click({ Invoke-Safe { Add-Todo $pn.TodoInput.Text ($pn.TodoPrio.SelectedIndex + 1); $pn.TodoInput.Clear(); $pn.TodoInput.Focus() | Out-Null } })
-foreach ($p in 1..10) { [void]$pn.TodoPrio.Items.Add("P$p") }
-$pn.TodoPrio.SelectedIndex = $DefaultPrio - 1
-$pn.TodoClear.Add_Click({ Invoke-Safe { if (Confirm-Action "Archiver les cartes terminées de ce tableau ?`n(Elles seront copiées dans todo-archive.md.)") { Clear-DoneTodos } } })
-$pn.BoardPick.Add_SelectionChanged({
-    if ($NB.Rendering -or -not $pn.BoardPick.SelectedItem) { return }
-    Invoke-Safe {
-        if ($NB.EditId) { End-EditTodo -NoRender }
-        $NB.BoardId = [string]$pn.BoardPick.SelectedItem.Tag
-        Save-Todos; Render-Todos
-    }
-})
-$pn.BoardAdd.Add_Click({ Invoke-Safe { Add-Board } })
-$pn.BoardRename.Add_Click({ Invoke-Safe { Rename-Board } })
-$pn.BoardDel.Add_Click({ Invoke-Safe { Remove-Board } })
-$pn.BoardHistory.Add_Click({ param($s, $e) Invoke-Safe { Show-BackupMenu $s } })
-
-$pn.ClipSearch.Add_TextChanged({
-    $pn.ClipHint.Visibility = if ($pn.ClipSearch.Text) { 'Collapsed' } else { 'Visible' }
-    Invoke-Safe { Render-Clips }
-})
-$pn.ClipPause.Add_Click({
-    $NB.ClipPaused = [bool]$pn.ClipPause.IsChecked
-    Show-Bubble $(if ($NB.ClipPaused) { "Ok, je ne regarde plus tes copier-coller 🙈" } else { "Je reprends l'historique des copier-coller 📋" }) -Force -Seconds 3
-})
-$pn.ClipClear.Add_Click({
-    Invoke-Safe {
-        $r = [Windows.MessageBox]::Show($panel, "Effacer tout l'historique des copier-coller d'aujourd'hui ?`n(Les favoris ⭐ sont conservés.)", 'Orbit', 'YesNo', 'Question')
-        if ($r -eq 'Yes') { $NB.Clips.Clear(); $NB.LastClip = ''; Save-Clips -Now; Render-Clips }
-    }
-})
-
-# les tableaux modifies pendant que la fenetre etait fermee sont redessines a l'ouverture
-$panel.Add_IsVisibleChanged({ Invoke-Safe { if ($panel.IsVisible -and $NB.TodoDirty -and $NB.Tab -eq 'Todo') { Render-Todos } } })
 
 Load-Todos
 Load-Clips
 Load-Favs
 Update-Tabs
+
+# ---------------------------------------------------------------------------
+#  Construction de la fenetre du carnet et de ses evenements
+# ---------------------------------------------------------------------------
+function Initialize-Notebook {
+    if ($script:panel) { return }
+    $script:panel = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $panelXaml))
+    $script:pn = @{}
+    foreach ($n in 'Header','CloseBtn','TabTodo','TabClip','TodoPanel','TodoInput','TodoHint','TodoPrio','TodoAdd','TodoCount',
+                   'BoardPick','BoardAdd','BoardRename','BoardDel','BoardHistory','KanbanScroll',
+                   'TodoClear','TodoList','ClipPanel','ClipSearch','ClipHint','ClipCount','ClipPause','ClipClear','ClipList',
+                   'TabSearch','SearchPanel','SearchBox','SearchHint','SearchCount','SearchList') {
+        $pn[$n] = $panel.FindName($n)
+    }
+
+    $pn.Header.Add_MouseLeftButtonDown({ try { $panel.DragMove() } catch {} })
+    $pn.CloseBtn.Add_Click({ Close-Notebook })
+    $panel.Add_Closing({ param($s, $e) if (-not $NB.Quitting) { $e.Cancel = $true; Close-Notebook } })
+    $panel.Add_PreviewKeyDown({
+        param($s, $e)
+        if ($e.Key -eq 'Escape') {
+            $e.Handled = $true
+            if ($NB.EditId) { Invoke-Safe { End-EditTodo } } else { Close-Notebook }
+        } elseif ($e.Key -eq 'F' -and ([Windows.Input.Keyboard]::Modifiers -band [Windows.Input.ModifierKeys]::Control)) {
+            $e.Handled = $true
+            Invoke-Safe { Select-Tab 'Search' }
+        }
+    })
+    $pn.TabTodo.Add_Click({ Invoke-Safe { Select-Tab 'Todo' } })
+    $pn.TabClip.Add_Click({ Invoke-Safe { Select-Tab 'Clip' } })
+    $pn.TabSearch.Add_Click({ Invoke-Safe { Select-Tab 'Search' } })
+    $NB.SearchTimer = New-Object Windows.Threading.DispatcherTimer
+    $NB.SearchTimer.Interval = [timespan]::FromMilliseconds(250)
+    $NB.SearchTimer.Add_Tick({ $NB.SearchTimer.Stop(); Invoke-Safe { Render-Search } })
+    $pn.SearchBox.Add_TextChanged({
+        $pn.SearchHint.Visibility = if ($pn.SearchBox.Text) { 'Collapsed' } else { 'Visible' }
+        $NB.SearchTimer.Stop(); $NB.SearchTimer.Start()
+    })
+
+    $pn.TodoInput.Add_TextChanged({ $pn.TodoHint.Visibility = if ($pn.TodoInput.Text) { 'Collapsed' } else { 'Visible' } })
+    $pn.TodoInput.Add_KeyDown({
+        param($s, $e)
+        if ($e.Key -eq 'Return') {
+            $e.Handled = $true
+            Invoke-Safe { Add-Todo $pn.TodoInput.Text ($pn.TodoPrio.SelectedIndex + 1); $pn.TodoInput.Clear() }
+        }
+    })
+    $pn.TodoAdd.Add_Click({ Invoke-Safe { Add-Todo $pn.TodoInput.Text ($pn.TodoPrio.SelectedIndex + 1); $pn.TodoInput.Clear(); $pn.TodoInput.Focus() | Out-Null } })
+    foreach ($p in 1..10) { [void]$pn.TodoPrio.Items.Add("P$p") }
+    $pn.TodoPrio.SelectedIndex = $DefaultPrio - 1
+    $pn.TodoClear.Add_Click({ Invoke-Safe { if (Confirm-Action "Archiver les cartes terminées de ce tableau ?`n(Elles seront copiées dans todo-archive.md.)") { Clear-DoneTodos } } })
+    $pn.BoardPick.Add_SelectionChanged({
+        if ($NB.Rendering -or -not $pn.BoardPick.SelectedItem) { return }
+        Invoke-Safe {
+            if ($NB.EditId) { End-EditTodo -NoRender }
+            $NB.BoardId = [string]$pn.BoardPick.SelectedItem.Tag
+            Save-Todos; Render-Todos
+        }
+    })
+    $pn.BoardAdd.Add_Click({ Invoke-Safe { Add-Board } })
+    $pn.BoardRename.Add_Click({ Invoke-Safe { Rename-Board } })
+    $pn.BoardDel.Add_Click({ Invoke-Safe { Remove-Board } })
+    $pn.BoardHistory.Add_Click({ param($s, $e) Invoke-Safe { Show-BackupMenu $s } })
+    $pn.TodoCount.Add_MouseLeftButtonUp({ param($s, $e) Invoke-Safe { Show-UpcomingMenu $s } })
+
+    $pn.ClipSearch.Add_TextChanged({
+        $pn.ClipHint.Visibility = if ($pn.ClipSearch.Text) { 'Collapsed' } else { 'Visible' }
+        Invoke-Safe { Render-Clips }
+    })
+    $pn.ClipPause.Add_Click({
+        $NB.ClipPaused = [bool]$pn.ClipPause.IsChecked
+        Show-Bubble $(if ($NB.ClipPaused) { "Ok, je ne regarde plus tes copier-coller 🙈" } else { "Je reprends l'historique des copier-coller 📋" }) -Force -Seconds 3
+    })
+    $pn.ClipClear.Add_Click({
+        Invoke-Safe {
+            $r = [Windows.MessageBox]::Show($panel, "Effacer tout l'historique des copier-coller d'aujourd'hui ?`n(Les favoris ⭐ sont conservés.)", 'Orbit', 'YesNo', 'Question')
+            if ($r -eq 'Yes') { $NB.Clips.Clear(); $NB.LastClip = ''; Save-Clips -Now; Render-Clips }
+        }
+    })
+
+    # les tableaux modifies pendant que la fenetre etait fermee sont redessines a l'ouverture
+    $panel.Add_IsVisibleChanged({ Invoke-Safe { if ($panel.IsVisible -and $NB.TodoDirty -and $NB.Tab -eq 'Todo') { Render-Todos } } })
+}

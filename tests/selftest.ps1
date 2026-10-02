@@ -16,7 +16,8 @@ Write-Host "  (charge en $($loadClock.ElapsedMilliseconds) ms)"
 Check 'la fenetre principale est creee' ($window -is [Windows.Window])
 Check 'les fonctions natives sont disponibles' $Native
 Check 'le code natif est garde en cache' (@(Get-ChildItem (Join-Path $appData 'Orbit') -Filter 'native-*.dll').Count -eq 1)
-Check 'le carnet (tableaux) est cree' ($panel -is [Windows.Window])
+Check 'le carnet n''est pas construit au demarrage (a la demande)' ($null -eq $panel)
+Check 'la fenetre des reglages non plus' ($null -eq $settingsWin)
 Check 'les blagues sont chargees (1000+)' ($Jokes.Count -ge 1000)
 
 Section 'Dessins (construits a la demande)'
@@ -67,6 +68,62 @@ try {
     Stop-Cycle; On-Second; Check 'arret : plus d''etat a reprendre' (-not (Test-Path $StateFile))
 } catch { Check 'scenario sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
 
+Section 'Fenetres a la demande, recherche, sous-taches'
+try {
+    Open-Settings
+    Check 'reglages construits a la 1re ouverture' ($settingsWin -is [Windows.Window] -and $sw.SMorning)
+    $settingsWin.Hide()
+    Open-Notebook 'Todo'
+    Check 'carnet construit a la 1re ouverture' ($panel -is [Windows.Window] -and $pn.TodoList)
+    $b = Get-CurrentBoard
+    Add-Todo 'Carte avec sous-taches'
+    $t2 = Find-Todo $NB.LastAddedId
+    Add-CardCheck $t2.id 'etape 1'; Add-CardCheck $t2.id 'etape 2'
+    Start-EditTodo $t2.id
+    Check 'editeur avec sous-taches et repetition' ($pn.TodoList.Children.Count -ge 2)
+    End-EditTodo
+    Render-Todos
+    Check 'tableau affiche' ($pn.TodoList.Children.Count -ge 2)
+    Select-Tab 'Search'
+    $pn.SearchBox.Text = 'etape'
+    Render-Search
+    Check 'recherche : la carte est trouvee par sa sous-tache' ($pn.SearchList.Children.Count -ge 2)
+    Reveal-Card $t2.id
+    Check 'ouvrir un resultat : retour au tableau, carte en edition' ($NB.Tab -eq 'Todo' -and $NB.EditId -eq $t2.id)
+    End-EditTodo
+    Close-Notebook
+} catch { Check 'fenetres sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
+
+Section 'Plan du matin et icone pres de l''horloge'
+try {
+    $O.State = 'Idle'; $O.PlanDay = ''
+    Check 'le plan est du (1re apparition du jour)' ((Get-Date).Hour -lt 5 -or (Test-MorningPlanDue))
+    Show-MorningPlan
+    Check 'la bulle du plan s''affiche' ($ui.BubbleText.Text -match 'plan|vides')
+    Check 'pas deux fois le meme jour' (-not (Test-MorningPlanDue))
+    Start-Focus; Update-TrayIcon
+    Check 'icone : chrono du focus' ($script:TrayKey -like 'Focus|*')
+    Toggle-Pause; Update-TrayIcon
+    Check 'icone : chrono en pause' ($script:TrayKey -like 'Paused|*')
+    Stop-Cycle; Update-TrayIcon
+    Check 'icone : satellite au repos' ($script:TrayKey -eq 'Idle|')
+} catch { Check 'plan et icone sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
+
+Section 'Export vers un autre PC'
+try {
+    $zip = Join-Path $appData 'export-test.zip'
+    [void](Export-OrbitPackage $zip)
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $z = [IO.Compression.ZipFile]::OpenRead($zip)
+    $names = @($z.Entries | ForEach-Object { $_.FullName })
+    $z.Dispose()
+    Check 'zip cree' (Test-Path $zip)
+    Check 'il contient le programme' (@($names | Where-Object { $_ -match 'Orbit[\\/]orbit\.ps1$' }).Count -eq 1)
+    Check 'et les tableaux' (@($names | Where-Object { $_ -match 'donnees[\\/]kanban\.json$' }).Count -eq 1)
+    Check 'mais pas le code compile de ce PC' (@($names | Where-Object { $_ -match 'native-' }).Count -eq 0)
+    Write-Host "  ($([math]::Round((Get-Item $zip).Length / 1KB)) Ko, $($names.Count) fichiers)"
+} catch { Check 'export sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
+
 Section 'Copier-coller et fichiers'
 Add-Clip 'text' 'bonjour selftest' @()
 Check 'enregistrement du presse-papiers differe' ($NB.ClipPending)
@@ -84,5 +141,5 @@ Check 'menage memoire effectue' ($O.TrimCount -eq 1)
 $line = Get-Content $LogFile | Where-Object { $_ -match 'Memoire' } | Select-Object -Last 1
 Write-Host "  $line"
 
-$panel.Close(); $NB.Quitting = $true
+$NB.Quitting = $true; if ($panel) { $panel.Close() }
 Finish

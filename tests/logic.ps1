@@ -22,7 +22,8 @@ $DefaultPrio = 5
 $TodoFile = "$T/todo.json"; $KanbanFile = "$T/kanban.json"; $TodoMd = "$T/todo.md"; $TodoArchive = "$T/todo-archive.md"
 $BackupDir = "$T/sauvegardes"; $BackupKeep = 7; $UndoKeep = 5; $StateFile = "$T/etat.json"
 $NB = @{ Todos = New-Object System.Collections.ArrayList; Boards = New-Object System.Collections.ArrayList; BoardId = ''; EditId = ''
-         BackupDay = ''; LoadNotice = ''; FocusCards = New-Object System.Collections.ArrayList; LastAddedId = ''; MdPending = $false }
+         BackupDay = ''; LoadNotice = ''; FocusCards = New-Object System.Collections.ArrayList; LastAddedId = ''; MdPending = $false
+         Upcoming = New-Object System.Collections.ArrayList; Templates = New-Object System.Collections.ArrayList }
 function Card([string]$text) { $NB.Todos | Where-Object { $_.text -eq $text } | Select-Object -First 1 }
 function ColNames { $b = Get-CurrentBoard; ($b.columns | ForEach-Object { "$($_.name):" + ((Get-ColumnCards $_.id | ForEach-Object { $_.text }) -join ',') }) -join ' | ' }
 
@@ -104,6 +105,123 @@ $O.State = 'AwaitBreak'; Ask-Break
 Check 'une carte liee : bouton C''est fait' ($script:Bubble.Buttons -contains "✅ C'est fait !")
 $NB.Todos.Clear(); foreach ($x in $saved) { [void]$NB.Todos.Add($x) }; $NB.FocusCards.Clear(); $NB.BoardId = $NB.Boards[0].id
 Save-Todos
+
+Section 'Sous-taches'
+$NB.BoardId = $NB.Boards[0].id
+Add-Todo 'Preparer la reunion'
+$c = Card 'Preparer la reunion'
+Add-CardCheck $c.id 'Ordre du jour'; Add-CardCheck $c.id 'Salle'; Add-CardCheck $c.id '  '
+Check 'deux sous-taches ajoutees (le vide est ignore)' ($c.checks.Count -eq 2)
+Set-CardCheck $c.id 0 $true
+Check 'cocher une sous-tache' ($c.checks[0].done -and -not $c.checks[1].done)
+Set-CardCheck $c.id 1 $true
+Check 'tout coche : Orbit propose de la terminer' ($script:Bubble.Text -match 'sous-tâches' -and $script:Bubble.Buttons -contains '✅ Oui, terminée')
+Remove-CardCheck $c.id 1
+Load-Todos; $c = Card 'Preparer la reunion'
+Check 'sous-taches relues du disque' ($c.checks.Count -eq 1 -and $c.checks[0].text -eq 'Ordre du jour' -and $c.checks[0].done)
+
+Section 'Cartes recurrentes'
+$fri = [datetime]'2026-10-02'   # un vendredi
+$d = Get-NextOccurrence 'workdays' $fri.AddDays(-400)
+Check 'jour ouvre : jamais un samedi ni un dimanche, et apres aujourd''hui' ($d -gt (Get-Date).Date -and $d.DayOfWeek -ne 'Saturday' -and $d.DayOfWeek -ne 'Sunday')
+$w = Get-NextOccurrence 'weekly' ((Get-Date).Date.AddDays(-3))
+Check 'chaque semaine : meme jour, la semaine suivante' ($w -eq (Get-Date).Date.AddDays(4))
+$m = Get-NextOccurrence 'monthly' ((Get-Date).Date.AddDays(-1))
+Check 'chaque mois : un mois apres l''echeance' ($m -eq (Get-Date).Date.AddDays(-1).AddMonths(1))
+Check 'ne se repete pas : rien' ($null -eq (Get-NextOccurrence '' (Get-Date)))
+Add-Todo 'Rapport hebdo'
+$r = Card 'Rapport hebdo'
+$r.due = (Get-Date).ToString('yyyy-MM-dd'); Set-CardRepeat $r.id 'weekly'
+Add-CardCheck $r.id 'Chiffres'; Set-CardCheck $r.id 0 $true
+Set-TodoDone $r.id $true
+$up = @($NB.Upcoming | Where-Object { $_.text -eq 'Rapport hebdo' })
+Check 'terminee : la prochaine est mise de cote' ($up.Count -eq 1 -and $up[0].showAt -eq (Get-Date).Date.AddDays(7).ToString('yyyy-MM-dd'))
+Check 'la prochaine a son echeance decalee et ses sous-taches decochees' ($up[0].due -eq $up[0].showAt -and -not $up[0].checks[0].done)
+Check 'la bulle annonce le retour' ($script:Bubble.Text -match 'reviendra')
+Set-TodoDone $r.id $false; Set-TodoDone $r.id $true
+Check 'rouverte puis refinie : pas de doublon' (@($NB.Upcoming | Where-Object { $_.text -eq 'Rapport hebdo' }).Count -eq 1)
+Load-Todos
+Check 'les cartes a venir sont relues du disque' (@($NB.Upcoming).Count -eq 1)
+$NB.Upcoming[0].showAt = (Get-Date).ToString('yyyy-MM-dd')
+$back = @(Release-Upcoming)
+$again = @($NB.Todos | Where-Object { $_.text -eq 'Rapport hebdo' -and -not $_.done })
+Check 'le jour venu, elle revient dans la 1re colonne' ($back.Count -eq 1 -and $again.Count -eq 1 -and $again[0].col -eq (Get-OpenColumn (Get-Board $again[0].board)).id)
+Check 'et elle se repete toujours' ($again[0].repeat -eq 'weekly' -and @($NB.Upcoming).Count -eq 0)
+
+Section 'Modeles de cartes'
+function Show-Prompt { param($a, $b, $c) 'Nouveau client' }
+$src = Card 'Preparer la reunion'
+$src.desc = 'Appeler, devis, contrat'
+Save-CardAsTemplate $src.id
+Check 'modele enregistre' ($NB.Templates.Count -eq 1 -and $NB.Templates[0].name -eq 'Nouveau client' -and -not $NB.Templates[0].checks[0].done)
+$col = (Get-OpenColumn (Get-CurrentBoard)).id
+New-CardFromTemplate $NB.Templates[0].id $col
+$n = Find-Todo $NB.LastAddedId
+Check 'nouvelle carte depuis le modele (texte, description, sous-taches)' ($n.text -eq 'Preparer la reunion' -and $n.desc -match 'devis' -and $n.checks.Count -eq 1 -and $n.col -eq $col)
+Load-Todos
+Check 'modeles relus du disque' ($NB.Templates.Count -eq 1)
+Remove-Template $NB.Templates[0].id
+Check 'supprimer un modele' ($NB.Templates.Count -eq 0)
+
+Section 'Plan du matin'
+$saved = @($NB.Todos); $NB.Todos.Clear(); $NB.FocusCards.Clear()
+$pb = $NB.Boards[0]; $NB.BoardId = $pb.id
+Add-Todo 'Peu urgent !9'
+Add-Todo 'Tres prioritaire !1'
+Add-Todo 'En retard !7'; (Card 'En retard').due = (Get-Date).AddDays(-2).ToString('yyyy-MM-dd')
+Add-Todo 'Pour aujourd hui !8'; (Card 'Pour aujourd hui').due = (Get-Date).ToString('yyyy-MM-dd')
+$plan = @(Get-PlanCards 3)
+Check 'le plan propose 3 cartes' ($plan.Count -eq 3)
+Check 'ordre : en retard, puis pour aujourd''hui, puis la plus prioritaire' ($plan[0].Card.text -eq 'En retard' -and $plan[1].Card.text -eq 'Pour aujourd hui' -and $plan[2].Card.text -eq 'Tres prioritaire')
+Check 'avec la raison' ($plan[0].Why -match 'retard' -and $plan[1].Why -match "aujourd'hui")
+$NB.Todos.Clear(); foreach ($x in $saved) { [void]$NB.Todos.Add($x) }
+
+Section 'Recherche globale'
+foreach ($a3 in Get-ScriptAssignments (Join-Path $Root 'notebook.ps1') '^\$SearchFold') { . ([scriptblock]::Create($a3)) }
+$NB.Clips = New-Object System.Collections.ArrayList; $NB.Favs = New-Object System.Collections.ArrayList
+[void]$NB.Clips.Add([pscustomobject]@{ time = '09:12'; kind = 'text'; text = 'Numéro de dossier 4471'; files = @() })
+[void]$NB.Favs.Add([pscustomobject]@{ kind = 'text'; text = 'Signature : Bien à vous'; files = @() })
+Add-Todo 'Réunion budget'; (Card 'Réunion budget').desc = 'avec la compta'
+Add-Content -Path $TodoArchive -Value "`r`n## 2026-09-01 — Mon tableau`r`n- [x] Budget 2025 envoyé" -Encoding UTF8
+$r = Find-Everything 'reunion'
+Check 'accents ignores (reunion trouve Réunion)' (@($r.Cards | Where-Object { $_.text -eq 'Réunion budget' }).Count -eq 1)
+$r = Find-Everything 'budget compta'
+Check 'plusieurs mots : tous doivent y etre (titre + description)' ($r.Cards.Count -eq 1)
+$r = Find-Everything 'ordre du jour'
+Check 'cherche aussi dans les sous-taches' (@($r.Cards).Count -ge 1)
+$r = Find-Everything '4471'
+Check 'cherche dans les copier-coller' ($r.Clips.Count -eq 1)
+$r = Find-Everything 'SIGNATURE'
+Check 'cherche dans les favoris (majuscules ignorees)' ($r.Clips.Count -eq 1)
+$r = Find-Everything 'budget 2025'
+Check 'cherche dans les archives' ($r.Archives.Count -eq 1 -and $r.Archives[0].section -match '2026-09-01')
+Check 'rien pour un mot absent' (@((Find-Everything 'zzzz').Cards).Count -eq 0)
+
+Section 'Transfert vers un autre PC'
+foreach ($def in Get-ScriptFunctions (Join-Path $Root 'transfer.ps1')) { . ([scriptblock]::Create($def)) }
+foreach ($a2 in Get-ScriptAssignments (Join-Path $Root 'transfer.ps1') '^\$Export') { . ([scriptblock]::Create($a2)) }
+function Save-Stats {}; function Save-Settings {}; function Flush-Notebook {}
+New-Item -ItemType Directory -Force -Path (Join-Path $T 'sons') | Out-Null
+Set-Content -Path (Join-Path $T 'sons/bip.wav') -Value 'x'
+Set-Content -Path (Join-Path $T 'orbit.log') -Value 'journal'
+Set-Content -Path (Join-Path $T 'native-1234.dll') -Value 'dll'
+$set = [ordered]@{ customImage = (Join-Path $T 'mon-image.png'); bubbleSoundFiles = @((Join-Path $T 'sons/bip.wav')) }
+[IO.File]::WriteAllText((Join-Path $T 'settings.json'), (ConvertTo-Json -InputObject $set))
+$stage = Join-Path $T 'paquet'
+$app = New-OrbitPackageFolder $stage $Root
+Check 'le paquet contient le programme' ((Test-Path (Join-Path $app 'orbit.ps1')) -and (Test-Path (Join-Path $app 'Orbit.cmd')) -and (Test-Path (Join-Path $app 'jokes')))
+Check 'le paquet contient les donnees' ((Test-Path (Join-Path $app 'donnees/kanban.json')) -and (Test-Path (Join-Path $app 'donnees/sons/bip.wav')))
+Check 'mais pas le journal ni le code compile de ce PC' (-not (Test-Path (Join-Path $app 'donnees/orbit.log')) -and -not (Test-Path (Join-Path $app 'donnees/native-1234.dll')))
+$OldData = $DataDir
+$DataDir = Join-Path $T 'autre-pc'
+New-Item -ItemType Directory -Force -Path $DataDir | Out-Null
+Check 'import sur un PC neuf' (Import-OrbitData (Join-Path $app 'donnees'))
+Check 'tableaux recuperes' (Test-Path (Join-Path $DataDir 'kanban.json'))
+$js = [IO.File]::ReadAllText((Join-Path $DataDir 'settings.json'))
+Check 'chemins de l''image et des sons adaptes au nouveau PC' ($js.Contains(((ConvertTo-Json -InputObject $DataDir).Trim('"'))) -and -not $js.Contains(((ConvertTo-Json -InputObject $OldData).Trim('"') + '\\')) -or $OldData -eq $DataDir)
+Check 'pas de manifeste laisse dans les donnees' (-not (Test-Path (Join-Path $DataDir 'orbit-export.json')))
+Check 'deuxieme import : les donnees actuelles sont gardees a part' ((Import-OrbitData (Join-Path $app 'donnees') -NoConfirm) -and @(Get-ChildItem $DataDir -Directory -Filter 'avant-import-*').Count -eq 1)
+$DataDir = $OldData
 
 Section 'Sauvegardes quotidiennes'
 $NB.BackupDay = ''; Save-Todos

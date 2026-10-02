@@ -50,8 +50,14 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   - une carte est « terminée » quand elle est dans une colonne marquée ✅ : c'est ce qu'utilisent les rappels de focus d'Orbit (« ✅ C'est fait ! » la range dans Terminé) ;
   - **cartes ↔ focus** : lie **une ou plusieurs cartes** à ton focus avec le bouton 🎯 d'une carte, le clic droit sur une carte, le bouton « 🎯 Choisir mes cartes » d'Orbit ou clic droit sur Orbit > 🎯 Cartes du focus (on peut même y créer une carte). Les cartes liées sont entourées en orange et passent dans « En cours » au début du focus. À la fin de chaque focus, chacune gagne une 🍅 et les minutes travaillées (« 🍅 3 · 2 h 30 » sur la carte) ; Orbit te demande lesquelles sont finies, et les autres restent liées au focus suivant. Une carte peut donc avoir plusieurs focus, et un focus plusieurs cartes. Sans carte liée, Orbit prend la plus prioritaire ;
   - ajout rapide en haut (dans la 1re colonne du tableau affiché) ou en bas de chaque colonne ; tout est enregistré à chaque modification ;
-  - ton ancienne to-do est reprise automatiquement dans un premier tableau « Mon tableau ».
+  - ton ancienne to-do est reprise automatiquement dans un premier tableau « Mon tableau » ;
+  - **sous-tâches** : dans une carte, une liste à cocher (Entrée pour en ajouter une) ; la carte affiche « ☑ 2/5 », et quand tout est coché Orbit propose de la ranger dans Terminé ;
+  - **cartes récurrentes** (🔁 Répéter : chaque jour ouvré, chaque jour, chaque semaine, toutes les 2 semaines, chaque mois) : quand tu la termines, la suivante revient toute seule dans la 1re colonne le jour venu, sous-tâches décochées et échéance décalée. Le bas du tableau indique « 🔁 n à venir » : clic pour la faire apparaître tout de suite ou arrêter la répétition ;
+  - **modèles** : clic droit sur une carte > 📋 Enregistrer comme modèle, puis menu ⋯ d'une colonne > Nouvelle carte depuis un modèle (texte, description, sous-tâches, priorité, répétition).
   - **sauvegarde automatique chaque jour** (7 derniers jours gardés dans `%APPDATA%\Orbit\sauvegardes`) : le bouton 🕘 permet de revenir à l'état d'un jour précédent, et une restauration peut elle-même être annulée. Si le fichier des tableaux est abîmé au démarrage, Orbit repart tout seul de la dernière sauvegarde.
+- **☀️ Plan du matin** : à ta première apparition de la journée (à partir de 5 h), Orbit propose les 3 cartes les plus urgentes, tous tableaux confondus (en retard, à rendre aujourd'hui ou demain, rappel du jour, déjà commencées, puis priorité), avec la raison. « Go » les lie au focus et le lance ; « Choisir autre chose » ouvre la liste avec ces 3 cartes déjà cochées. À revoir quand tu veux : clic droit > ☀️ Plan du jour. Se désactive dans les réglages.
+- **🔍 Recherche partout** (onglet 🔍 du carnet, Ctrl+F, ou clic droit > Rechercher partout) : cartes de tous les tableaux (titre, description, sous-tâches), cartes récurrentes à venir, copier-coller et favoris, archives. Plusieurs mots : ils doivent tous y être ; accents et majuscules ignorés. Clic sur une carte : elle s'ouvre dans son tableau ; clic sur un copier-coller : il est recopié.
+- **📦 Changer de PC** (clic droit > 📦 Autre PC) : « Exporter » crée un seul fichier zip avec Orbit et tes données (réglages, tableaux, modèles, favoris, sons, image, sauvegardes). Sur l'autre PC, décompresse-le et double-clic sur `Orbit\Orbit.cmd` : tout est récupéré au premier lancement (les chemins de l'image et des sons sont adaptés). Si Orbit est déjà installé, « Importer un export… » fait la même chose et redémarre Orbit ; les données présentes sont gardées dans `avant-import-<date>`.
 - **L'historique des copier-coller du jour** (clic droit > 📋 Mes copier-coller du jour) :
   - chaque texte ou fichier copié (Ctrl+C) est noté avec l'heure ;
   - tu peux faire une recherche dedans, et **un clic sur un élément le recopie** pour le recoller ;
@@ -73,11 +79,12 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
 | Clic gauche sur Orbit | Affiche le statut (temps restant, ou la question en attente) |
 | Glisser Orbit | Le pose où tu veux, et il y reste |
 | **Clic droit** | Menu : to-do, copier-coller, lancer un focus, prendre la pause, **rythme 50/10 ou 25/5**, **rappels de tâches**, mettre le chrono en pause, **couper le chrono**, mode silencieux, balades on/off, **réduire**, revenir en bas à droite, **masquer**, lancer au démarrage de Windows, stats, quitter |
-| Carnet (to-do / copier-coller) | Entrée pour ajouter une tâche, Échap pour fermer, glisser le titre pour déplacer |
-| Icône près de l'horloge | Double-clic pour faire réapparaître Orbit quand il est masqué ; clic droit pour le même menu en version courte |
+| Carnet (tableaux / copier-coller / 🔍) | Entrée pour ajouter une carte, **Ctrl+F pour chercher partout**, Échap pour fermer, glisser le titre pour déplacer |
+| Icône près de l'horloge | Elle affiche le **chrono en direct** (bleu = focus, vert = pause, gris = en pause, orange « ! » = Orbit attend ta réponse, satellite = au repos). **Un clic** : cacher / faire revenir Orbit ; clic droit : menu court (réduire, focus, pause, plan du jour, recherche, épingler l'icône…) |
 
 - **Réduire** : Orbit devient tout petit et arrête de parler, mais il te prévient toujours à la fin d'une session.
-- **Masquer** : Orbit disparaît de l'écran mais garde le chrono. Il revient tout seul à la fin d'une session, avec une notification Windows.
+- **Masquer** : Orbit disparaît de l'écran mais reste présent près de l'horloge, avec le chrono sur son icône. Il revient tout seul à la fin d'une session, avec une notification Windows.
+- **Icône toujours visible** : sous Windows 11, Orbit épingle tout seul son icône à côté de l'horloge (au lieu de la cacher derrière la flèche ^), sauf si tu l'as déjà rangée toi-même. Sinon : clic droit sur l'icône > « Épingler l'icône près de l'horloge », ou fais-la glisser depuis la flèche ^.
 - **Lancer au démarrage de Windows** : crée un raccourci dans ton dossier *Démarrage* personnel. Pas besoin d'être administrateur.
 
 ## Personnaliser
@@ -132,6 +139,7 @@ Si seule la compilation des fonctions natives est bloquée, Orbit fonctionne qua
 - **Démarrage rapide** : les fonctions natives sont compilées une seule fois puis gardées dans `%APPDATA%\Orbit` (`native-….dll`). Si ton PC refuse de charger ce fichier, Orbit les recompile en mémoire comme avant.
 - **Fichiers protégés** : réglages, statistiques et tableaux sont écrits à côté puis échangés d'un coup. Une coupure pendant l'enregistrement ne laisse jamais un fichier à moitié écrit.
 - **Tableaux fluides** : quand tu ajoutes, déplaces ou modifies une carte, seules les colonnes concernées sont redessinées. Rien n'est dessiné tant que la fenêtre est fermée.
+- **Fenêtres à la demande** : la fenêtre des réglages n'est construite qu'à sa première ouverture, et celle des tableaux 3 s après le démarrage (Orbit apparaît plus vite, l'ouverture reste instantanée).
 - **Un seul dessin en mémoire** : seul le dessin affiché est construit ; changer d'apparence construit le nouveau et libère l'ancien.
 - **Moins d'écritures disque** : l'historique des copier-coller est enregistré au plus tard 2,5 s après un Ctrl+C (au lieu de chaque fois), `todo.md` au plus tard 10 s après une modification, et tout ce qui attend est écrit à la fermeture. `kanban.json` reste enregistré immédiatement.
 - **Mémoire rendue à Windows** : quand tu ne touches à rien depuis une minute (ou qu'Orbit est caché), il fait le ménage, au plus toutes les 10 minutes. Le journal indique la mémoire avant/après.

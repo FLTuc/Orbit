@@ -49,6 +49,7 @@ $Config = @{
     CustomImage         = ''         # apparence "Mon image"
     IdlePause           = $true  # met le focus en pause si tu t'absentes
     IdleMinutes         = 5
+    MorningPlan         = $true  # le matin, propose les 3 cartes les plus urgentes
 }
 # (tous ces reglages se modifient aussi depuis clic droit > Reglages)
 
@@ -97,6 +98,11 @@ if (-not $createdNew) { exit }
 
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Windows.Forms, System.Drawing
 
+# Transfert depuis un autre PC : si un export (dossier « donnees ») est a cote, on le recupere
+# avant de lire les reglages et les tableaux
+. (Join-Path $PSScriptRoot 'transfer.ps1')
+$script:ImportNote = if (-not $env:ORBIT_SELFTEST) { Invoke-PendingImport }
+
 # ---------------------------------------------------------------------------
 #  Fonctions natives (facultatives : si elles ne compilent pas, Orbit marche
 #  quand meme, il perd juste les commentaires sur les applis)
@@ -127,6 +133,7 @@ public static class OrbitNative {
     struct LASTINPUTINFO { public uint cbSize; public uint dwTime; }
     [DllImport("user32.dll")] static extern bool GetLastInputInfo(ref LASTINPUTINFO info);
 
+    [DllImport("user32.dll")] public static extern bool DestroyIcon(IntPtr h);
     [DllImport("kernel32.dll")] static extern IntPtr GetCurrentProcess();
     [DllImport("kernel32.dll")] static extern bool SetProcessWorkingSetSize(IntPtr proc, IntPtr min, IntPtr max);
 
@@ -1114,6 +1121,8 @@ $O = @{
     SessionMin   = 0
     Rhythm       = '50/10'
     TaskReminders = $true
+    PlanDay      = ''
+    PlanIds      = @()
     NextJoke     = [datetime]::MaxValue
     JokeSeed     = (Get-Random)
     JokePos      = 0
@@ -1134,6 +1143,7 @@ try {
         if ($s.rhythm -and $Rhythms.Contains([string]$s.rhythm)) { $O.Rhythm = [string]$s.rhythm }
         if ($null -ne $s.taskReminders) { $O.TaskReminders = [bool]$s.taskReminders }
         if ($null -ne $s.jokeSeed) { $O.JokeSeed = [int]$s.jokeSeed; $O.JokePos = [int]$s.jokePos }
+        if ($s.planDay) { $O.PlanDay = [string]$s.planDay }
     }
 } catch { Write-Log "Lecture stats : $($_.Exception.Message)" }
 
@@ -1141,7 +1151,7 @@ function Save-Stats {
     try {
         $today = (Get-Date).ToString('yyyy-MM-dd')
         if ($today -ne $O.Today) { $O.Today = $today; $O.FocusToday = 0; $O.FocusMinToday = 0 }
-        $data = @{ date = $O.Today; focus = $O.FocusToday; minutes = $O.FocusMinToday; jokeSeed = $O.JokeSeed; jokePos = $O.JokePos }
+        $data = @{ date = $O.Today; focus = $O.FocusToday; minutes = $O.FocusMinToday; jokeSeed = $O.JokeSeed; jokePos = $O.JokePos; planDay = $O.PlanDay }
         Write-FileSafe $StatsFile (ConvertTo-Json -InputObject $data)
     } catch { Write-Log "Ecriture stats : $($_.Exception.Message)" }
 }
@@ -1175,6 +1185,7 @@ function Get-SettingsSnapshot {
         skin               = $O.Skin
         idlePause          = $Config.IdlePause
         idleMinutes        = $Config.IdleMinutes
+        morningPlan        = $Config.MorningPlan
     }
 }
 
@@ -1189,6 +1200,7 @@ function Apply-SettingsData($d) {
     if (Has 'wanderMin') { $Config.WanderMinMin = [int]$d.wanderMin }
     if (Has 'wanderMax') { $Config.WanderMaxMin = [int]$d.wanderMax }
     if (Has 'taskReminders') { $O.TaskReminders = [bool]$d.taskReminders }
+    if (Has 'morningPlan') { $Config.MorningPlan = [bool]$d.morningPlan }
     if (Has 'reminderEveryMin') { $Config.ReminderEveryMin = [int]$d.reminderEveryMin }
     if (Has 'motivationEveryMin') { $Config.MotivationEveryMin = [int]$d.motivationEveryMin }
     if (Has 'jokes') { $Config.Jokes = [bool]$d.jokes }
@@ -1835,9 +1847,52 @@ function Update-Pill {
     }
 }
 
+# ---------------------------------------------------------------------------
+#  Plan du matin : a la premiere apparition de la journee (a partir de 5 h),
+#  Orbit propose les 3 cartes les plus urgentes et lance le focus dessus
+# ---------------------------------------------------------------------------
+function Test-MorningPlanDue {
+    $now = Get-Date
+    return ($Config.MorningPlan -and $O.State -eq 'Idle' -and $now.Hour -ge 5 -and $O.PlanDay -ne $now.ToString('yyyy-MM-dd'))
+}
+
+function Show-MorningPlan {
+    $O.PlanDay = (Get-Date).ToString('yyyy-MM-dd')
+    Save-Stats
+    $plan = @(Get-PlanCards 3)
+    $hello = if ((Get-Date).Hour -lt 12) { '☀️ Bonjour !' } else { '👋 Re-bonjour !' }
+    if (-not $plan.Count) {
+        Show-Bubble "$hello Tes tableaux sont vides : note tes tâches du jour et je t'aiderai à les attaquer dans le bon ordre." -Force -Buttons @(
+            $BtnTodo, @{ Label = '🚀 Focus quand même'; Action = { Start-Focus } }, $BtnLater)
+        return
+    }
+    $O.PlanIds = @($plan | ForEach-Object { $_.Card.id })
+    $text = "$hello Mon plan pour ta journée :"
+    $i = 1
+    foreach ($p in $plan) {
+        $text += "`n$i. P$($p.Card.prio) « $(Short-Text $p.Card.text 45) »"
+        if ($p.Why) { $text += "`n     $($p.Why)" }
+        $i++
+    }
+    $rest = @(Get-OpenTodos).Count - $plan.Count
+    if ($rest -gt 0) { $text += "`n(+ $rest autre(s) carte(s) dans tes tableaux)" }
+    $text += "`n`nOn s'y met ?"
+    Show-Bubble $text -Force -Buttons @(
+        @{ Label = '🎯 Go, focus sur ces cartes'; Action = { Accept-MorningPlan }; Primary = $true },
+        @{ Label = '✏️ Choisir autre chose'; Action = { Choose-FocusCards -Start -Preselect $O.PlanIds } },
+        $BtnTodo,
+        @{ Label = 'Plus tard'; Action = { Show-Bubble "Ok ! Clic droit > ☀️ Plan du jour pour le revoir." -Force -Seconds 4 } })
+}
+
+function Accept-MorningPlan {
+    Set-FocusCards $O.PlanIds
+    Start-Focus
+}
+
 function Show-Status {
     switch ($O.State) {
         'Idle'       {
+            if (Test-MorningPlanDue) { Show-MorningPlan; return }
             $hello = Pick $Lines.Hello
             $due = Get-DeadlineSummary
             if ($due) { $hello += "`n`n$due" }
@@ -2287,6 +2342,12 @@ function On-Second {
 
     if ($script:slowCount % 2 -eq 0) { Check-Idle }
     if ($now -ge $O.NextTrim) { Trim-Memory }
+    Update-TrayIcon
+    if ($script:slowCount -eq 20) { try { [void](Set-TrayPromoted $true -OnlyIfUnset) } catch { Write-Log "Epinglage de l'icone : $($_.Exception.Message)" } }
+    if ($script:slowCount % 15 -eq 0 -and $window.IsVisible -and (Test-MorningPlanDue) -and
+        $ui.BubbleButtons.Children.Count -eq 0 -and (-not $Native -or [OrbitNative]::IdleMs() -lt 60000)) {
+        Show-MorningPlan
+    }
     $sig = "$($O.State)|$($O.Paused)|$($O.EndsAt.Ticks)|$($O.SessionMin)"
     if ($sig -ne $script:StateSig) { $script:StateSig = $sig; Save-State }
     if ($script:slowCount % 10 -eq 0) { Check-TaskReminders }
@@ -2342,9 +2403,27 @@ function Set-Mini([bool]$on) {
     if ($on) { $O.Walking = $false }
 }
 
+function Toggle-OrbitVisible {
+    if ($window.Visibility -eq 'Visible') { Hide-Orbit } else { Ensure-Visible; Show-Status }
+}
+
 function Hide-Orbit {
     $window.Hide()
-    Show-Tray "Orbit est caché" "Je continue de chronométrer. Double-clic sur l'icône pour me faire revenir."
+    Hide-Bubble
+    if (-not $script:HideTipShown) {
+        $script:HideTipShown = $true
+        Show-Tray "Orbit est caché 🛰️" "Je reste près de l'horloge : mon icône affiche le chrono. Un clic dessus pour me faire revenir."
+    }
+}
+
+# Redemarrage sans rien enregistrer (apres un import : les fichiers viennent d'etre remplaces)
+function Restart-Orbit {
+    $script:RelaunchAfterExit = $true
+    $NB.Quitting = $true
+    $NB.MdPending = $false; $NB.ClipPending = $false
+    $script:frameTimer.Stop()
+    $script:secondTimer.Stop()
+    $app.Shutdown()
 }
 
 function Quit-Orbit {
@@ -2373,6 +2452,7 @@ $miBreak  = New-MenuItem "☕  Prendre ma pause" { Start-Break }
 $miPause  = New-MenuItem "⏸  Mettre le chrono en pause" { Toggle-Pause }
 $miStop   = New-MenuItem "⏹  Couper le chrono" { Stop-Cycle }
 $miCards  = New-MenuItem "🎯  Cartes du focus…" { Choose-FocusCards }
+$miPlan   = New-MenuItem "☀️  Plan du jour" { Show-MorningPlan }
 $miQuiet  = New-MenuItem "🤫  Mode silencieux (pas de blagues)" { $O.Quiet = -not $O.Quiet; Save-Settings; if ($O.Quiet) { Hide-Bubble } } -Checkable
 $miWander = New-MenuItem "🚶  Balades sur les écrans" { $O.Wander = -not $O.Wander; $O.Walking = $false; Save-Settings } -Checkable
 $miHome   = New-MenuItem "🏠  Revenir en bas à droite" { $O.Pinned = $false; $O.Walking = $false }
@@ -2395,6 +2475,11 @@ $miTasks  = New-MenuItem "🔔  Rappels de tâches (début / fin de focus)" {
 } -Checkable
 $miQuit   = New-MenuItem "❌  Quitter Orbit" { Quit-Orbit }
 $miSettings = New-MenuItem "⚙️  Réglages…" { Open-Settings }
+$miSearch = New-MenuItem "🔍  Rechercher partout…" { Open-Notebook 'Search' }
+$miMove   = New-Object Windows.Controls.MenuItem
+$miMove.Header = "📦  Autre PC"
+[void]$miMove.Items.Add((New-MenuItem "📦  Exporter Orbit et mes données (zip)…" { [void](Export-OrbitPackage) }))
+[void]$miMove.Items.Add((New-MenuItem "📥  Importer un export…" { Import-OrbitPackage }))
 $miSkin = New-Object Windows.Controls.MenuItem
 $miSkin.Header = "🎨  Apparence"
 $skinItems = @{}
@@ -2406,10 +2491,10 @@ foreach ($k in $Skins.Keys) {
 [void]$miSkin.Items.Add((New-Object Windows.Controls.Separator))
 [void]$miSkin.Items.Add((New-MenuItem "🖼️  Choisir une autre image…" { if (Choose-CustomImage) { Set-Skin 'Custom'; Save-Settings } }))
 
-foreach ($i in @($miTodo, $miClip, (New-Object Windows.Controls.Separator),
-                 $miFocus, $miCards, $miBreak, $miPause, $miStop, $miRhythm, $miTasks, (New-Object Windows.Controls.Separator),
+foreach ($i in @($miTodo, $miClip, $miSearch, (New-Object Windows.Controls.Separator),
+                 $miFocus, $miCards, $miPlan, $miBreak, $miPause, $miStop, $miRhythm, $miTasks, (New-Object Windows.Controls.Separator),
                  $miSkin, $miQuiet, $miWander, $miMini, $miHome, $miHide, $miAuto, (New-Object Windows.Controls.Separator),
-                 $miStats, $miSettings, $miQuit)) { [void]$menu.Items.Add($i) }
+                 $miStats, $miMove, $miSettings, $miQuit)) { [void]$menu.Items.Add($i) }
 
 $menu.Add_Opened({
     $miPause.Header = if ($O.Paused) { "▶  Reprendre le chrono" } else { "⏸  Mettre le chrono en pause" }
@@ -2455,17 +2540,78 @@ $ui.Bot.Add_MouseLeftButtonDown({
 # ---------------------------------------------------------------------------
 #  Icone dans la zone de notification
 # ---------------------------------------------------------------------------
-function New-TrayIcon {
+# Sans texte : le petit satellite. Avec texte : une pastille de couleur avec le chrono
+# (bleu = focus, vert = pause, gris = chrono en pause, orange = Orbit attend ta reponse)
+function New-TrayIcon([string]$label = '', [string]$kind = 'Idle') {
     $bmp = New-Object System.Drawing.Bitmap 32, 32
     $g = [System.Drawing.Graphics]::FromImage($bmp)
     $g.SmoothingMode = 'AntiAlias'
+    $g.TextRenderingHint = 'AntiAliasGridFit'
     $g.Clear([System.Drawing.Color]::Transparent)
-    $g.FillEllipse((New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(108, 92, 231))), 5, 5, 22, 22)
-    $g.DrawEllipse((New-Object System.Drawing.Pen ([System.Drawing.Color]::FromArgb(200, 190, 255)), 2), 1, 12, 30, 9)
-    $g.FillEllipse([System.Drawing.Brushes]::White, 10, 11, 5, 6)
-    $g.FillEllipse([System.Drawing.Brushes]::White, 17, 11, 5, 6)
+    if (-not $label) {
+        $g.FillEllipse((New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(108, 92, 231))), 5, 5, 22, 22)
+        $g.DrawEllipse((New-Object System.Drawing.Pen ([System.Drawing.Color]::FromArgb(200, 190, 255)), 2), 1, 12, 30, 9)
+        $g.FillEllipse([System.Drawing.Brushes]::White, 10, 11, 5, 6)
+        $g.FillEllipse([System.Drawing.Brushes]::White, 17, 11, 5, 6)
+    } else {
+        $rgb = switch ($kind) { 'Focus' { 59, 91, 219 } 'Break' { 47, 158, 68 } 'Paused' { 120, 126, 140 } default { 232, 89, 12 } }
+        $path = New-Object System.Drawing.Drawing2D.GraphicsPath
+        $r = 9
+        $path.AddArc(0, 0, $r * 2, $r * 2, 180, 90); $path.AddArc(31 - $r * 2, 0, $r * 2, $r * 2, 270, 90)
+        $path.AddArc(31 - $r * 2, 31 - $r * 2, $r * 2, $r * 2, 0, 90); $path.AddArc(0, 31 - $r * 2, $r * 2, $r * 2, 90, 90)
+        $path.CloseFigure()
+        $g.FillPath((New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb($rgb[0], $rgb[1], $rgb[2]))), $path)
+        $size = if ($label.Length -le 1) { 21 } elseif ($label.Length -eq 2) { 18 } else { 13 }
+        $font = New-Object System.Drawing.Font('Segoe UI', $size, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
+        $fmt = New-Object System.Drawing.StringFormat
+        $fmt.Alignment = 'Center'; $fmt.LineAlignment = 'Center'
+        $g.DrawString($label, $font, [System.Drawing.Brushes]::White, (New-Object System.Drawing.RectangleF(0, 1, 32, 32)), $fmt)
+        $font.Dispose(); $path.Dispose()
+    }
     $g.Dispose()
-    return [System.Drawing.Icon]::FromHandle($bmp.GetHicon())
+    $icon = [System.Drawing.Icon]::FromHandle($bmp.GetHicon())
+    $bmp.Dispose()
+    return $icon
+}
+
+# Le chrono dans la zone de notification : mis a jour quand la minute change
+function Update-TrayIcon {
+    if (-not $script:tray) { return }
+    $kind = 'Idle'; $label = ''
+    switch -Wildcard ($O.State) {
+        'Focus'  { $kind = 'Focus' }
+        'Break'  { $kind = 'Break' }
+        'Await*' { $kind = 'Await'; $label = '!' }
+    }
+    if ($kind -in 'Focus', 'Break') {
+        $left = if ($O.Paused) { $O.Remaining } else { $O.EndsAt - (Get-Date) }
+        $m = [math]::Min(99, [math]::Max(1, [math]::Ceiling($left.TotalMinutes)))
+        $label = "$m"
+        if ($O.Paused) { $kind = 'Paused' }
+    }
+    $key = "$kind|$label"
+    if ($key -eq $script:TrayKey) { return }
+    $script:TrayKey = $key
+    $old = $script:tray.Icon
+    $script:tray.Icon = New-TrayIcon $label $kind
+    if ($old -and $Native) { [void][OrbitNative]::DestroyIcon($old.Handle) }
+}
+
+# Windows 11 range les nouvelles icones dans la fleche ^ : on epingle celle d'Orbit
+# a cote de l'horloge (reglage de ton compte, sans droits admin), sauf si tu l'as
+# deja deplacee toi-meme. Renvoie $true si l'icone a ete trouvee.
+function Set-TrayPromoted([bool]$on, [switch]$OnlyIfUnset) {
+    $root = 'HKCU:\Control Panel\NotifyIconSettings'
+    if (-not (Test-Path $root)) { return $false }   # Windows 10 : pas ce reglage
+    $found = $false
+    foreach ($k in Get-ChildItem -Path $root -ErrorAction SilentlyContinue) {
+        $p = Get-ItemProperty -Path $k.PSPath -ErrorAction SilentlyContinue
+        if (-not $p -or [string]$p.ExecutablePath -notmatch 'powershell\.exe$' -or -not ([string]$p.InitialTooltip).StartsWith('Orbit')) { continue }
+        $found = $true
+        if ($OnlyIfUnset -and $null -ne $p.IsPromoted) { continue }
+        Set-ItemProperty -Path $k.PSPath -Name 'IsPromoted' -Value ([int]$on) -Type DWord
+    }
+    return $found
 }
 
 function Show-Tray([string]$title, [string]$text) {
@@ -2479,7 +2625,9 @@ try {
     $script:tray.Icon = New-TrayIcon
     $script:tray.Text = 'Orbit'
     $cms = New-Object System.Windows.Forms.ContextMenuStrip
-    [void]$cms.Items.Add('Afficher / masquer Orbit', $null, { Invoke-Safe { if ($window.Visibility -eq 'Visible') { $window.Hide() } else { Ensure-Visible } } })
+    [void]$cms.Items.Add('Afficher / masquer Orbit  (clic sur l''icône)', $null, { Invoke-Safe { Toggle-OrbitVisible } })
+    [void]$cms.Items.Add('Réduire / agrandir Orbit', $null, { Invoke-Safe { Ensure-Visible; Set-Mini (-not $O.Mini) } })
+    [void]$cms.Items.Add('-')
     [void]$cms.Items.Add('Lancer un focus 50/10', $null, { Invoke-Safe { Ensure-Visible; Set-Rhythm '50/10' -Quiet; Start-Focus } })
     [void]$cms.Items.Add('Lancer un focus 25/5', $null, { Invoke-Safe { Ensure-Visible; Set-Rhythm '25/5' -Quiet; Start-Focus } })
     [void]$cms.Items.Add('Prendre ma pause', $null, { Invoke-Safe { Ensure-Visible; Start-Break } })
@@ -2487,11 +2635,21 @@ try {
     [void]$cms.Items.Add('-')
     [void]$cms.Items.Add('Mes tableaux', $null, { Invoke-Safe { Open-Notebook 'Todo' } })
     [void]$cms.Items.Add('Mes copier-coller du jour', $null, { Invoke-Safe { Open-Notebook 'Clip' } })
+    [void]$cms.Items.Add('Rechercher partout…', $null, { Invoke-Safe { Open-Notebook 'Search' } })
+    [void]$cms.Items.Add('Cartes du focus…', $null, { Invoke-Safe { Choose-FocusCards } })
+    [void]$cms.Items.Add('Plan du jour', $null, { Invoke-Safe { Ensure-Visible; Show-MorningPlan } })
     [void]$cms.Items.Add('-')
     [void]$cms.Items.Add('Réglages…', $null, { Invoke-Safe { Open-Settings } })
+    [void]$cms.Items.Add('Épingler l''icône près de l''horloge', $null, {
+        Invoke-Safe {
+            if (Set-TrayPromoted $true) { $script:tray.Visible = $false; $script:tray.Visible = $true; Show-Tray 'Orbit' "C'est fait : mon icône reste à côté de l'horloge 📌" }
+            else { Show-Tray 'Orbit' "Fais glisser mon icône depuis la flèche ^ jusqu'à côté de l'horloge 📌" }
+        }
+    })
     [void]$cms.Items.Add('Quitter Orbit', $null, { Invoke-Safe { Quit-Orbit } })
     $script:tray.ContextMenuStrip = $cms
-    $script:tray.Add_DoubleClick({ Invoke-Safe { Ensure-Visible; Show-Status } })
+    # un clic gauche sur l'icone : afficher / cacher Orbit (le clic droit ouvre le menu)
+    $script:tray.Add_MouseClick({ param($s, $e) if ($e.Button -eq 'Left') { Invoke-Safe { Toggle-OrbitVisible } } })
     $script:tray.Visible = $true
 } catch { Write-Log "Icone de notification : $($_.Exception.Message)" }
 
@@ -2517,7 +2675,14 @@ $window.Add_Loaded({
         Set-Mood (Get-StateMood)
         Start-Floating
         Update-Pill
-        if ($script:ResumeNote) { Show-Bubble $script:ResumeNote -Force -Seconds 8 } else { Show-Status }
+        if ($script:ImportNote) { Show-Bubble $script:ImportNote -Force -Seconds 10 }
+        elseif ($script:ResumeNote) { Show-Bubble $script:ResumeNote -Force -Seconds 8 } else { Show-Status }
+        # le carnet est prepare en douce 3 s apres le demarrage : Orbit apparait plus vite,
+        # et la premiere ouverture des tableaux reste instantanee
+        $script:prepTimer = New-Object Windows.Threading.DispatcherTimer
+        $script:prepTimer.Interval = [timespan]::FromSeconds(3)
+        $script:prepTimer.Add_Tick({ $script:prepTimer.Stop(); Invoke-Safe { Initialize-Notebook } })
+        $script:prepTimer.Start()
         if ($NB.LoadNotice) { Show-Bubble $NB.LoadNotice -Force -Seconds 10; $NB.LoadNotice = '' }
     }
 })
@@ -2570,6 +2735,11 @@ try {
 } finally {
     if ($script:tray) { $script:tray.Visible = $false; $script:tray.Dispose() }
     $mutex.ReleaseMutex()
+}
+
+if ($script:RelaunchAfterExit) {
+    Start-Process -FilePath 'powershell.exe' -WindowStyle Hidden -ArgumentList @(
+        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-STA', '-WindowStyle', 'Hidden', '-File', "`"$OrbitScript`"")
 }
 
 # Plantage : Orbit se relance tout seul (une fois toutes les 10 minutes au plus,

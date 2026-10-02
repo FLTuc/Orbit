@@ -93,6 +93,7 @@
 
           <TextBlock Style="{StaticResource Section}" Text="🔔 Rappels"/>
           <CheckBox x:Name="STasks" Content="Rappeler mes tâches au début et à la fin du focus"/>
+          <CheckBox x:Name="SMorning" Content="☀️ Le matin, me proposer un plan (les 3 cartes les plus urgentes)" Margin="0,4,0,0"/>
           <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
             <TextBlock Text="Me relancer toutes les" VerticalAlignment="Center"/>
             <TextBox x:Name="SNudge"/>
@@ -177,20 +178,15 @@
 </Window>
 '@
 
-$settingsWin = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $settingsXaml))
+# La fenetre des reglages n'est construite qu'a sa premiere ouverture (Initialize-Settings)
+$settingsWin = $null
 $sw = @{}
-foreach ($n in 'SHeader','SClose','SDefaults','SCancel','SSave','SError','SR50','SR25','SRPerso','SPersoFocus','SPersoBreak',
-               'SIdle','SIdleMin','STasks','SNudge','SJokes','SJokeMin','SMotiv','SApps','SQuiet','SWander','SWanderMin',
-               'SWanderMax','SSounds','SDroid','SDroidVol','SAuto','SBubbleSound','SBubbleTest','SMySounds','SSoundAdd','SSoundDel','SSoundPlay',
-               'SEndSound','SEndFile','SEndTest','SEndFileName','SSkinCustom','SImgPick','SImgName','SSkinSatellite','SSkinDroid','SSkinRobot','SSkinButler','SSkinBrain','SSkinHuman') {
-    $sw[$n] = $settingsWin.FindName($n)
-}
 
 # Valeurs d'usine, pour le bouton "Valeurs par defaut"
 $DefaultSettings = Get-SettingsSnapshot
 $DefaultSettings.rhythm = '50/10'; $DefaultSettings.customFocus = 40; $DefaultSettings.customBreak = 8
 $DefaultSettings.quiet = $false; $DefaultSettings.wander = $true; $DefaultSettings.wanderMin = 4; $DefaultSettings.wanderMax = 9
-$DefaultSettings.taskReminders = $true; $DefaultSettings.reminderEveryMin = 4; $DefaultSettings.motivationEveryMin = 9
+$DefaultSettings.taskReminders = $true; $DefaultSettings.morningPlan = $true; $DefaultSettings.reminderEveryMin = 4; $DefaultSettings.motivationEveryMin = 9
 $DefaultSettings.jokes = $true; $DefaultSettings.jokeEveryMin = 2; $DefaultSettings.appComments = $true
 $DefaultSettings.skin = 'Satellite'; $DefaultSettings.sounds = $true; $DefaultSettings.droidSounds = $true; $DefaultSettings.droidVolume = 40; $DefaultSettings.bubbleSound = 'Droide'; $DefaultSettings.endSound = 'Carillon'; $DefaultSettings.idlePause = $true; $DefaultSettings.idleMinutes = 5
 
@@ -203,6 +199,7 @@ function Fill-SettingsForm($d) {
     $sw.SIdle.IsChecked = $d.idlePause
     $sw.SIdleMin.Text = $d.idleMinutes
     $sw.STasks.IsChecked = $d.taskReminders
+    $sw.SMorning.IsChecked = $d.morningPlan
     $sw.SNudge.Text = $d.reminderEveryMin
     $sw.SJokes.IsChecked = $d.jokes
     $sw.SJokeMin.Text = $d.jokeEveryMin
@@ -264,7 +261,7 @@ function Save-SettingsForm {
     Apply-SettingsData ([pscustomobject]@{
         rhythm = $rhythm; customFocus = $pf; customBreak = $pb
         idlePause = [bool]$sw.SIdle.IsChecked; idleMinutes = [int]$idle
-        taskReminders = [bool]$sw.STasks.IsChecked; reminderEveryMin = [int]$nudge
+        taskReminders = [bool]$sw.STasks.IsChecked; reminderEveryMin = [int]$nudge; morningPlan = [bool]$sw.SMorning.IsChecked
         jokes = [bool]$sw.SJokes.IsChecked; jokeEveryMin = $joke; motivationEveryMin = [int]$motiv
         appComments = [bool]$sw.SApps.IsChecked; quiet = [bool]$sw.SQuiet.IsChecked
         wander = [bool]$sw.SWander.IsChecked; wanderMin = [int]$wmin; wanderMax = [int]$wmax
@@ -293,6 +290,7 @@ function Save-SettingsForm {
 }
 
 function Open-Settings {
+    Initialize-Settings
     Fill-SettingsForm (Get-SettingsSnapshot)
     $sw.SAuto.IsChecked = Test-Path $StartupLink
     if ($CustomDurations) { $sw.SR50.ToolTip = 'Durées imposées au lancement (mode démo) : le rythme choisi servira au prochain démarrage normal.' }
@@ -310,11 +308,6 @@ function Open-Settings {
     $settingsWin.Activate() | Out-Null
 }
 
-$sw.SHeader.Add_MouseLeftButtonDown({ try { $settingsWin.DragMove() } catch {} })
-$sw.SClose.Add_Click({ $settingsWin.Hide() })
-$sw.SCancel.Add_Click({ $settingsWin.Hide() })
-$sw.SDefaults.Add_Click({ Invoke-Safe { Fill-SettingsForm $DefaultSettings } })
-$sw.SSave.Add_Click({ Invoke-Safe { Save-SettingsForm } })
 # choix des fichiers en attente d'enregistrement
 $SF = @{ BubbleFiles = (New-Object System.Collections.ArrayList); EndFile = '' }
 $SoundsDir = Join-Path $DataDir 'sons'
@@ -383,23 +376,43 @@ function Test-SoundChoice([switch]$End) {
     foreach ($k in $keep.Keys) { $Config[$k] = $keep[$k] }
 }
 
-$sw.SBubbleTest.Add_Click({ Invoke-Safe { Test-SoundChoice } })
-$sw.SEndTest.Add_Click({ Invoke-Safe { Test-SoundChoice -End } })
-$sw.SSoundAdd.Add_Click({ Invoke-Safe { Add-MySounds } })
-$sw.SSoundDel.Add_Click({ Invoke-Safe { Remove-MySounds } })
-$sw.SSoundPlay.Add_Click({
-    Invoke-Safe {
-        $it = $sw.SMySounds.SelectedItem
-        $f = if ($it -and $it.Tag) { [string]$it.Tag } elseif ($SF.BubbleFiles.Count) { $SF.BubbleFiles[0] } else { $null }
-        if ($f -and -not (Play-AudioFile $f)) { [Windows.MessageBox]::Show($settingsWin, "Impossible de lire ce fichier. Vérifie que c'est bien un fichier .wav, .mp3, .m4a ou .wma.", 'Orbit') | Out-Null }
+# ---------------------------------------------------------------------------
+#  Construction de la fenetre (a la premiere ouverture seulement)
+# ---------------------------------------------------------------------------
+function Initialize-Settings {
+    if ($script:settingsWin) { return }
+    $script:settingsWin = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $settingsXaml))
+    $script:sw = @{}
+    foreach ($n in 'SHeader','SClose','SDefaults','SCancel','SSave','SError','SR50','SR25','SRPerso','SPersoFocus','SPersoBreak',
+                   'SIdle','SIdleMin','STasks','SMorning','SNudge','SJokes','SJokeMin','SMotiv','SApps','SQuiet','SWander','SWanderMin',
+                   'SWanderMax','SSounds','SDroid','SDroidVol','SAuto','SBubbleSound','SBubbleTest','SMySounds','SSoundAdd','SSoundDel','SSoundPlay',
+                   'SEndSound','SEndFile','SEndTest','SEndFileName','SSkinCustom','SImgPick','SImgName','SSkinSatellite','SSkinDroid','SSkinRobot','SSkinButler','SSkinBrain','SSkinHuman') {
+        $sw[$n] = $settingsWin.FindName($n)
     }
-})
-$sw.SEndFile.Add_Click({ Invoke-Safe { $f = Pick-WavFile; if ($f) { $SF.EndFile = $f; Select-ComboTag $sw.SEndSound 'Fichier'; Update-FileLabels } } })
-$sw.SImgPick.Add_Click({
-    Invoke-Safe {
-        if (Choose-CustomImage) { $sw.SSkinCustom.IsChecked = $true }
-        Update-FileLabels
-    }
-})
-$settingsWin.Add_Closing({ param($s, $e) if (-not $NB.Quitting) { $e.Cancel = $true; $settingsWin.Hide() } })
-$settingsWin.Add_PreviewKeyDown({ param($s, $e) if ($e.Key -eq 'Escape') { $e.Handled = $true; $settingsWin.Hide() } })
+
+    $sw.SHeader.Add_MouseLeftButtonDown({ try { $settingsWin.DragMove() } catch {} })
+    $sw.SClose.Add_Click({ $settingsWin.Hide() })
+    $sw.SCancel.Add_Click({ $settingsWin.Hide() })
+    $sw.SDefaults.Add_Click({ Invoke-Safe { Fill-SettingsForm $DefaultSettings } })
+    $sw.SSave.Add_Click({ Invoke-Safe { Save-SettingsForm } })
+    $sw.SBubbleTest.Add_Click({ Invoke-Safe { Test-SoundChoice } })
+    $sw.SEndTest.Add_Click({ Invoke-Safe { Test-SoundChoice -End } })
+    $sw.SSoundAdd.Add_Click({ Invoke-Safe { Add-MySounds } })
+    $sw.SSoundDel.Add_Click({ Invoke-Safe { Remove-MySounds } })
+    $sw.SSoundPlay.Add_Click({
+        Invoke-Safe {
+            $it = $sw.SMySounds.SelectedItem
+            $f = if ($it -and $it.Tag) { [string]$it.Tag } elseif ($SF.BubbleFiles.Count) { $SF.BubbleFiles[0] } else { $null }
+            if ($f -and -not (Play-AudioFile $f)) { [Windows.MessageBox]::Show($settingsWin, "Impossible de lire ce fichier. Vérifie que c'est bien un fichier .wav, .mp3, .m4a ou .wma.", 'Orbit') | Out-Null }
+        }
+    })
+    $sw.SEndFile.Add_Click({ Invoke-Safe { $f = Pick-WavFile; if ($f) { $SF.EndFile = $f; Select-ComboTag $sw.SEndSound 'Fichier'; Update-FileLabels } } })
+    $sw.SImgPick.Add_Click({
+        Invoke-Safe {
+            if (Choose-CustomImage) { $sw.SSkinCustom.IsChecked = $true }
+            Update-FileLabels
+        }
+    })
+    $settingsWin.Add_Closing({ param($s, $e) if (-not $NB.Quitting) { $e.Cancel = $true; $settingsWin.Hide() } })
+    $settingsWin.Add_PreviewKeyDown({ param($s, $e) if ($e.Key -eq 'Escape') { $e.Handled = $true; $settingsWin.Hide() } })
+}
