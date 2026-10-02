@@ -49,7 +49,7 @@ foreach ($st in 0, 1, 2, 3, 4, 10) {
 Section 'Tableaux et focus avec la vraie interface'
 try {
     Add-Todo 'Carte de test !2'
-    $t = $NB.Todos | Where-Object { $_.text -eq 'Carte de test' } | Select-Object -First 1
+    $t = Find-Todo $NB.LastAddedId   # (au 2e lancement, une carte du meme nom existe deja, terminee)
     Set-CardFocus $t.id $true
     $b = Get-CurrentBoard
     $col = New-KanbanColumn $b (Get-Column $b $t.col)
