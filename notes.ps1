@@ -2,28 +2,95 @@
 #  Notes rapides : un petit post-it qu'on ouvre d'un clic (clic droit sur
 #  Orbit > Note rapide, ou l'icone pres de l'horloge), on ecrit, et c'est
 #  garde. On les retrouve dans l'onglet « 📝 Notes » du carnet, on peut les
-#  transformer en carte, les epingler, les copier. Sauvegarde : notes.json
-#  (+ une copie lisible notes.md, et une copie par jour dans sauvegardes\).
+#  transformer en carte, les epingler, les copier.
+#
+#  Sauvegardes des notes :
+#   - notes.json (ecriture sure) + une copie lisible notes.md ;
+#   - une copie par jour dans sauvegardes\notes-AAAA-MM-JJ.json (14 jours),
+#     restaurable avec le bouton 🕘 de l'onglet Notes (et annulable) ;
+#   - une corbeille : une note supprimee reste recuperable 30 jours ;
+#   - notes.json abime au demarrage : repris depuis la derniere sauvegarde ;
+#   - en option, une copie automatique dans un dossier de ton choix
+#     (OneDrive, reseau, cle USB...) : Orbit-notes.md + Orbit-notes.json ;
+#   - « Enregistrer une copie… » ou tu veux, en .txt ou .md.
 # ---------------------------------------------------------------------------
 $NotesFile = Join-Path $DataDir 'notes.json'
 $NotesMd = Join-Path $DataDir 'notes.md'
+$NotesTrashFile = Join-Path $DataDir 'notes-corbeille.json'
+$NotesKeepDays = 14       # copies quotidiennes gardees
+$NotesTrashDays = 30      # duree de vie dans la corbeille
 $NB.Notes = New-Object System.Collections.ArrayList
+$NB.NotesTrash = New-Object System.Collections.ArrayList
 $NB.NotesBackupDay = ''
+
+function ConvertTo-Note($n) {
+    $c = [pscustomobject]@{
+        id = $(if ($n.id) { [string]$n.id } else { New-Id }); text = [string]$n.text
+        created = To-IsoString $n.created; updated = To-IsoString $n.updated; pinned = [bool]$n.pinned
+    }
+    if (-not $c.updated) { $c.updated = $(if ($c.created) { $c.created } else { (Get-Date).ToString('s') }) }
+    if (-not $c.created) { $c.created = $c.updated }
+    return $c
+}
+
+# Lit une liste de notes depuis un fichier (leve une erreur si le fichier est abime)
+function Read-NotesFile([string]$path) {
+    # (PowerShell 5.1 renvoie la liste d'un bloc : on la parcourt avec foreach, sans @())
+    $data = ConvertFrom-Json ([IO.File]::ReadAllText($path))
+    $list = New-Object System.Collections.ArrayList
+    foreach ($n in $data) { if ($n -and [string]$n.text) { [void]$list.Add((ConvertTo-Note $n)) } }
+    return , $list
+}
 
 function Load-Notes {
     $NB.Notes.Clear()
-    if (-not (Test-Path -LiteralPath $NotesFile)) { return }
+    if (Test-Path -LiteralPath $NotesFile) {
+        try { foreach ($n in (Read-NotesFile $NotesFile)) { [void]$NB.Notes.Add($n) } }
+        catch {
+            Write-Log "Lecture notes : $($_.Exception.Message)"
+            Recover-Notes
+        }
+    }
+    Load-NotesTrash
+}
+
+# notes.json illisible : on le met de cote et on repart de la sauvegarde la plus recente
+function Recover-Notes {
+    $bad = Join-Path $DataDir ("notes-illisible-{0:yyyy-MM-dd_HHmmss}.json" -f (Get-Date))
+    try { Move-Item -LiteralPath $NotesFile -Destination $bad -Force } catch {}
+    foreach ($f in (Get-NoteBackupFiles)) {
+        try {
+            $list = Read-NotesFile $f.Path
+            foreach ($n in $list) { [void]$NB.Notes.Add($n) }
+            Copy-Item -LiteralPath $f.Path -Destination $NotesFile -Force
+            $NB.LoadNotice = (@($NB.LoadNotice, "Ton fichier de notes était abîmé 😬 J'ai repris la sauvegarde « $($f.Label) ».") | Where-Object { $_ }) -join "`n"
+            Write-Log "Notes reprises de $($f.Path)"
+            return
+        } catch { Write-Log "Sauvegarde de notes illisible ($($f.Path)) : $($_.Exception.Message)" }
+    }
+    $NB.LoadNotice = (@($NB.LoadNotice, "Ton fichier de notes était abîmé 😬 et je n'ai pas trouvé de sauvegarde. Il est gardé dans $bad.") | Where-Object { $_ }) -join "`n"
+}
+
+function Load-NotesTrash {
+    $NB.NotesTrash.Clear()
+    if (-not (Test-Path -LiteralPath $NotesTrashFile)) { return }
     try {
-        # (PowerShell 5.1 renvoie la liste d'un bloc : on la parcourt avec foreach, sans @())
-        $data = ConvertFrom-Json ([IO.File]::ReadAllText($NotesFile))
+        $limit = (Get-Date).AddDays(-$NotesTrashDays).ToString('s')
+        $data = ConvertFrom-Json ([IO.File]::ReadAllText($NotesTrashFile))
         foreach ($n in $data) {
             if (-not $n -or -not [string]$n.text) { continue }
-            [void]$NB.Notes.Add([pscustomobject]@{
-                id = $(if ($n.id) { [string]$n.id } else { New-Id }); text = [string]$n.text
-                created = To-IsoString $n.created; updated = To-IsoString $n.updated; pinned = [bool]$n.pinned
-            })
+            $del = To-IsoString $n.deletedAt
+            if ($del -and $del -lt $limit) { continue }   # plus de 30 jours : on oublie
+            $c = ConvertTo-Note $n
+            $c | Add-Member -NotePropertyName deletedAt -NotePropertyValue $(if ($del) { $del } else { (Get-Date).ToString('s') })
+            [void]$NB.NotesTrash.Add($c)
         }
-    } catch { Write-Log "Lecture notes : $($_.Exception.Message)" }
+    } catch { Write-Log "Lecture corbeille des notes : $($_.Exception.Message)" }
+}
+
+function Save-NotesTrash {
+    try { Write-FileSafe $NotesTrashFile (ConvertTo-JsonArray $NB.NotesTrash) }
+    catch { Write-Log "Ecriture corbeille des notes : $($_.Exception.Message)" }
 }
 
 function Save-Notes {
@@ -34,17 +101,40 @@ function Save-Notes {
             if (-not (Test-Path -LiteralPath $BackupDir)) { New-Item -ItemType Directory -Path $BackupDir | Out-Null }
             $dest = Join-Path $BackupDir "notes-$day.json"
             if (-not (Test-Path -LiteralPath $dest)) { Copy-Item -LiteralPath $NotesFile -Destination $dest -Force }
-            Limit-Backups 'notes-*.json' $BackupKeep
+            Limit-Backups 'notes-????-??-??.json' $NotesKeepDays
             $NB.NotesBackupDay = $day
         }
-        Write-FileSafe $NotesFile (ConvertTo-JsonArray $NB.Notes)
-        $lines = @('# Notes rapides d''Orbit', '')
-        foreach ($n in (Get-SortedNotes)) {
-            $lines += "## $(([datetime]$n.updated).ToString('dd/MM/yyyy HH:mm'))$(if ($n.pinned) { ' 📌' })"
-            $lines += ''; $lines += $n.text; $lines += ''
-        }
-        Write-FileSafe $NotesMd ($lines -join "`r`n")
+        $json = ConvertTo-JsonArray $NB.Notes
+        Write-FileSafe $NotesFile $json
+        $md = Get-NotesText
+        Write-FileSafe $NotesMd $md
+        Write-NotesMirror $json $md
     } catch { Write-Log "Ecriture notes : $($_.Exception.Message)" }
+}
+
+# Toutes les notes en texte lisible (pour notes.md, la copie automatique et « Enregistrer une copie »)
+function Get-NotesText {
+    $lines = @('# Notes rapides d''Orbit', '', "_Mis à jour le $((Get-Date).ToString('dd/MM/yyyy HH:mm'))_", '')
+    foreach ($n in (Get-SortedNotes)) {
+        $lines += "## $(([datetime]$n.updated).ToString('dd/MM/yyyy HH:mm'))$(if ($n.pinned) { ' 📌' })"
+        $lines += ''; $lines += $n.text; $lines += ''
+    }
+    return ($lines -join "`r`n")
+}
+
+# Copie automatique dans le dossier choisi (si il est la : cle USB debranchee = on attend)
+function Write-NotesMirror([string]$json, [string]$md) {
+    $dir = [string]$Config.NotesMirror
+    if (-not $dir) { return }
+    if (-not (Test-Path -LiteralPath $dir)) {
+        if (-not $script:MirrorMissingLogged) { Write-Log "Copie des notes : dossier introuvable ($dir)"; $script:MirrorMissingLogged = $true }
+        return
+    }
+    $script:MirrorMissingLogged = $false
+    try {
+        Write-FileSafe (Join-Path $dir 'Orbit-notes.json') $json
+        Write-FileSafe (Join-Path $dir 'Orbit-notes.md') $md
+    } catch { Write-Log "Copie des notes dans $dir : $($_.Exception.Message)" }
 }
 
 # epinglees d'abord, puis la plus recemment modifiee
@@ -72,9 +162,37 @@ function Update-Note([string]$id, [string]$text) {
     if ($n.text -ne $text) { $n.text = $text; $n.updated = (Get-Date).ToString('s'); Save-Notes }
 }
 
-function Remove-Note([string]$id) {
+# Supprimer = mettre a la corbeille (sauf -NoTrash, par ex. quand la note devient une carte)
+function Remove-Note([string]$id, [switch]$NoTrash) {
     $n = Find-Note $id
-    if ($n) { $NB.Notes.Remove($n); Save-Notes }
+    if (-not $n) { return }
+    $NB.Notes.Remove($n)
+    if (-not $NoTrash) {
+        $t = ConvertTo-Note $n
+        $t | Add-Member -NotePropertyName deletedAt -NotePropertyValue (Get-Date).ToString('s')
+        $NB.NotesTrash.Insert(0, $t)
+        while ($NB.NotesTrash.Count -gt 200) { $NB.NotesTrash.RemoveAt($NB.NotesTrash.Count - 1) }
+        Save-NotesTrash
+    }
+    Save-Notes
+}
+
+function Restore-TrashedNote([string]$id) {
+    $t = $NB.NotesTrash | Where-Object { $_.id -eq $id } | Select-Object -First 1
+    if (-not $t) { return }
+    $NB.NotesTrash.Remove($t)
+    $n = ConvertTo-Note $t
+    if (Find-Note $n.id) { $n.id = New-Id }
+    $NB.Notes.Insert(0, $n)
+    Save-NotesTrash
+    Save-Notes
+    Render-Notes; Update-Tabs
+    Show-Bubble "♻️ Note « $(Get-NoteTitle $n 40) » récupérée." -Force -Seconds 3
+}
+
+function Clear-NotesTrash {
+    $NB.NotesTrash.Clear()
+    Save-NotesTrash
 }
 
 function Set-NotePinned([string]$id, [bool]$on) {
@@ -103,7 +221,7 @@ function Convert-NoteToCard([string]$id) {
     $t = Find-Todo $NB.LastAddedId
     if (-not $t) { return $null }
     if ($desc) { $t.desc = $desc; Save-Todos }
-    Remove-Note $id
+    Remove-Note $id -NoTrash
     $b = Get-Board $t.board
     Show-Bubble "🗂️ Note transformée en carte dans « $($b.name) »." -Force -Seconds 4
     Render-Notes
@@ -113,6 +231,133 @@ function Convert-NoteToCard([string]$id) {
 function Copy-NoteText([string]$id) {
     $n = Find-Note $id
     if ($n) { Copy-Clip ([pscustomobject]@{ kind = 'text'; text = $n.text; files = @() }) }
+}
+
+# --- sauvegardes des notes ------------------------------------------------------
+# Copies du jour + copies « avant restauration », la plus recente d'abord : @{ Path ; Label ; Count }
+function Get-NoteBackupFiles {
+    $out = @()
+    if (Test-Path -LiteralPath $BackupDir) {
+        $files = @(Get-ChildItem -Path $BackupDir -Filter 'notes-*.json' -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '^notes-(\d{4}-\d{2}-\d{2}|undo-\d{4}-\d{2}-\d{2}_\d{6})\.json$' } |
+            Sort-Object LastWriteTime -Descending)
+        foreach ($f in $files) {
+            $label = $f.BaseName
+            if ($f.Name -match '^notes-(\d{4}-\d{2}-\d{2})\.json$') {
+                $d = [datetime]::ParseExact($Matches[1], 'yyyy-MM-dd', $null)
+                $when = if ($d.Date -eq (Get-Date).Date) { "aujourd'hui" } elseif ($d.Date -eq (Get-Date).Date.AddDays(-1)) { 'hier' } else { $d.ToString('dd/MM') }
+                $label = "début de journée, $when"
+            } elseif ($f.Name -match '^notes-undo-(\d{4}-\d{2}-\d{2}_\d{6})\.json$') {
+                $label = "juste avant la restauration du $(([datetime]::ParseExact($Matches[1], 'yyyy-MM-dd_HHmmss', $null)).ToString('dd/MM à HH:mm'))"
+            }
+            $out += [pscustomobject]@{ Path = $f.FullName; Label = $label }
+        }
+    }
+    # la copie automatique (OneDrive, cle USB...) : utile apres un changement de PC
+    if ($Config.NotesMirror) {
+        $m = Join-Path ([string]$Config.NotesMirror) 'Orbit-notes.json'
+        if (Test-Path -LiteralPath $m) {
+            $out += [pscustomobject]@{ Path = $m; Label = "copie automatique du $((Get-Item -LiteralPath $m).LastWriteTime.ToString('dd/MM à HH:mm')) ($($Config.NotesMirror))" }
+        }
+    }
+    return $out
+}
+
+# Remplace toutes les notes par celles d'une sauvegarde ; l'etat actuel est garde (annulable)
+function Restore-Notes([string]$path, [string]$label = '', [switch]$NoConfirm) {
+    try { $list = Read-NotesFile $path } catch { [void][Windows.MessageBox]::Show("Cette sauvegarde est illisible : $($_.Exception.Message)", 'Orbit'); return $false }
+    if (-not $NoConfirm -and -not (Confirm-Action "Remplacer tes $($NB.Notes.Count) note(s) par les $($list.Count) de la sauvegarde « $label » ?`n(L'état actuel est gardé : tu pourras revenir en arrière avec 🕘.)")) { return $false }
+    if (-not (Test-Path -LiteralPath $BackupDir)) { New-Item -ItemType Directory -Path $BackupDir | Out-Null }
+    if (Test-Path -LiteralPath $NotesFile) {
+        $undo = Join-Path $BackupDir ("notes-undo-{0:yyyy-MM-dd_HHmmss}.json" -f (Get-Date))
+        Copy-Item -LiteralPath $NotesFile -Destination $undo -Force
+        Limit-Backups 'notes-undo-*.json' 5
+    }
+    $NB.Notes.Clear()
+    foreach ($n in $list) { [void]$NB.Notes.Add($n) }
+    Save-Notes
+    Render-Notes; Update-Tabs
+    Show-Bubble "📝 Notes restaurées ($($list.Count)) ↩️" -Force -Seconds 4
+    return $true
+}
+
+function Export-NotesCopy([string]$path) {
+    if (-not $path) {
+        $dlg = New-Object Microsoft.Win32.SaveFileDialog
+        $dlg.Title = 'Enregistrer une copie de mes notes'
+        $dlg.Filter = 'Texte (*.txt)|*.txt|Markdown (*.md)|*.md'
+        $dlg.FileName = "Mes notes Orbit $((Get-Date).ToString('yyyy-MM-dd')).txt"
+        $dlg.InitialDirectory = [Environment]::GetFolderPath('MyDocuments')
+        if (-not $dlg.ShowDialog()) { return $null }
+        $path = $dlg.FileName
+    }
+    [IO.File]::WriteAllText($path, (Get-NotesText), (New-Object Text.UTF8Encoding($true)))
+    Show-Bubble "💾 Copie de tes $($NB.Notes.Count) note(s) enregistrée : $([IO.Path]::GetFileName($path))" -Force -Seconds 5
+    return $path
+}
+
+function Set-NotesMirror([string]$dir) {
+    $Config.NotesMirror = $dir
+    Save-Settings
+    if ($dir) {
+        Save-Notes
+        Show-Bubble "☁️ Tes notes sont maintenant copiées automatiquement dans :`n$dir`n(Orbit-notes.md à lire, Orbit-notes.json pour restaurer)" -Force -Seconds 7
+    } else {
+        Show-Bubble "Ok, plus de copie automatique des notes." -Force -Seconds 3
+    }
+    Render-Notes
+}
+
+function Choose-NotesMirror {
+    $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
+    $dlg.Description = 'Dossier où copier automatiquement tes notes (OneDrive, dossier réseau, clé USB…)'
+    $od = $env:OneDrive
+    $dlg.SelectedPath = if ($Config.NotesMirror) { $Config.NotesMirror } elseif ($od -and (Test-Path -LiteralPath $od)) { $od } else { [Environment]::GetFolderPath('MyDocuments') }
+    if ($dlg.ShowDialog() -eq 'OK' -and $dlg.SelectedPath) { Set-NotesMirror $dlg.SelectedPath }
+}
+
+function Show-NotesBackupMenu($btn) {
+    $m = New-Object Windows.Controls.ContextMenu
+    $title = New-Object Windows.Controls.MenuItem
+    $title.Header = '↩️ Revenir à une sauvegarde'; $title.IsEnabled = $false; $title.FontWeight = 'Bold'
+    [void]$m.Items.Add($title)
+    $backs = @(Get-NoteBackupFiles)
+    if (-not $backs.Count) {
+        $none = New-Object Windows.Controls.MenuItem
+        $none.Header = '    Pas encore de sauvegarde (une copie est faite chaque jour)'; $none.IsEnabled = $false
+        [void]$m.Items.Add($none)
+    }
+    foreach ($b in $backs) {
+        $count = try { "$(@(Read-NotesFile $b.Path).Count) note(s)" } catch { 'illisible' }
+        $it = New-TaggedItem "    $($b.Label) — $count" "$($b.Path)|$($b.Label)" { param($s, $e) Invoke-Safe { $p = $s.Tag.Split('|', 2); [void](Restore-Notes $p[0] $p[1]) } }
+        $it.IsEnabled = $count -ne 'illisible'
+        [void]$m.Items.Add($it)
+    }
+    [void]$m.Items.Add((New-Object Windows.Controls.Separator))
+    $trash = New-Object Windows.Controls.MenuItem
+    $trash.Header = "🗑️  Corbeille ($($NB.NotesTrash.Count))"
+    if ($NB.NotesTrash.Count) {
+        foreach ($t in ($NB.NotesTrash | Select-Object -First 25)) {
+            $when = try { ([datetime]$t.deletedAt).ToString('dd/MM HH:mm') } catch { '' }
+            [void]$trash.Items.Add((New-TaggedItem "♻️  $(Get-NoteTitle $t 45)  (supprimée le $when)" $t.id { param($s, $e) Invoke-Safe { Restore-TrashedNote $s.Tag } }))
+        }
+        [void]$trash.Items.Add((New-Object Windows.Controls.Separator))
+        [void]$trash.Items.Add((New-TaggedItem '🧹  Vider la corbeille' $null { param($s, $e) Invoke-Safe { if (Confirm-Action 'Vider la corbeille des notes ? (Elles seront perdues.)') { Clear-NotesTrash } } }))
+    } else {
+        $none = New-Object Windows.Controls.MenuItem
+        $none.Header = "Vide (une note supprimée y reste $NotesTrashDays jours)"; $none.IsEnabled = $false
+        [void]$trash.Items.Add($none)
+    }
+    [void]$m.Items.Add($trash)
+    [void]$m.Items.Add((New-Object Windows.Controls.Separator))
+    [void]$m.Items.Add((New-TaggedItem '💾  Enregistrer une copie de mes notes…' $null { param($s, $e) Invoke-Safe { [void](Export-NotesCopy) } }))
+    $mir = if ($Config.NotesMirror) { "☁️  Copie automatique : $(Short-Text $Config.NotesMirror 40) (changer…)" } else { '☁️  Copie automatique dans un dossier (OneDrive, clé USB…)…' }
+    [void]$m.Items.Add((New-TaggedItem $mir $null { param($s, $e) Invoke-Safe { Choose-NotesMirror } }))
+    if ($Config.NotesMirror) { [void]$m.Items.Add((New-TaggedItem '✖  Arrêter la copie automatique' $null { param($s, $e) Invoke-Safe { Set-NotesMirror '' } })) }
+    [void]$m.Items.Add((New-TaggedItem '📂  Ouvrir le dossier des sauvegardes' $null {
+                param($s, $e) Invoke-Safe { if (-not (Test-Path -LiteralPath $BackupDir)) { New-Item -ItemType Directory -Path $BackupDir | Out-Null }; Start-Process explorer.exe $BackupDir } }))
+    $m.PlacementTarget = $btn
+    $m.IsOpen = $true
 }
 
 # --- le post-it ------------------------------------------------------------
@@ -221,7 +466,10 @@ function Render-Notes {
         $e.Foreground = '#9A98B0'; $e.TextWrapping = 'Wrap'; $e.TextAlignment = 'Center'; $e.Margin = '4,14,4,0'
         [void]$pn.NotesList.Children.Add($e)
     }
-    $pn.NotesCount.Text = "$($list.Count) note(s) · clic sur une note pour la modifier"
+    $txt = "$($list.Count) note(s) · sauvegarde chaque jour"
+    if ($Config.NotesMirror) { $txt += " · ☁️ copie auto dans $(Split-Path -Leaf $Config.NotesMirror)" }
+    if ($NB.NotesTrash.Count) { $txt += " · 🗑️ $($NB.NotesTrash.Count) dans la corbeille" }
+    $pn.NotesCount.Text = $txt
 }
 
 function New-NoteButton([string]$label, [string]$tip, [string]$id, [scriptblock]$onClick) {
@@ -246,8 +494,11 @@ function New-NoteCard($n) {
                 param($s, $e) $e.Handled = $true; Invoke-Safe { $x = Find-Note $s.Tag; if ($x) { Set-NotePinned $s.Tag (-not $x.pinned); Render-Notes } } }))
     [void]$btns.Children.Add((New-NoteButton '🗂️' 'Transformer en carte (1re ligne = titre)' $n.id { param($s, $e) $e.Handled = $true; Invoke-Safe { [void](Convert-NoteToCard $s.Tag) } }))
     [void]$btns.Children.Add((New-NoteButton '📋' 'Copier le texte' $n.id { param($s, $e) $e.Handled = $true; Invoke-Safe { Copy-NoteText $s.Tag } }))
-    [void]$btns.Children.Add((New-NoteButton '🗑️' 'Supprimer' $n.id {
-                param($s, $e) $e.Handled = $true; Invoke-Safe { if (Confirm-Action 'Supprimer cette note ?') { Remove-Note $s.Tag; Render-Notes; Update-Tabs } } }))
+    [void]$btns.Children.Add((New-NoteButton '🗑️' 'Mettre à la corbeille' $n.id {
+                param($s, $e) $e.Handled = $true; Invoke-Safe {
+                    Remove-Note $s.Tag; Render-Notes; Update-Tabs
+                    Show-Bubble "🗑️ Note mise à la corbeille. Tu peux la récupérer pendant $NotesTrashDays jours : 🕘 Sauvegardes > Corbeille." -Force -Seconds 5
+                } }))
     [Windows.Controls.DockPanel]::SetDock($btns, 'Right')
     [void]$head.Children.Add($btns)
     $when = New-Object Windows.Controls.TextBlock

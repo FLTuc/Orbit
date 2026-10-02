@@ -50,6 +50,7 @@ $Config = @{
     IdlePause           = $true  # met le focus en pause si tu t'absentes
     IdleMinutes         = 5
     MorningPlan         = $true  # le matin, propose les 3 cartes les plus urgentes
+    NotesMirror         = ''     # dossier ou copier automatiquement les notes (vide = non)
 }
 # (tous ces reglages se modifient aussi depuis clic droit > Reglages)
 
@@ -1186,6 +1187,7 @@ function Get-SettingsSnapshot {
         idlePause          = $Config.IdlePause
         idleMinutes        = $Config.IdleMinutes
         morningPlan        = $Config.MorningPlan
+        notesMirror        = $Config.NotesMirror
     }
 }
 
@@ -1201,6 +1203,7 @@ function Apply-SettingsData($d) {
     if (Has 'wanderMax') { $Config.WanderMaxMin = [int]$d.wanderMax }
     if (Has 'taskReminders') { $O.TaskReminders = [bool]$d.taskReminders }
     if (Has 'morningPlan') { $Config.MorningPlan = [bool]$d.morningPlan }
+    if (Has 'notesMirror') { $Config.NotesMirror = [string]$d.notesMirror }
     if (Has 'reminderEveryMin') { $Config.ReminderEveryMin = [int]$d.reminderEveryMin }
     if (Has 'motivationEveryMin') { $Config.MotivationEveryMin = [int]$d.motivationEveryMin }
     if (Has 'jokes') { $Config.Jokes = [bool]$d.jokes }

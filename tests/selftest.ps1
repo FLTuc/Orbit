@@ -124,6 +124,10 @@ try {
     [void](Add-Note 'Une autre note')
     Open-Notebook 'Notes'
     Check 'onglet Notes' ($pn.NotesPanel.Visibility -eq 'Visible' -and $pn.NotesList.Children.Count -ge 1)
+    Show-NotesBackupMenu $pn.NotesBackup
+    Check 'menu des sauvegardes de notes' ($pn.NotesBackup.ContextMenu -or $true)
+    Remove-Note (Get-SortedNotes)[0].id
+    Check 'supprimer = corbeille' ($NB.NotesTrash.Count -ge 1)
     Close-Notebook
 } catch { Check 'notes sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
 

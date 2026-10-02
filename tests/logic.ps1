@@ -201,7 +201,7 @@ Section 'Notes rapides'
 foreach ($def in Get-ScriptFunctions (Join-Path $Root 'notes.ps1')) { . ([scriptblock]::Create($def)) }
 foreach ($a4 in Get-ScriptAssignments (Join-Path $Root 'notes.ps1') '^\$Notes') { . ([scriptblock]::Create($a4)) }
 function Render-Notes {}
-$NB.Notes = New-Object System.Collections.ArrayList; $NB.NotesBackupDay = ''
+$NB.Notes = New-Object System.Collections.ArrayList; $NB.NotesTrash = New-Object System.Collections.ArrayList; $NB.NotesBackupDay = ''
 $n1 = Add-Note "  Appeler le garage`nPour le controle technique  "
 Check 'note ajoutee (espaces retires)' ($NB.Notes.Count -eq 1 -and $n1.text.StartsWith('Appeler') -and $n1.text.EndsWith('technique'))
 Check 'note vide ignoree' ($null -eq (Add-Note '   '))
@@ -220,6 +220,46 @@ Check 'note -> carte : 1re ligne = titre, le reste = description' ($card.text -e
 Check 'et la note disparait' ($null -eq (Find-Note $n1.id) -and $NB.Notes.Count -eq 1)
 Update-Note $n2.id '   '
 Check 'vider une note la supprime' ($NB.Notes.Count -eq 0)
+
+Section 'Sauvegarde des notes'
+$Config = $Config + @{ NotesMirror = '' }
+function Save-Settings {}
+Check 'une note videe part a la corbeille' ($NB.NotesTrash.Count -eq 1 -and $NB.NotesTrash[0].text -match '15 min')
+Restore-TrashedNote $NB.NotesTrash[0].id
+Check 'recuperee depuis la corbeille' ($NB.Notes.Count -eq 1 -and $NB.NotesTrash.Count -eq 0)
+Load-Notes
+Check 'corbeille relue du disque (vide)' ($NB.NotesTrash.Count -eq 0 -and $NB.Notes.Count -eq 1)
+# copie du jour : faite avant la 1re modification de la journee
+$NB.NotesBackupDay = ''
+[void](Add-Note 'Note du jour')
+$dayFile = Join-Path $BackupDir "notes-$((Get-Date).ToString('yyyy-MM-dd')).json"
+Check 'copie du jour dans sauvegardes' (Test-Path $dayFile)
+$backs = @(Get-NoteBackupFiles)
+Check 'la copie est proposee a la restauration' ($backs.Count -ge 1 -and $backs[0].Label -match "aujourd'hui")
+function Confirm-Action { $true }
+$before = $NB.Notes.Count
+Check 'restaurer la copie du matin' ((Restore-Notes $dayFile 'test') -and $NB.Notes.Count -eq $before - 1)
+$undo = @(Get-NoteBackupFiles | Where-Object { $_.Label -match 'avant la restauration' })
+Check 'et pouvoir annuler' ($undo.Count -eq 1 -and (Restore-Notes $undo[0].Path 'annuler') -and $NB.Notes.Count -eq $before)
+# copie automatique dans un dossier
+$mir = Join-Path $T 'OneDrive'; New-Item -ItemType Directory -Path $mir | Out-Null
+Set-NotesMirror $mir
+Check 'copie automatique : .md lisible et .json' ((Get-Content (Join-Path $mir 'Orbit-notes.md') -Raw) -match 'Note du jour' -and (Test-Path (Join-Path $mir 'Orbit-notes.json')))
+[void](Add-Note 'Encore une')
+Check 'mise a jour a chaque modification' ((Get-Content (Join-Path $mir 'Orbit-notes.md') -Raw) -match 'Encore une')
+Check 'la copie automatique est proposee a la restauration' (@(Get-NoteBackupFiles | Where-Object { $_.Label -match 'copie automatique' }).Count -eq 1)
+Remove-Item -Recurse -Force $mir
+[void](Add-Note 'Cle USB debranchee')
+Check 'dossier absent : pas d''erreur, les notes restent enregistrees' ((Find-Everything 'cle usb').Notes.Count -eq 1)
+Set-NotesMirror ''
+# enregistrer une copie
+$copy = Export-NotesCopy (Join-Path $T 'mes-notes.txt')
+Check 'enregistrer une copie lisible' ((Get-Content $copy -Raw) -match 'Encore une')
+# fichier abime
+[IO.File]::WriteAllText($NotesFile, '[{"text": "casse...')
+Load-Notes
+Check 'notes.json abime : repris de la sauvegarde' ($NB.Notes.Count -ge 1 -and $NB.LoadNotice -match 'notes')
+Check 'et le fichier abime est garde a part' (@(Get-ChildItem $T -Filter 'notes-illisible-*').Count -eq 1)
 
 Section 'Transfert vers un autre PC'
 foreach ($def in Get-ScriptFunctions (Join-Path $Root 'transfer.ps1')) { . ([scriptblock]::Create($def)) }

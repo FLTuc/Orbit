@@ -1441,6 +1441,8 @@ function Show-RevealedCard {
           <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
             <Button x:Name="NotesAdd" Content="＋ Nouvelle note" HorizontalAlignment="Left" Padding="12,5" Cursor="Hand"
                     Background="#FFE066" BorderBrush="#1E1B3A" BorderThickness="2" FontWeight="SemiBold"/>
+            <Button x:Name="NotesBackup" Content="🕘 Sauvegardes" HorizontalAlignment="Right" Padding="10,5" Cursor="Hand"
+                    Background="#EEEEF5" BorderThickness="0" ToolTip="Restaurer, corbeille, copie automatique, enregistrer une copie"/>
           </Grid>
           <TextBlock x:Name="NotesCount" DockPanel.Dock="Bottom" Margin="0,8,0,0" Foreground="#6B6880"/>
           <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -2402,7 +2404,7 @@ function Initialize-Notebook {
                    'BoardPick','BoardAdd','BoardRename','BoardDel','BoardHistory','KanbanScroll',
                    'TodoClear','TodoList','ClipPanel','ClipSearch','ClipHint','ClipCount','ClipPause','ClipClear','ClipList',
                    'TabSearch','SearchPanel','SearchBox','SearchHint','SearchCount','SearchList',
-                   'TabNotes','NotesPanel','NotesAdd','NotesCount','NotesList') {
+                   'TabNotes','NotesPanel','NotesAdd','NotesBackup','NotesCount','NotesList') {
         $pn[$n] = $panel.FindName($n)
     }
 
@@ -2424,6 +2426,7 @@ function Initialize-Notebook {
     $pn.TabSearch.Add_Click({ Invoke-Safe { Select-Tab 'Search' } })
     $pn.TabNotes.Add_Click({ Invoke-Safe { Select-Tab 'Notes' } })
     $pn.NotesAdd.Add_Click({ Invoke-Safe { Show-QuickNote } })
+    $pn.NotesBackup.Add_Click({ param($s, $e) Invoke-Safe { Show-NotesBackupMenu $s } })
     $NB.SearchTimer = New-Object Windows.Threading.DispatcherTimer
     $NB.SearchTimer.Interval = [timespan]::FromMilliseconds(250)
     $NB.SearchTimer.Add_Tick({ $NB.SearchTimer.Stop(); Invoke-Safe { Render-Search } })
