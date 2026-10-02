@@ -40,6 +40,8 @@ $NB = @{
     Quitting   = $false
     TodoDirty  = $true
     BackupDay  = ''
+    FocusCards = New-Object System.Collections.ArrayList   # cartes liees au focus en cours / au prochain
+    LastAddedId = ''
     LoadNotice = ''
     RenderedBoard = ''
 }
@@ -112,6 +114,7 @@ function ConvertTo-Card($t, [string]$board, [string]$col, [double]$order) {
         due = To-DayString $t.due; remindAt = To-IsoString $t.remindAt; reminded = [bool]$t.reminded
         done = [bool]$t.done; created = To-IsoString $t.created; doneAt = To-IsoString $t.doneAt
         board = $board; col = $col; order = $order
+        pomos = [int]$t.pomos; focusMin = [int]$t.focusMin; lastFocus = To-IsoString $t.lastFocus
     }
 }
 
@@ -123,6 +126,8 @@ function Import-KanbanData($data) {
         if ($cols.Count) { [void]$NB.Boards.Add([pscustomobject]@{ id = [string]$b.id; name = [string]$b.name; columns = $cols }) }
     }
     $NB.BoardId = [string]$data.current
+    $NB.FocusCards.Clear()
+    foreach ($id in @($data.focus)) { if ($id) { [void]$NB.FocusCards.Add([string]$id) } }
     foreach ($t in $data.cards) {
         $b = Get-Board ([string]$t.board)
         if (-not $b) { continue }
@@ -160,6 +165,186 @@ function Load-Todos {
         Save-Todos
     }
     [void](Get-CurrentBoard)
+}
+
+# ---------------------------------------------------------------------------
+#  Lien cartes <-> focus : on lie une ou plusieurs cartes au focus (en cours ou
+#  prochain). A la fin de chaque focus, chacune gagne une 🍅 et les minutes ;
+#  celles qui ne sont pas finies restent liees pour le focus suivant.
+# ---------------------------------------------------------------------------
+function Format-FocusTime([int]$min) {
+    if ($min -lt 60) { return "$min min" }
+    $h = [math]::Floor($min / 60); $m = $min % 60
+    if ($m) { return "$h h $('{0:00}' -f $m)" } else { return "$h h" }
+}
+
+function Test-CardInFocus([string]$id) { return $NB.FocusCards.Contains($id) }
+
+# cartes liees qui existent encore (-Open : seulement celles pas terminees)
+function Get-FocusCards([switch]$Open) {
+    $r = @()
+    foreach ($id in @($NB.FocusCards)) {
+        $t = Find-Todo $id
+        if ($t -and (-not $Open -or -not $t.done)) { $r += $t }
+    }
+    return $r
+}
+
+# retire les cartes supprimees ou terminees
+function Clear-FocusCardsDone {
+    foreach ($id in @($NB.FocusCards)) {
+        $t = Find-Todo $id
+        if (-not $t -or $t.done) { $NB.FocusCards.Remove($id) }
+    }
+}
+
+# Au debut d'un focus : une carte encore dans la 1re colonne passe dans « En cours » (si le tableau en a une)
+function Move-CardToDoing($t) {
+    $b = Get-Board $t.board
+    if (-not $b -or $t.done -or $t.col -ne (Get-OpenColumn $b).id) { return }
+    $doing = $b.columns | Where-Object { -not $_.done -and $_.name -match '^\s*en\s*cours' } | Select-Object -First 1
+    if ($doing -and $doing.id -ne $t.col) { Move-Card $t.id $doing.id -Quiet }
+}
+
+function Set-FocusCards([string[]]$ids) {
+    $NB.FocusCards.Clear()
+    foreach ($id in $ids) { if ($id -and (Find-Todo $id) -and -not $NB.FocusCards.Contains($id)) { [void]$NB.FocusCards.Add($id) } }
+    if ($O.State -eq 'Focus') { foreach ($t in (Get-FocusCards -Open)) { Move-CardToDoing $t } }
+    Save-Todos
+    Render-Todos
+}
+
+function Set-CardFocus([string]$id, [bool]$on) {
+    $t = Find-Todo $id
+    if (-not $t) { return }
+    if ($on) {
+        if ($t.done) { Show-Bubble "Cette carte est déjà terminée ✅" -Force -Seconds 3; return }
+        if (-not $NB.FocusCards.Contains($id)) { [void]$NB.FocusCards.Add($id) }
+        if ($O.State -eq 'Focus') { Move-CardToDoing $t }
+    } else {
+        $NB.FocusCards.Remove($id)
+    }
+    Save-Todos
+    Render-Todos -Cols $t.col
+    $n = (Get-FocusCards -Open).Count
+    $when = if ($O.State -eq 'Focus') { 'ce focus' } else { 'ton prochain focus' }
+    if ($on) { Show-Bubble "🎯 « $(Short-Text $t.text 40) » est liée à $when ($n carte(s) en tout)." -Force -Seconds 4 }
+    else { Show-Bubble "Ok, « $(Short-Text $t.text 40) » n'est plus liée au focus." -Force -Seconds 3 }
+}
+
+function Toggle-CardFocus([string]$id) { Set-CardFocus $id (-not $NB.FocusCards.Contains($id)) }
+
+# fin d'un focus termine : une 🍅 et les minutes pour chaque carte liee (meme celles finies pendant le focus)
+function Add-FocusToCards([int]$minutes) {
+    $cards = @(Get-FocusCards)
+    foreach ($t in $cards) {
+        $t.pomos = [int]$t.pomos + 1
+        $t.focusMin = [int]$t.focusMin + $minutes
+        $t.lastFocus = (Get-Date).ToString('s')
+    }
+    Clear-FocusCardsDone
+    if ($cards.Count) { Save-Todos; Render-Todos -Cols @($cards | ForEach-Object { $_.col }) }
+    return $cards.Count
+}
+
+# Fenetre a cases a cocher : renvoie les id choisis, ou $null si on annule
+function Show-CardPicker([string]$title, [string]$intro, $cards, [string[]]$checked, [string]$okLabel, [switch]$AllowNew) {
+    $w = New-Object Windows.Window
+    $w.Title = $title; $w.Width = 440; $w.SizeToContent = 'Height'; $w.ResizeMode = 'NoResize'
+    $w.WindowStartupLocation = 'CenterScreen'; $w.Topmost = $true; $w.ShowInTaskbar = $false
+    $w.Background = '#FAFAFE'
+    $sp = New-Object Windows.Controls.StackPanel; $sp.Margin = '16'
+    $lb = New-Object Windows.Controls.TextBlock; $lb.Text = $intro; $lb.TextWrapping = 'Wrap'; $lb.Margin = '0,0,0,10'; $lb.FontSize = 13
+    [void]$sp.Children.Add($lb)
+    $list = New-Object Windows.Controls.StackPanel
+    $boxes = @()
+    $lastBoard = ''
+    foreach ($t in $cards) {
+        if ($NB.Boards.Count -gt 1 -and $t.board -ne $lastBoard) {
+            $lastBoard = $t.board
+            $h = New-Object Windows.Controls.TextBlock
+            $h.Text = "🗂️ $((Get-Board $t.board).name)"; $h.FontWeight = 'Bold'; $h.Foreground = '#6C5CE7'; $h.Margin = '0,6,0,3'
+            [void]$list.Children.Add($h)
+        }
+        $cb = New-Object Windows.Controls.CheckBox
+        $label = "P$($t.prio) · $($t.text)"
+        if ($t.pomos) { $label += "   🍅 $($t.pomos)" }
+        $col = Get-Column (Get-Board $t.board) $t.col
+        if ($col) { $label += "   ($($col.name))" }
+        $cb.Content = $label; $cb.Tag = $t.id; $cb.Margin = '4,3,0,3'; $cb.IsChecked = $checked -contains $t.id
+        $cb.ToolTip = if ($t.desc) { $t.desc } else { $null }
+        [void]$list.Children.Add($cb)
+        $boxes += $cb
+    }
+    if (-not $cards.Count) {
+        $e = New-Object Windows.Controls.TextBlock; $e.Text = 'Aucune carte à faire pour le moment.'; $e.FontStyle = 'Italic'; $e.Foreground = '#8A87A3'
+        [void]$list.Children.Add($e)
+    }
+    $sv = New-Object Windows.Controls.ScrollViewer
+    $sv.MaxHeight = 360; $sv.VerticalScrollBarVisibility = 'Auto'; $sv.Content = $list
+    [void]$sp.Children.Add($sv)
+    $new = $null
+    if ($AllowNew) {
+        $g = New-Object Windows.Controls.Grid; $g.Margin = '0,10,0,0'
+        $new = New-Object Windows.Controls.TextBox; $new.Padding = '6,4'
+        $hint = New-Object Windows.Controls.TextBlock
+        $hint.Text = '＋ ou une nouvelle carte (ajoutée au tableau affiché)'; $hint.Margin = '8,0,0,0'; $hint.VerticalAlignment = 'Center'
+        $hint.Foreground = '#9A98B0'; $hint.IsHitTestVisible = $false
+        $new.Tag = $hint
+        $new.Add_TextChanged({ param($s, $e) $s.Tag.Visibility = if ($s.Text) { 'Collapsed' } else { 'Visible' } })
+        [void]$g.Children.Add($new); [void]$g.Children.Add($hint)
+        [void]$sp.Children.Add($g)
+    }
+    $btns = New-Object Windows.Controls.StackPanel; $btns.Orientation = 'Horizontal'; $btns.HorizontalAlignment = 'Right'; $btns.Margin = '0,14,0,0'
+    $ok = New-Object Windows.Controls.Button; $ok.Content = $okLabel; $ok.Padding = '14,5'; $ok.IsDefault = $true; $ok.Margin = '0,0,8,0'
+    $ok.Background = '#6C5CE7'; $ok.Foreground = 'White'; $ok.BorderThickness = '0'
+    $ko = New-Object Windows.Controls.Button; $ko.Content = 'Annuler'; $ko.Padding = '14,5'; $ko.IsCancel = $true
+    $ok.Add_Click({ param($s, $e) [Windows.Window]::GetWindow($s).DialogResult = $true })
+    [void]$btns.Children.Add($ok); [void]$btns.Children.Add($ko)
+    [void]$sp.Children.Add($btns)
+    $w.Content = $sp
+    if (-not $w.ShowDialog()) { return $null }
+    $ids = @($boxes | Where-Object { $_.IsChecked } | ForEach-Object { [string]$_.Tag })
+    if ($new -and $new.Text.Trim()) {
+        $NB.LastAddedId = ''
+        Add-Todo $new.Text
+        if ($NB.LastAddedId) { $ids += $NB.LastAddedId }
+    }
+    return , $ids
+}
+
+# tri pour l'affichage : par tableau (dans l'ordre des tableaux), puis par priorite
+function Sort-CardsByBoard($cards) {
+    $order = @($NB.Boards | ForEach-Object { $_.id })
+    return @($cards | Sort-Object -Property @{ e = { [array]::IndexOf($order, $_.board) } }, @{ e = { [int]$_.prio } })
+}
+
+# Choisir les cartes du focus. -Start : lance le focus juste apres
+function Choose-FocusCards([switch]$Start) {
+    $open = Sort-CardsByBoard (Get-OpenTodos)
+    $intro = if ($O.State -eq 'Focus') { "Sur quelles cartes tu travailles pendant ce focus ? (plusieurs possibles)" }
+             else { "Sur quelles cartes tu vas travailler ? (plusieurs possibles ; elles restent liées d'un focus à l'autre tant qu'elles ne sont pas finies)" }
+    $ok = if ($Start) { '🚀 Lancer le focus' } else { '🎯 Valider' }
+    $ids = Show-CardPicker '🎯 Cartes du focus' $intro $open @($NB.FocusCards) $ok -AllowNew
+    if ($null -eq $ids) {
+        if ($O.State -eq 'AwaitFocus') { Ask-Focus }
+        return
+    }
+    Set-FocusCards $ids
+    if ($Start) { Start-Focus }
+    elseif ($ids.Count) { Show-Bubble "🎯 $($ids.Count) carte(s) liée(s) au focus." -Force -Seconds 3 }
+    else { Show-Bubble "Plus aucune carte liée au focus." -Force -Seconds 3 }
+}
+
+# Fin de focus avec plusieurs cartes : lesquelles sont finies ?
+function Choose-DoneFocusCards {
+    $cards = Sort-CardsByBoard (Get-FocusCards -Open)
+    $ids = Show-CardPicker '✅ Cartes terminées' "Coche les cartes que tu as finies. Les autres restent liées au prochain focus." $cards @() '✅ Valider'
+    if ($null -eq $ids) { Ask-Break; return }
+    foreach ($id in $ids) { Set-TodoDone $id $true -Quiet }
+    Clear-FocusCardsDone
+    Save-Todos
+    Complete-FocusMessage $ids.Count
 }
 
 # ---------------------------------------------------------------------------
@@ -284,7 +469,7 @@ function Restore-Kanban([string]$path) {
 function Save-Todos {
     Backup-Kanban
     try {
-        $data = [ordered]@{ current = $NB.BoardId; boards = @($NB.Boards); cards = @($NB.Todos) }
+        $data = [ordered]@{ current = $NB.BoardId; boards = @($NB.Boards); cards = @($NB.Todos); focus = @($NB.FocusCards) }
         Write-FileSafe $KanbanFile (ConvertTo-Json -InputObject $data -Depth 6)
         $lines = @("# Tableaux Orbit", "", "_Mis à jour le $((Get-Date).ToString('dd/MM/yyyy HH:mm'))_")
         foreach ($b in $NB.Boards) {
@@ -295,6 +480,8 @@ function Save-Todos {
                     $extra = ''
                     if ($t.due) { $extra += " 📅 $(([datetime]$t.due).ToString('dd/MM'))" }
                     if ($t.remindAt -and -not $t.done) { $extra += " ⏰ $(([datetime]$t.remindAt).ToString('dd/MM HH:mm'))" }
+                    if ($t.pomos) { $extra += " 🍅 $($t.pomos) focus ($(Format-FocusTime $t.focusMin))" }
+                    if ($NB.FocusCards.Contains($t.id)) { $extra += ' 🎯' }
                     $lines += "- [$(if ($t.done) { 'x' } else { ' ' })] (P$($t.prio)) $($t.text)$extra"
                     if ($t.desc) { foreach ($d in ($t.desc -split "`r?`n")) { $lines += "    > $d" } }
                 }
@@ -365,7 +552,11 @@ function Add-Todo([string]$text, $prio = $DefaultPrio, [string]$colId = '') {
         board   = $board.id
         col     = $colId
         order   = (Get-ColumnCards $colId).Count
+        pomos   = 0
+        focusMin = 0
+        lastFocus = ''
     })
+    $NB.LastAddedId = $NB.Todos[$NB.Todos.Count - 1].id
     Save-Todos
     Render-Todos -Cols $colId
     $msg = Pick @("Noté ! ✍️", "C'est dans la liste 📝", "Hop, enregistré 💾", "Je m'en souviendrai pour toi 🧠")
@@ -1000,6 +1191,28 @@ function New-KanbanCard($t) {
         $dp.TextWrapping = 'Wrap'; $dp.MaxHeight = 32; $dp.TextTrimming = 'CharacterEllipsis'
         [void]$content.Children.Add($dp)
     }
+    $inFocus = $NB.FocusCards.Contains($t.id) -and -not $t.done
+    if ($t.pomos -or $inFocus) {
+        $fm = New-Object Windows.Controls.WrapPanel
+        $fm.Margin = '0,3,0,0'
+        if ($inFocus) {
+            $b = New-Object Windows.Controls.Border
+            $b.Background = '#FFE8D6'; $b.CornerRadius = '6'; $b.Padding = '5,0'; $b.Margin = '0,0,8,0'
+            $bt = New-Object Windows.Controls.TextBlock
+            $bt.Text = if ($O.State -eq 'Focus') { '🎯 en focus' } else { '🎯 prochain focus' }
+            $bt.FontSize = 11; $bt.FontWeight = 'SemiBold'; $bt.Foreground = '#C2410C'
+            $b.Child = $bt
+            [void]$fm.Children.Add($b)
+        }
+        if ($t.pomos) {
+            $b = New-Object Windows.Controls.TextBlock
+            $b.Text = "🍅 $($t.pomos) · $(Format-FocusTime $t.focusMin)"
+            $b.FontSize = 11; $b.Foreground = '#B4532A'
+            $b.ToolTip = "$($t.pomos) session(s) de focus sur cette carte$(if ($t.lastFocus) { ", la dernière le $(([datetime]$t.lastFocus).ToString('dd/MM à HH:mm'))" })"
+            [void]$fm.Children.Add($b)
+        }
+        [void]$content.Children.Add($fm)
+    }
     if (($t.due -or $t.remindAt) -and -not $t.done) {
         $meta = New-Object Windows.Controls.WrapPanel
         $meta.Margin = '0,3,0,0'
@@ -1025,9 +1238,23 @@ function New-KanbanCard($t) {
     $del.Background = 'Transparent'; $del.BorderThickness = '0'; $del.Foreground = '#B0AEC4'
     $del.Cursor = 'Hand'; $del.ToolTip = 'Supprimer la carte'
     $del.Add_Click({ param($s, $e) Invoke-Safe { Remove-Todo $s.Tag } })
-    [Windows.Controls.Grid]::SetColumn($del, 2)
-    [void]$g.Children.Add($del)
+    $side = New-Object Windows.Controls.StackPanel
+    [void]$side.Children.Add($del)
+    if (-not $t.done) {
+        # bouton cible : lier / delier la carte au focus
+        $fb = New-Object Windows.Controls.Button
+        $fb.Content = '🎯'; $fb.Tag = $t.id; $fb.Width = 20; $fb.Height = 19; $fb.Margin = '0,2,0,0'
+        $fb.BorderThickness = '0'; $fb.Cursor = 'Hand'; $fb.FontSize = 11
+        $fb.Background = if ($inFocus) { '#FFE8D6' } else { 'Transparent' }
+        $fb.Opacity = if ($inFocus) { 1 } else { 0.35 }
+        $fb.ToolTip = if ($inFocus) { 'Retirer cette carte du focus' } else { 'Lier cette carte à mon focus' }
+        $fb.Add_Click({ param($s, $e) Invoke-Safe { Toggle-CardFocus $s.Tag } })
+        [void]$side.Children.Add($fb)
+    }
+    [Windows.Controls.Grid]::SetColumn($side, 2)
+    [void]$g.Children.Add($side)
     $card.Child = $g
+    if ($inFocus) { $card.BorderBrush = '#FF9F43'; $card.BorderThickness = '1.8' }
 
     # clic = modifier, glisser = deplacer, clic droit = menu
     $card.Add_PreviewMouseLeftButtonDown({ param($s, $e) $NB.DragId = $s.Tag; $NB.DragStart = $e.GetPosition($panel) })
@@ -1062,6 +1289,10 @@ function Show-CardMenu($card) {
     $board = Get-Board $t.board
     $m = New-Object Windows.Controls.ContextMenu
     [void]$m.Items.Add((New-TaggedItem '✏️  Modifier' $t.id { param($s, $e) Invoke-Safe { Start-EditTodo $s.Tag } }))
+    if (-not $t.done) {
+        $fl = if ($NB.FocusCards.Contains($t.id)) { '🎯  Retirer du focus' } else { '🎯  Lier à mon focus' }
+        [void]$m.Items.Add((New-TaggedItem $fl $t.id { param($s, $e) Invoke-Safe { Toggle-CardFocus $s.Tag } }))
+    }
     $mv = New-Object Windows.Controls.MenuItem; $mv.Header = '➡️  Déplacer vers'
     foreach ($c in $board.columns) {
         if ($c.id -eq $t.col) { continue }

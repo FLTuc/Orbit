@@ -1048,7 +1048,6 @@ $O = @{
     SessionMin   = 0
     Rhythm       = '50/10'
     TaskReminders = $true
-    FocusTaskId  = ''
     NextJoke     = [datetime]::MaxValue
     JokeSeed     = (Get-Random)
     JokePos      = 0
@@ -1377,6 +1376,7 @@ $BtnBreak      = @{ Label = "☕ Je prends ma pause"; Action = { Start-Break }; 
 $BtnStop       = @{ Label = "⏹ On arrête là"; Action = { Stop-Cycle } }
 $BtnTodo       = @{ Label = "🗂️ Mes tableaux"; Action = { Open-Notebook 'Todo' } }
 $BtnLater      = @{ Label = "Plus tard"; Action = { Show-Bubble "Ok ! Clique sur moi quand tu veux te lancer 😉" -Force } }
+$BtnPickCards  = @{ Label = "🎯 Choisir mes cartes"; Action = { Choose-FocusCards -Start } }
 
 function Start-Focus {
     $O.State = 'Focus'
@@ -1389,25 +1389,35 @@ function Start-Focus {
     $O.NextReminder = [datetime]::MaxValue
     Set-Mood 'Focus'
     $msg = (Pick $Lines.FocusStart) -f (Format-Min $Config.FocusMinutes)
-    $O.FocusTaskId = ''
     $secs = 6
-    if ($O.TaskReminders) {
-        # rappel des taches au debut du focus
-        $open = Get-OpenTodos
-        if ($open.Count) {
-            $O.FocusTaskId = $open[0].id
-            $msg += "`n`n🎯 Objectif (P$($open[0].prio)) : « $(Short-Text $open[0].text) »"
-            if ($open[0].desc) { $msg += "`n   📄 $(Short-Text $open[0].desc 90)" }
-            if ($open.Count -gt 1) {
-                $msg += "`n📝 Ensuite :"
-                foreach ($t in ($open | Select-Object -Skip 1 -First 2)) { $msg += "`n   • P$($t.prio) $(Short-Text $t.text 45)" }
-                if ($open.Count -gt 3) { $msg += "`n   … et $($open.Count - 3) autre(s)" }
-            }
-            $secs = 12
-        } else {
-            $msg += "`n`nTes tableaux sont vides : clic droit > 🗂️ Mes tableaux pour noter tes tâches."
-            $secs = 8
+    # cartes liees au focus (plusieurs possibles) ; a defaut, la plus prioritaire
+    Clear-FocusCardsDone
+    $cards = @(Get-FocusCards -Open)
+    $auto = $false
+    if (-not $cards.Count -and $O.TaskReminders) {
+        $next = Get-NextTodo
+        if ($next) { [void]$NB.FocusCards.Add($next.id); $cards = @($next); $auto = $true }
+    }
+    foreach ($t in $cards) { Move-CardToDoing $t }
+    Save-Todos
+    Render-Todos
+    if ($cards.Count -eq 1) {
+        $t = $cards[0]
+        $msg += "`n`n🎯 Objectif (P$($t.prio)) : « $(Short-Text $t.text) »"
+        if ($t.pomos) { $msg += "  🍅 $($t.pomos + 1)e focus dessus" }
+        if ($t.desc) { $msg += "`n   📄 $(Short-Text $t.desc 90)" }
+        if ($auto) { $msg += "`n(Autre chose ? Clique sur 🎯 sur tes cartes, ou clic droit sur moi > 🎯 Cartes du focus.)" }
+        $secs = 12
+    } elseif ($cards.Count -gt 1) {
+        $msg += "`n`n🎯 Au programme de ce focus :"
+        foreach ($t in ($cards | Select-Object -First 4)) {
+            $msg += "`n   • P$($t.prio) $(Short-Text $t.text 45)$(if ($t.pomos) { "  🍅 $($t.pomos)" })"
         }
+        if ($cards.Count -gt 4) { $msg += "`n   … et $($cards.Count - 4) autre(s)" }
+        $secs = 12
+    } elseif ($O.TaskReminders) {
+        $msg += "`n`nTes tableaux sont vides : clic droit > 🗂️ Mes tableaux pour noter tes tâches."
+        $secs = 8
     }
     Show-Bubble $msg -Force -Seconds $secs
     Update-Pill
@@ -1647,50 +1657,69 @@ function Toggle-Pause {
     Update-Pill
 }
 
-# La tache "objectif" de la session, si elle est toujours a faire
-function Get-FocusTask {
-    if (-not $O.TaskReminders -or -not $O.FocusTaskId) { return $null }
-    $t = Find-Todo $O.FocusTaskId
-    if ($t -and -not $t.done) { return $t }
-    return $null
-}
-
-$BtnTaskDone = @{ Label = "✅ C'est fait !"; Action = { Complete-FocusTask } }
+# Cartes liees au focus : voir notebook.ps1 (Get-FocusCards, Choose-FocusCards...)
+$BtnTaskDone  = @{ Label = "✅ C'est fait !"; Action = { Complete-FocusTask } }
+$BtnCardsDone = @{ Label = "✅ Cocher les cartes finies"; Action = { Choose-DoneFocusCards } }
 
 function Get-AwaitBreakButtons {
-    if (Get-FocusTask) { return @($BtnBreak, $BtnTaskDone, $BtnStop) }
+    $n = @(Get-FocusCards -Open).Count
+    if ($n -eq 1) { return @($BtnBreak, $BtnTaskDone, $BtnStop) }
+    if ($n -gt 1) { return @($BtnBreak, $BtnCardsDone, $BtnStop) }
     return @($BtnBreak, $BtnStop)
 }
 
 function Ask-Break([string]$Text, [switch]$NoTaskInfo) {
     if (-not $Text) { $Text = (Pick $Lines.FocusEnd) -f (Format-Min $O.SessionMin) }
-    # rappel des taches a la fin du focus
-    $task = Get-FocusTask
-    if ($task) { $Text += "`n`n🎯 Et « $(Short-Text $task.text) », c'est bouclé ?" }
-    elseif ($O.TaskReminders -and -not $NoTaskInfo) {
+    # bilan des cartes du focus
+    $cards = if ($NoTaskInfo) { @() } else { @(Get-FocusCards -Open) }
+    if ($cards.Count -eq 1) {
+        $t = $cards[0]
+        $Text += "`n`n🎯 Et « $(Short-Text $t.text) », c'est bouclé ?"
+        if ($t.pomos) { $Text += "`n   (🍅 $($t.pomos) focus dessus, $(Format-FocusTime $t.focusMin))" }
+    } elseif ($cards.Count -gt 1) {
+        $Text += "`n`n🎯 Tu as avancé sur :"
+        foreach ($t in ($cards | Select-Object -First 4)) { $Text += "`n   • $(Short-Text $t.text 45)  🍅 $($t.pomos)" }
+        if ($cards.Count -gt 4) { $Text += "`n   … et $($cards.Count - 4) autre(s)" }
+        $Text += "`nDes cartes finies ?"
+    } elseif ($O.TaskReminders -and -not $NoTaskInfo) {
         $open = Get-OpenTodos
         if ($open.Count) { $Text += "`n`n📝 Il te reste $($open.Count) tâche(s), dont « $(Short-Text $open[0].text 45) »." }
     }
-    Show-Bubble $Text -Buttons (Get-AwaitBreakButtons) -Force
+    $btns = if ($NoTaskInfo) { @($BtnBreak, $BtnStop) } else { Get-AwaitBreakButtons }
+    Show-Bubble $Text -Buttons $btns -Force
 }
 
+# Une seule carte liee : « C'est fait ! »
 function Complete-FocusTask {
-    $task = Get-FocusTask
-    if ($task) { Set-TodoDone $task.id $true -Quiet }
-    $O.FocusTaskId = ''
+    $cards = @(Get-FocusCards -Open)
+    foreach ($t in $cards) { Set-TodoDone $t.id $true -Quiet }
+    Clear-FocusCardsDone
+    Save-Todos
+    Complete-FocusMessage $cards.Count
+}
+
+function Complete-FocusMessage([int]$n) {
     $left = (Get-OpenTodos).Count
-    $msg = "Bravo, c'est coché ✅"
-    if ($left -eq 0) { $msg += " Et toutes tes cartes sont terminées, quelle journée ! 🎉" } else { $msg += " Plus que $left tâche(s)." }
+    $msg = if ($n -gt 1) { "Bravo, $n cartes cochées ✅" } elseif ($n -eq 1) { "Bravo, c'est coché ✅" } else { "Pas de souci, elles restent liées au prochain focus 🎯" }
+    if ($n -gt 0) {
+        if ($left -eq 0) { $msg += " Et toutes tes cartes sont terminées, quelle journée ! 🎉" } else { $msg += " Plus que $left tâche(s)." }
+    }
+    $rest = @(Get-FocusCards -Open).Count
+    if ($n -gt 0 -and $rest) { $msg += "`n🎯 $rest carte(s) restent liées au prochain focus." }
     Ask-Break ($msg + "`nOn fait la pause ?") -NoTaskInfo
 }
 
 function Ask-Focus {
     $Text = (Pick $Lines.BreakEnd) -f (Format-Min $Config.FocusMinutes)
-    if ($O.TaskReminders) {
+    $cards = @(Get-FocusCards -Open)
+    if ($cards.Count) {
+        $Text += "`n`n🎯 On continue sur : " + (($cards | Select-Object -First 3 | ForEach-Object { "« $(Short-Text $_.text 35) »" }) -join ', ')
+        if ($cards.Count -gt 3) { $Text += " et $($cards.Count - 3) autre(s)" }
+    } elseif ($O.TaskReminders) {
         $next = Get-NextTodo
         if ($next) { $Text += "`n`n🎯 Au programme (P$($next.prio)) : « $(Short-Text $next.text) »" }
     }
-    Show-Bubble $Text -Buttons @($BtnAgain, $BtnStop) -Force
+    Show-Bubble $Text -Buttons @($BtnAgain, $BtnPickCards, $BtnStop) -Force
 }
 
 function On-TimerEnded {
@@ -1702,6 +1731,7 @@ function On-TimerEnded {
         $O.FocusToday++
         $O.FocusMinToday += $O.SessionMin
         Save-Stats
+        [void](Add-FocusToCards ([int][math]::Round($O.SessionMin)))
         $O.State = 'AwaitBreak'
         Ask-Break
         Show-Tray "Session de focus terminée 🎉" "Clique sur Orbit pour lancer ta pause."
@@ -1740,7 +1770,7 @@ function Show-Status {
             $hello = Pick $Lines.Hello
             $due = Get-DeadlineSummary
             if ($due) { $hello += "`n`n$due" }
-            Show-Bubble $hello -Buttons (@(Get-StartButtons) + @($BtnTodo, $BtnLater)) -Force
+            Show-Bubble $hello -Buttons (@(Get-StartButtons) + @($BtnPickCards, $BtnTodo, $BtnLater)) -Force
         }
         'AwaitBreak' { Ask-Break }
         'AwaitFocus' { Ask-Focus }
@@ -2179,6 +2209,7 @@ $miFocus  = New-MenuItem "🚀  Lancer un focus" { Start-Focus }
 $miBreak  = New-MenuItem "☕  Prendre ma pause" { Start-Break }
 $miPause  = New-MenuItem "⏸  Mettre le chrono en pause" { Toggle-Pause }
 $miStop   = New-MenuItem "⏹  Couper le chrono" { Stop-Cycle }
+$miCards  = New-MenuItem "🎯  Cartes du focus…" { Choose-FocusCards }
 $miQuiet  = New-MenuItem "🤫  Mode silencieux (pas de blagues)" { $O.Quiet = -not $O.Quiet; Save-Settings; if ($O.Quiet) { Hide-Bubble } } -Checkable
 $miWander = New-MenuItem "🚶  Balades sur les écrans" { $O.Wander = -not $O.Wander; $O.Walking = $false; Save-Settings } -Checkable
 $miHome   = New-MenuItem "🏠  Revenir en bas à droite" { $O.Pinned = $false; $O.Walking = $false }
@@ -2213,7 +2244,7 @@ foreach ($k in $Skins.Keys) {
 [void]$miSkin.Items.Add((New-MenuItem "🖼️  Choisir une autre image…" { if (Choose-CustomImage) { Set-Skin 'Custom'; Save-Settings } }))
 
 foreach ($i in @($miTodo, $miClip, (New-Object Windows.Controls.Separator),
-                 $miFocus, $miBreak, $miPause, $miStop, $miRhythm, $miTasks, (New-Object Windows.Controls.Separator),
+                 $miFocus, $miCards, $miBreak, $miPause, $miStop, $miRhythm, $miTasks, (New-Object Windows.Controls.Separator),
                  $miSkin, $miQuiet, $miWander, $miMini, $miHome, $miHide, $miAuto, (New-Object Windows.Controls.Separator),
                  $miStats, $miSettings, $miQuit)) { [void]$menu.Items.Add($i) }
 
