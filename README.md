@@ -28,7 +28,7 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   - **à la fin de la pause**, il rappelle la prochaine tâche au programme.
 - **Pause automatique si tu t'absentes** : si tu ne touches ni la souris ni le clavier pendant 5 min en plein focus, Orbit met le chrono en pause au moment où tu es parti (le temps d'absence ne compte pas). À ton retour, il te dit combien de temps tu as été absent et te propose de reprendre.
 - **Des blagues pendant la pause** : environ une toutes les 2 minutes, piochées parmi **plus de 1000 blagues** (combles, devinettes, « Monsieur et Madame… », bureau, informatique, espace…). Orbit pose la question, puis donne la chute quelques secondes plus tard. Il retient où il en est, même après un redémarrage : aucune blague ne revient tant que toutes ne sont pas passées.
-- **Des bulles de BD** : tout ce que dit Orbit apparaît dans une bulle de bande dessinée avec un « pop ».
+- **Des bulles de BD** : tout ce que dit Orbit apparaît dans une bulle de bande dessinée avec un « pop », accompagné de **petits bips de droïde** (générés par Orbit lui-même, tous différents ; ils montent à la fin quand il te pose une question). Désactivables dans les réglages.
   - Bulle de **parole** (avec une pointe) quand il te parle : questions, chrono, indications.
   - Bulle de **pensée** (avec des petits ronds) pour ses réflexions et ses commentaires sur tes applis.
 - **Des petits commentaires** : de la motivation pendant le focus (mi-parcours, 5 dernières minutes…) et des blagues selon l'application sous ta souris (Excel, Outlook, Teams, PowerPoint, VS Code…). Pendant le focus, il te taquine si tu passes sur YouTube, Netflix, Reddit…
@@ -55,7 +55,7 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   - pause automatique en cas d'absence, et au bout de combien de minutes ;
   - rappels de tâches, et fréquence des relances quand Orbit attend ta réponse ;
   - blagues de pause (oui/non et fréquence), phrases de motivation, commentaires sur les applis, mode silencieux ;
-  - balades (oui/non et fréquence), sons, lancement au démarrage de Windows.
+  - balades (oui/non et fréquence), sons, bips de droïde, lancement au démarrage de Windows.
 
 ## Commandes
 

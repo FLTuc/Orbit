@@ -39,6 +39,7 @@ $Config = @{
     JokeEveryMin        = 2      # une blague toutes les ~2 minutes de pause
     AppComments         = $true  # commentaires selon l'appli sous la souris
     Sounds              = $true
+    DroidSounds         = $true  # petits bips de droide a chaque bulle
     IdlePause           = $true  # met le focus en pause si tu t'absentes
     IdleMinutes         = 5
 }
@@ -137,6 +138,50 @@ public static class OrbitNative {
     public static void HideConsole() {
         IntPtr c = GetConsoleWindow();
         if (c != IntPtr.Zero) ShowWindow(c, 0);
+    }
+
+    // Petits bips de droide synthetises a la volee (fichier WAV en memoire).
+    // question = true : la derniere note monte, comme une question.
+    public static byte[] DroidChirp(int seed, double volume, bool question) {
+        Random rnd = new Random(seed);
+        const int rate = 22050;
+        System.Collections.Generic.List<short> data = new System.Collections.Generic.List<short>();
+        int notes = rnd.Next(3, 7);
+        double phase = 0;
+        for (int n = 0; n < notes; n++) {
+            bool last = n == notes - 1;
+            int len = rate * rnd.Next(45, 125) / 1000;
+            double f0 = 700 + rnd.NextDouble() * 2400;
+            double f1 = 700 + rnd.NextDouble() * 2400;
+            if (last && question) { f0 = 900 + rnd.NextDouble() * 600; f1 = f0 * (1.8 + rnd.NextDouble() * 0.6); len = rate * 150 / 1000; }
+            bool warble = rnd.NextDouble() < 0.35;
+            double wobbleHz = 22 + rnd.NextDouble() * 20;
+            for (int i = 0; i < len; i++) {
+                double p = (double)i / len;
+                double t = (double)i / rate;
+                double f = f0 * Math.Pow(f1 / f0, p);          // glissando
+                if (warble) f *= 1 + 0.14 * Math.Sin(2 * Math.PI * wobbleHz * t);
+                phase += 2 * Math.PI * f / rate;
+                double v = Math.Sin(phase) * 0.8 + Math.Sign(Math.Sin(phase)) * 0.12 + Math.Sin(2 * phase) * 0.1;
+                double env = Math.Min(1, Math.Min(i / (rate * 0.004), (len - i) / (rate * 0.012)));
+                data.Add((short)(v * env * volume * 32767));
+            }
+            // petit silence entre certaines notes
+            if (!last && rnd.NextDouble() < 0.45) {
+                int gap = rate * rnd.Next(12, 40) / 1000;
+                for (int i = 0; i < gap; i++) data.Add(0);
+            }
+        }
+        System.IO.MemoryStream ms = new System.IO.MemoryStream();
+        System.IO.BinaryWriter w = new System.IO.BinaryWriter(ms);
+        int bytes = data.Count * 2;
+        w.Write(Encoding.ASCII.GetBytes("RIFF")); w.Write(36 + bytes); w.Write(Encoding.ASCII.GetBytes("WAVE"));
+        w.Write(Encoding.ASCII.GetBytes("fmt ")); w.Write(16); w.Write((short)1); w.Write((short)1);
+        w.Write(rate); w.Write(rate * 2); w.Write((short)2); w.Write((short)16);
+        w.Write(Encoding.ASCII.GetBytes("data")); w.Write(bytes);
+        foreach (short sm in data) w.Write(sm);
+        w.Flush();
+        return ms.ToArray();
     }
 }
 '@
@@ -550,6 +595,7 @@ function Get-SettingsSnapshot {
         jokeEveryMin       = $Config.JokeEveryMin
         appComments        = $Config.AppComments
         sounds             = $Config.Sounds
+        droidSounds        = $Config.DroidSounds
         idlePause          = $Config.IdlePause
         idleMinutes        = $Config.IdleMinutes
     }
@@ -572,6 +618,7 @@ function Apply-SettingsData($d) {
     if (Has 'jokeEveryMin') { $Config.JokeEveryMin = [double]$d.jokeEveryMin }
     if (Has 'appComments') { $Config.AppComments = [bool]$d.appComments }
     if (Has 'sounds') { $Config.Sounds = [bool]$d.sounds }
+    if (Has 'droidSounds') { $Config.DroidSounds = [bool]$d.droidSounds }
     if (Has 'idlePause') { $Config.IdlePause = [bool]$d.idlePause }
     if (Has 'idleMinutes') { $Config.IdleMinutes = [int]$d.idleMinutes }
     if ($Config.WanderMaxMin -le $Config.WanderMinMin) { $Config.WanderMaxMin = $Config.WanderMinMin + 1 }
@@ -654,6 +701,7 @@ function Show-Bubble {
     $ui.Bubble.CornerRadius = if ($Thought) { '26' } else { '20' }
     $ui.BubbleWrap.Visibility = 'Visible'
     if (-not $wasVisible) {
+        Play-Chirp -Question:($Buttons.Count -gt 0 -or $Text.TrimEnd().EndsWith('?'))
         # petit effet "pop" de dessin anime
         $anim = New-Object Windows.Media.Animation.DoubleAnimation(0.2, 1.0, [timespan]::FromMilliseconds(320))
         $ease = New-Object Windows.Media.Animation.BackEase
@@ -839,6 +887,33 @@ function Stop-Cycle {
     Set-Mood 'Idle'
     Show-Bubble ((Pick $Lines.Stop) -f $O.FocusToday) -Force -Seconds 8
     Update-Pill
+}
+
+# ---------------------------------------------------------------------------
+#  Bips de droide : une petite banque generee au demarrage, jouee a chaque bulle
+# ---------------------------------------------------------------------------
+$script:Chirps = @{ Talk = @(); Ask = @() }
+$script:ChirpPlayer = $null
+$script:LastChirp = [datetime]::MinValue
+if ($Native) {
+    try {
+        $script:Chirps.Talk = @(1..10 | ForEach-Object { , [OrbitNative]::DroidChirp((Get-Random), 0.32, $false) })
+        $script:Chirps.Ask = @(1..6 | ForEach-Object { , [OrbitNative]::DroidChirp((Get-Random), 0.32, $true) })
+    } catch { Write-Log "Bips : $($_.Exception.Message)" }
+}
+
+function Play-Chirp([switch]$Question) {
+    if (-not $Config.DroidSounds) { return }
+    $bank = if ($Question) { $script:Chirps.Ask } else { $script:Chirps.Talk }
+    if (-not $bank.Count) { return }
+    # pas plus d'un bip toutes les 1,5 seconde
+    if (((Get-Date) - $script:LastChirp).TotalSeconds -lt 1.5) { return }
+    $script:LastChirp = Get-Date
+    try {
+        $wav = $bank[(Get-Random -Maximum $bank.Count)]
+        $script:ChirpPlayer = New-Object System.Media.SoundPlayer (New-Object IO.MemoryStream (, $wav))
+        $script:ChirpPlayer.Play()   # asynchrone : n'interrompt pas l'animation
+    } catch { Write-Log "Bip : $($_.Exception.Message)" }
 }
 
 function Play-Sound {
@@ -1144,6 +1219,7 @@ function On-Frame {
     if ($O.Punch -and $now -ge $O.Punch.At) {
         if ($ui.BubbleWrap.Visibility -eq 'Visible' -and $ui.BubbleText.Text -eq $O.Punch.Shown) {
             $ui.BubbleText.Text = $O.Punch.Full
+            Play-Chirp
             $O.BubbleUntil = $now.AddSeconds(9)
         }
         $O.Punch = $null

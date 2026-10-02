@@ -113,6 +113,7 @@
 
           <TextBlock Style="{StaticResource Section}" Text="🔊 Sons et démarrage"/>
           <CheckBox x:Name="SSounds" Content="Petit son à la fin des sessions et pour les rappels"/>
+          <CheckBox x:Name="SDroid" Content="Bips de droïde à chaque bulle 🤖"/>
           <CheckBox x:Name="SAuto" Content="Lancer Orbit au démarrage de Windows"/>
           <TextBlock Text=" " Margin="0,6,0,0"/>
         </StackPanel>
@@ -126,7 +127,7 @@ $settingsWin = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeR
 $sw = @{}
 foreach ($n in 'SHeader','SClose','SDefaults','SCancel','SSave','SError','SR50','SR25','SRPerso','SPersoFocus','SPersoBreak',
                'SIdle','SIdleMin','STasks','SNudge','SJokes','SJokeMin','SMotiv','SApps','SQuiet','SWander','SWanderMin',
-               'SWanderMax','SSounds','SAuto') {
+               'SWanderMax','SSounds','SDroid','SAuto') {
     $sw[$n] = $settingsWin.FindName($n)
 }
 
@@ -136,7 +137,7 @@ $DefaultSettings.rhythm = '50/10'; $DefaultSettings.customFocus = 40; $DefaultSe
 $DefaultSettings.quiet = $false; $DefaultSettings.wander = $true; $DefaultSettings.wanderMin = 4; $DefaultSettings.wanderMax = 9
 $DefaultSettings.taskReminders = $true; $DefaultSettings.reminderEveryMin = 4; $DefaultSettings.motivationEveryMin = 9
 $DefaultSettings.jokes = $true; $DefaultSettings.jokeEveryMin = 2; $DefaultSettings.appComments = $true
-$DefaultSettings.sounds = $true; $DefaultSettings.idlePause = $true; $DefaultSettings.idleMinutes = 5
+$DefaultSettings.sounds = $true; $DefaultSettings.droidSounds = $true; $DefaultSettings.idlePause = $true; $DefaultSettings.idleMinutes = 5
 
 function Fill-SettingsForm($d) {
     $sw.SR50.IsChecked = $d.rhythm -eq '50/10'
@@ -157,6 +158,7 @@ function Fill-SettingsForm($d) {
     $sw.SWanderMin.Text = $d.wanderMin
     $sw.SWanderMax.Text = $d.wanderMax
     $sw.SSounds.IsChecked = $d.sounds
+    $sw.SDroid.IsChecked = $d.droidSounds
     $sw.SError.Visibility = 'Collapsed'
     foreach ($tb in 'SPersoFocus','SPersoBreak','SIdleMin','SNudge','SJokeMin','SMotiv','SWanderMin','SWanderMax') {
         $sw[$tb].ClearValue([Windows.Controls.Control]::BorderBrushProperty)
@@ -203,7 +205,7 @@ function Save-SettingsForm {
         jokes = [bool]$sw.SJokes.IsChecked; jokeEveryMin = $joke; motivationEveryMin = [int]$motiv
         appComments = [bool]$sw.SApps.IsChecked; quiet = [bool]$sw.SQuiet.IsChecked
         wander = [bool]$sw.SWander.IsChecked; wanderMin = [int]$wmin; wanderMax = [int]$wmax
-        sounds = [bool]$sw.SSounds.IsChecked
+        sounds = [bool]$sw.SSounds.IsChecked; droidSounds = [bool]$sw.SDroid.IsChecked
     })
     Apply-Rhythm
     if (-not $O.Wander) { $O.Walking = $false }
