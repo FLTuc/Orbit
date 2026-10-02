@@ -9,10 +9,10 @@ $env:APPDATA = $appData
 $env:ORBIT_SELFTEST = '1'
 
 Section 'Chargement'
-$sw = [Diagnostics.Stopwatch]::StartNew()
+$loadClock = [Diagnostics.Stopwatch]::StartNew()
 . (Join-Path $Root 'orbit.ps1')
 $ErrorActionPreference = 'Stop'
-Write-Host "  (charge en $($sw.ElapsedMilliseconds) ms)"
+Write-Host "  (charge en $($loadClock.ElapsedMilliseconds) ms)"
 Check 'la fenetre principale est creee' ($window -is [Windows.Window])
 Check 'les fonctions natives sont disponibles' $Native
 Check 'le code natif est garde en cache' (@(Get-ChildItem (Join-Path $appData 'Orbit') -Filter 'native-*.dll').Count -eq 1)
