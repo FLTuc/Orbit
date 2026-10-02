@@ -42,7 +42,7 @@ $Config = @{
     DroidSounds         = $true  # petits bips de droide a chaque bulle
     DroidVolume         = 40     # volume des sons, de 0 a 100
     BubbleSound         = 'Droide'   # Droide | Carillon | Marimba | Pop | Bip | Fichier | Aleatoire
-    BubbleSoundFiles    = @()        # mes sons (.wav), joues au hasard
+    BubbleSoundFiles    = @()        # mes sons (.wav, .mp3, .m4a, .wma), joues au hasard
     EndSound            = 'Carillon' # Carillon | Windows | Fichier  (fin de session et rappels)
     EndSoundFile        = ''
     CustomImage         = ''         # apparence "Mon image"
@@ -1485,12 +1485,23 @@ function Pick-NotLast([object[]]$items) {
 }
 Build-Chirps
 
-# joue un fichier WAV choisi par l'utilisateur (renvoie $false s'il est introuvable ou illisible)
-function Play-WavFile([string]$path) {
+# joue un son choisi par l'utilisateur (renvoie $false s'il est introuvable ou illisible)
+#  - .wav : lecteur simple de Windows
+#  - .mp3, .m4a, .wma : lecteur multimedia integre a Windows (meme volume que les sons d'Orbit)
+function Play-AudioFile([string]$path) {
     if (-not $path -or -not (Test-Path -LiteralPath $path)) { return $false }
     try {
-        $script:ChirpPlayer = New-Object System.Media.SoundPlayer $path
-        $script:ChirpPlayer.Play()
+        if ([IO.Path]::GetExtension($path).ToLowerInvariant() -eq '.wav') {
+            $script:ChirpPlayer = New-Object System.Media.SoundPlayer $path
+            $script:ChirpPlayer.Play()
+        } else {
+            if ($script:MediaPlayer) { $script:MediaPlayer.Close() }
+            $script:MediaPlayer = New-Object Windows.Media.MediaPlayer
+            $script:MediaPlayer.Add_MediaFailed({ param($s, $e) Write-Log "Son illisible : $($e.ErrorException.Message)" })
+            $script:MediaPlayer.Volume = [math]::Min(1, [math]::Max(0.05, $Config.DroidVolume / 100))
+            $script:MediaPlayer.Open((New-Object Uri ((Resolve-Path -LiteralPath $path).ProviderPath)))
+            $script:MediaPlayer.Play()
+        }
         return $true
     } catch { Write-Log "Son $path : $($_.Exception.Message)"; return $false }
 }
@@ -1524,7 +1535,7 @@ function Play-Chirp([switch]$Question, [switch]$Force) {
         $list = if ($Question) { $bank.Ask } else { $bank.Talk }
         if ($list.Count) { Play-Bytes $list[(Get-Random -Maximum $list.Count)] }
     } else {
-        [void](Play-WavFile $choice)
+        [void](Play-AudioFile $choice)
     }
 }
 
@@ -1532,7 +1543,7 @@ function Play-Chirp([switch]$Question, [switch]$Force) {
 function Play-Sound([switch]$Force) {
     if (-not $Config.Sounds -and -not $Force) { return }
     switch ($Config.EndSound) {
-        'Fichier' { if (Play-WavFile $Config.EndSoundFile) { return } }
+        'Fichier' { if (Play-AudioFile $Config.EndSoundFile) { return } }
         'Carillon' {
             if ($script:ChirpKey -ne "$($Config.BubbleSound)|$($Config.DroidVolume)") { Build-Chirps }
             if ($script:EndWav) { Play-Bytes $script:EndWav; return }

@@ -140,7 +140,7 @@
             </ComboBox>
             <Button x:Name="SBubbleTest" Content="▶" Padding="8,2" Margin="6,0,0,0" Background="#EEEEF5" BorderThickness="0" Cursor="Hand" ToolTip="Écouter"/>
           </StackPanel>
-          <TextBlock Margin="22,6,0,2" Text="Mes sons (.wav) — un est choisi au hasard à chaque bulle :" Foreground="#4A4766" FontSize="12"/>
+          <TextBlock Margin="22,6,0,2" Text="Mes sons (.wav, .mp3…) — un est choisi au hasard à chaque bulle :" Foreground="#4A4766" FontSize="12"/>
           <Grid Margin="22,0,0,0">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <ListBox x:Name="SMySounds" Height="72" SelectionMode="Extended" FontSize="12"/>
@@ -156,7 +156,7 @@
             <ComboBox x:Name="SEndSound" Width="150">
               <ComboBoxItem Content="🔔 Carillon (3 notes)" Tag="Carillon"/>
               <ComboBoxItem Content="🪟 Son de Windows" Tag="Windows"/>
-              <ComboBoxItem Content="📁 Mon fichier WAV" Tag="Fichier"/>
+              <ComboBoxItem Content="📁 Mon fichier son" Tag="Fichier"/>
             </ComboBox>
             <Button x:Name="SEndFile" Content="Choisir…" Padding="8,2" Margin="6,0,0,0" Background="#EEEEF5" BorderThickness="0" Cursor="Hand"/>
             <Button x:Name="SEndTest" Content="▶" Padding="8,2" Margin="6,0,0,0" Background="#EEEEF5" BorderThickness="0" Cursor="Hand" ToolTip="Écouter"/>
@@ -339,8 +339,8 @@ function Update-FileLabels {
 
 function Pick-WavFile([switch]$Multi) {
     $dlg = New-Object Microsoft.Win32.OpenFileDialog
-    $dlg.Title = if ($Multi) { 'Choisis un ou plusieurs sons (.wav)' } else { 'Choisis un son (fichier .wav)' }
-    $dlg.Filter = 'Sons WAV (*.wav)|*.wav'
+    $dlg.Title = if ($Multi) { 'Choisis un ou plusieurs sons' } else { 'Choisis un son' }
+    $dlg.Filter = 'Sons (*.wav;*.mp3;*.m4a;*.wma)|*.wav;*.mp3;*.m4a;*.wma'
     $dlg.Multiselect = [bool]$Multi
     if ($dlg.ShowDialog()) { if ($Multi) { return , $dlg.FileNames } else { return $dlg.FileName } }
     return $null
@@ -391,7 +391,7 @@ $sw.SSoundPlay.Add_Click({
     Invoke-Safe {
         $it = $sw.SMySounds.SelectedItem
         $f = if ($it -and $it.Tag) { [string]$it.Tag } elseif ($SF.BubbleFiles.Count) { $SF.BubbleFiles[0] } else { $null }
-        if ($f -and -not (Play-WavFile $f)) { [Windows.MessageBox]::Show($settingsWin, "Impossible de lire ce fichier. Vérifie que c'est bien un .wav.", 'Orbit') | Out-Null }
+        if ($f -and -not (Play-AudioFile $f)) { [Windows.MessageBox]::Show($settingsWin, "Impossible de lire ce fichier. Vérifie que c'est bien un fichier .wav, .mp3, .m4a ou .wma.", 'Orbit') | Out-Null }
     }
 })
 $sw.SEndFile.Add_Click({ Invoke-Safe { $f = Pick-WavFile; if ($f) { $SF.EndFile = $f; Select-ComboTag $sw.SEndSound 'Fichier'; Update-FileLabels } } })
