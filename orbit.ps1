@@ -476,7 +476,9 @@ $O = @{
     TaskReminders = $true
     FocusTaskId  = ''
     NextJoke     = [datetime]::MaxValue
-    JokeQueue    = New-Object System.Collections.ArrayList
+    JokeSeed     = (Get-Random)
+    JokePos      = 0
+    Punch        = $null
     MyPid        = $PID
 }
 
@@ -492,6 +494,7 @@ try {
         if ($null -ne $s.wander) { $O.Wander = [bool]$s.wander }
         if ($s.rhythm -and $Rhythms.Contains([string]$s.rhythm)) { $O.Rhythm = [string]$s.rhythm }
         if ($null -ne $s.taskReminders) { $O.TaskReminders = [bool]$s.taskReminders }
+        if ($null -ne $s.jokeSeed) { $O.JokeSeed = [int]$s.jokeSeed; $O.JokePos = [int]$s.jokePos }
     }
 } catch { Write-Log "Lecture stats : $($_.Exception.Message)" }
 
@@ -500,7 +503,7 @@ function Save-Stats {
         $today = (Get-Date).ToString('yyyy-MM-dd')
         if ($today -ne $O.Today) { $O.Today = $today; $O.FocusToday = 0; $O.FocusMinToday = 0 }
         @{ date = $O.Today; focus = $O.FocusToday; minutes = $O.FocusMinToday; quiet = $O.Quiet; wander = $O.Wander
-           rhythm = $O.Rhythm; taskReminders = $O.TaskReminders } |
+           rhythm = $O.Rhythm; taskReminders = $O.TaskReminders; jokeSeed = $O.JokeSeed; jokePos = $O.JokePos } |
             ConvertTo-Json | Set-Content -Path $StatsFile -Encoding UTF8
     } catch { Write-Log "Ecriture stats : $($_.Exception.Message)" }
 }
@@ -660,10 +663,10 @@ function Start-Focus {
         $open = Get-OpenTodos
         if ($open.Count) {
             $O.FocusTaskId = $open[0].id
-            $msg += "`n`n🎯 Objectif : « $(Short-Text $open[0].text) »"
+            $msg += "`n`n🎯 Objectif (P$($open[0].prio)) : « $(Short-Text $open[0].text) »"
             if ($open.Count -gt 1) {
                 $msg += "`n📝 Ensuite :"
-                foreach ($t in ($open | Select-Object -Skip 1 -First 2)) { $msg += "`n   • $(Short-Text $t.text 45)" }
+                foreach ($t in ($open | Select-Object -Skip 1 -First 2)) { $msg += "`n   • P$($t.prio) $(Short-Text $t.text 45)" }
                 if ($open.Count -gt 3) { $msg += "`n   … et $($open.Count - 3) autre(s)" }
             }
             $secs = 12
@@ -688,14 +691,61 @@ function Start-Break {
     Update-Pill
 }
 
-# Blagues pendant la pause, sans repetition tant que toute la liste n'est pas passee
-function Get-NextJoke {
-    if ($O.JokeQueue.Count -eq 0) {
-        $O.JokeQueue.AddRange(@($Lines.BreakJokes | Get-Random -Count $Lines.BreakJokes.Count))
+# ---------------------------------------------------------------------------
+#  Blagues de pause : fichiers jokes\*.txt (une blague par ligne,
+#  "question|reponse" pour garder la chute quelques secondes)
+# ---------------------------------------------------------------------------
+function Load-Jokes {
+    $list = New-Object System.Collections.Generic.List[string]
+    $seen = New-Object 'System.Collections.Generic.HashSet[string]'
+    $dir = Join-Path $PSScriptRoot 'jokes'
+    if (Test-Path $dir) {
+        foreach ($f in (Get-ChildItem -Path $dir -Filter '*.txt' | Sort-Object Name)) {
+            try {
+                foreach ($line in [IO.File]::ReadAllLines($f.FullName, [Text.Encoding]::UTF8)) {
+                    $l = $line.Trim()
+                    if (-not $l -or $l.StartsWith('#')) { continue }
+                    if ($seen.Add($l.ToLowerInvariant())) { $list.Add($l) }
+                }
+            } catch { Write-Log "Blagues ($($f.Name)) : $($_.Exception.Message)" }
+        }
     }
-    $j = $O.JokeQueue[0]
-    $O.JokeQueue.RemoveAt(0)
+    if ($list.Count -eq 0) { foreach ($j in $Lines.BreakJokes) { $list.Add($j) } }
+    return , $list
+}
+$Jokes = Load-Jokes
+$script:JokeOrder = $null
+
+# Ordre melange mais memorise d'un lancement a l'autre : pas de repetition
+# tant que toutes les blagues ne sont pas passees
+function Get-NextJoke {
+    if (-not $script:JokeOrder -or $O.JokePos -ge $Jokes.Count) {
+        if ($O.JokePos -ge $Jokes.Count) { $O.JokeSeed = Get-Random; $O.JokePos = 0 }
+        $rng = New-Object System.Random($O.JokeSeed)
+        $order = [int[]](0..($Jokes.Count - 1))
+        for ($i = $order.Length - 1; $i -gt 0; $i--) {
+            $k = $rng.Next($i + 1)
+            $tmp = $order[$i]; $order[$i] = $order[$k]; $order[$k] = $tmp
+        }
+        $script:JokeOrder = $order
+    }
+    $j = $Jokes[$script:JokeOrder[$O.JokePos]]
+    $O.JokePos++
+    Save-Stats
     return $j
+}
+
+function Tell-Joke {
+    $j = Get-NextJoke
+    $parts = $j.Split('|', 2)
+    if ($parts.Count -eq 2) {
+        # la question d'abord, la chute 4 secondes plus tard
+        $q = $parts[0].Trim()
+        Show-Bubble "$q 🤔" -Seconds 14
+        $O.Punch = @{ Shown = "$q 🤔"; Full = "$q`n`n👉 $($parts[1].Trim())"; At = (Get-Date).AddSeconds(4) }
+    } else {
+        Show-Bubble $j -Seconds 10
+    }
 }
 
 function Stop-Cycle {
@@ -763,7 +813,7 @@ function Ask-Focus {
     $Text = (Pick $Lines.BreakEnd) -f (Format-Min $Config.FocusMinutes)
     if ($O.TaskReminders) {
         $next = Get-NextTodo
-        if ($next) { $Text += "`n`n🎯 Au programme : « $(Short-Text $next.text) »" }
+        if ($next) { $Text += "`n`n🎯 Au programme (P$($next.prio)) : « $(Short-Text $next.text) »" }
     }
     Show-Bubble $Text -Buttons @($BtnAgain, $BtnStop) -Force
 }
@@ -967,6 +1017,15 @@ function On-Frame {
     [Windows.Controls.Canvas]::SetLeft($ui.LensGlint, 57 + $vx)
     [Windows.Controls.Canvas]::SetTop($ui.LensGlint, 42 + $vy)
 
+    # chute de la blague en cours
+    if ($O.Punch -and $now -ge $O.Punch.At) {
+        if ($ui.BubbleWrap.Visibility -eq 'Visible' -and $ui.BubbleText.Text -eq $O.Punch.Shown) {
+            $ui.BubbleText.Text = $O.Punch.Full
+            $O.BubbleUntil = $now.AddSeconds(9)
+        }
+        $O.Punch = $null
+    }
+
     # bulle temporaire
     if ($ui.BubbleWrap.Visibility -eq 'Visible' -and $now -ge $O.BubbleUntil) { Hide-Bubble }
 
@@ -1026,7 +1085,7 @@ function On-Second {
         if ($O.State -eq 'Break' -and $now -ge $O.NextJoke) {
             # une blague toutes les ~2 minutes pendant la pause (sauf dans les 15 dernieres secondes)
             $O.NextJoke = $now.AddSeconds((Get-Random -Minimum 80 -Maximum 131))
-            if ($left.TotalSeconds -gt 15) { Show-Bubble (Get-NextJoke) -Seconds 10 }
+            if ($left.TotalSeconds -gt 20) { Tell-Joke }
         }
         if ($O.State -eq 'Focus') {
             $total = $Config.FocusMinutes

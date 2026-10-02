@@ -47,6 +47,14 @@ function To-IsoString($v) {
     return [string]$v
 }
 
+# Priorite : 1 = la plus urgente ... 10 = la moins urgente (5 par defaut)
+$DefaultPrio = 5
+function Limit-Prio($p) {
+    $n = 0
+    if (-not [int]::TryParse([string]$p, [ref]$n)) { return $DefaultPrio }
+    return [math]::Min(10, [math]::Max(1, $n))
+}
+
 function Load-Todos {
     $NB.Todos.Clear()
     if (-not (Test-Path $TodoFile)) { return }
@@ -58,6 +66,7 @@ function Load-Todos {
             $item = [pscustomobject]@{
                 id      = [string]$t.id
                 text    = [string]$t.text
+                prio    = Limit-Prio $t.prio
                 done    = [bool]$t.done
                 created = To-IsoString $t.created
                 doneAt  = To-IsoString $t.doneAt
@@ -84,24 +93,41 @@ function Save-Todos {
     try {
         Write-FileSafe $TodoFile (ConvertTo-JsonArray $NB.Todos)
         $lines = @("# To-do Orbit", "", "_Mis à jour le $((Get-Date).ToString('dd/MM/yyyy HH:mm'))_", "")
-        foreach ($t in $NB.Todos) { $lines += $(if ($t.done) { "- [x] $($t.text)" } else { "- [ ] $($t.text)" }) }
+        foreach ($t in (Get-SortedTodos)) { $lines += $(if ($t.done) { "- [x] (P$($t.prio)) $($t.text)" } else { "- [ ] (P$($t.prio)) $($t.text)" }) }
         Write-FileSafe $TodoMd ($lines -join "`r`n")
     } catch { Write-Log "Ecriture to-do : $($_.Exception.Message)" }
 }
 
-function Add-Todo([string]$text) {
+function Add-Todo([string]$text, $prio = $DefaultPrio) {
     $text = $text.Trim()
+    # raccourci : "!2 Appeler Paul" ou "Appeler Paul !2" donne la priorite 2
+    if ($text -match '(^|\s)!(10|[1-9])(?=\s|$)') {
+        $prio = [int]$Matches[2]
+        $text = (($text -replace '(^|\s)!(10|[1-9])(?=\s|$)', ' ') -replace '\s{2,}', ' ').Trim()
+    }
     if (-not $text) { return }
+    $prio = Limit-Prio $prio
     [void]$NB.Todos.Add([pscustomobject]@{
         id      = [guid]::NewGuid().ToString('N')
         text    = $text
+        prio    = $prio
         done    = $false
         created = (Get-Date).ToString('s')
         doneAt  = ''
     })
     Save-Todos
     Render-Todos
-    Show-Bubble (Pick @("Noté ! ✍️", "C'est dans la liste 📝", "Hop, enregistré 💾", "Je m'en souviendrai pour toi 🧠")) -Force -Seconds 3
+    $msg = Pick @("Noté ! ✍️", "C'est dans la liste 📝", "Hop, enregistré 💾", "Je m'en souviendrai pour toi 🧠")
+    if ($prio -le 2) { $msg += " Priorité $prio, je la mets en haut de la pile 🔥" }
+    Show-Bubble $msg -Force -Seconds 3
+}
+
+function Set-TodoPrio([string]$id, $prio) {
+    $t = Find-Todo $id
+    if (-not $t) { return }
+    $t.prio = Limit-Prio $prio
+    Save-Todos
+    Render-Todos
 }
 
 function Find-Todo([string]$id) { foreach ($t in $NB.Todos) { if ($t.id -eq $id) { return $t } } }
@@ -135,8 +161,20 @@ function Clear-DoneTodos {
     Render-Todos
 }
 
-function Get-NextTodo { foreach ($t in $NB.Todos) { if (-not $t.done) { return $t } } }
-function Get-OpenTodos { @($NB.Todos | Where-Object { -not $_.done }) }
+# Tri : a faire d'abord, par priorite (1 en premier) puis par date d'ajout ; terminees a la fin
+function Get-SortedTodos {
+    $open = @($NB.Todos | Where-Object { -not $_.done } | Sort-Object -Property @{ e = { [int]$_.prio } }, created)
+    $done = @($NB.Todos | Where-Object { $_.done } | Sort-Object -Property doneAt -Descending)
+    return @($open + $done)
+}
+function Get-OpenTodos { @(Get-SortedTodos | Where-Object { -not $_.done }) }
+function Get-NextTodo { $open = Get-OpenTodos; if ($open.Count) { return $open[0] } }
+
+function Get-PrioColor([int]$p) {
+    if ($p -le 3) { return '#E03131' }      # urgent
+    if ($p -le 6) { return '#F08C00' }      # normal
+    return '#7A869A'                        # quand j'ai le temps
+}
 
 # Texte court pour les bulles
 function Short-Text([string]$text, [int]$max = 60) {
@@ -279,12 +317,15 @@ function Copy-Clip($c) {
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*"/>
               <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBox x:Name="TodoInput" Padding="8,6" BorderBrush="#1E1B3A" BorderThickness="2"
                      VerticalContentAlignment="Center"/>
-            <TextBlock x:Name="TodoHint" Text="Note une tâche en vrac… (Entrée)" Margin="12,0,0,0"
+            <TextBlock x:Name="TodoHint" Text="Note une tâche… (Entrée)" Margin="12,0,0,0"
                        VerticalAlignment="Center" Foreground="#9A98B0" IsHitTestVisible="False"/>
-            <Button x:Name="TodoAdd" Grid.Column="1" Content="＋" Width="38" Margin="6,0,0,0"
+            <ComboBox x:Name="TodoPrio" Grid.Column="1" Width="58" Margin="6,0,0,0" VerticalContentAlignment="Center"
+                      ToolTip="Priorité : 1 = la plus urgente, 10 = la moins urgente. Astuce : tape « !2 » dans le texte."/>
+            <Button x:Name="TodoAdd" Grid.Column="2" Content="＋" Width="38" Margin="6,0,0,0"
                     FontSize="16" FontWeight="Bold" Cursor="Hand" Foreground="White"
                     Background="#6C5CE7" BorderBrush="#1E1B3A" BorderThickness="2"/>
           </Grid>
@@ -329,7 +370,7 @@ function Copy-Clip($c) {
 
 $panel = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $panelXaml))
 $pn = @{}
-foreach ($n in 'Header','CloseBtn','TabTodo','TabClip','TodoPanel','TodoInput','TodoHint','TodoAdd','TodoCount',
+foreach ($n in 'Header','CloseBtn','TabTodo','TabClip','TodoPanel','TodoInput','TodoHint','TodoPrio','TodoAdd','TodoCount',
                'TodoClear','TodoList','ClipPanel','ClipSearch','ClipHint','ClipCount','ClipPause','ClipClear','ClipList') {
     $pn[$n] = $panel.FindName($n)
 }
@@ -362,14 +403,26 @@ function Render-Todos {
         [void]$pn.TodoList.Children.Add($empty)
     }
     # les taches a faire d'abord, les terminees ensuite
-    $ordered = @($NB.Todos | Where-Object { -not $_.done }) + @($NB.Todos | Where-Object { $_.done })
-    foreach ($t in $ordered) {
+    foreach ($t in (Get-SortedTodos)) {
         $row = New-Object Windows.Controls.Grid
         $row.Margin = '0,0,0,4'
         $c1 = New-Object Windows.Controls.ColumnDefinition; $c1.Width = '*'
         $c2 = New-Object Windows.Controls.ColumnDefinition; $c2.Width = 'Auto'
         $c3 = New-Object Windows.Controls.ColumnDefinition; $c3.Width = 'Auto'
+        $c0 = New-Object Windows.Controls.ColumnDefinition; $c0.Width = 'Auto'
+        $row.ColumnDefinitions.Add($c0)
         $row.ColumnDefinitions.Add($c1); $row.ColumnDefinitions.Add($c2); $row.ColumnDefinitions.Add($c3)
+
+        # pastille de priorite : un clic ouvre le choix de 1 a 10
+        $pb = New-Object Windows.Controls.Button
+        $pb.Content = "P$($t.prio)"
+        $pb.Tag = $t.id
+        $pb.Width = 32; $pb.Height = 20; $pb.Margin = '0,0,6,0'; $pb.VerticalAlignment = 'Top'
+        $pb.FontSize = 11; $pb.FontWeight = 'Bold'; $pb.Foreground = 'White'; $pb.BorderThickness = '0'
+        $pb.Background = if ($t.done) { '#C9C7D6' } else { Get-PrioColor $t.prio }
+        $pb.Cursor = 'Hand'; $pb.ToolTip = 'Priorité (1 = la plus urgente). Clic pour changer.'
+        $pb.Add_Click({ param($s, $e) Invoke-Safe { Show-PrioMenu $s } })
+        [void]$row.Children.Add($pb)
 
         $cb = New-Object Windows.Controls.CheckBox
         $cb.IsChecked = $t.done
@@ -384,12 +437,13 @@ function Render-Todos {
         else { $tb.Foreground = '#1E1B3A' }
         $cb.Content = $tb
         $cb.Add_Click({ param($s, $e) Invoke-Safe { Set-TodoDone $s.Tag ([bool]$s.IsChecked) } })
+        [Windows.Controls.Grid]::SetColumn($cb, 1)
         [void]$row.Children.Add($cb)
 
         $when = New-Object Windows.Controls.TextBlock
         $when.Text = Format-Day $t.created
         $when.FontSize = 11; $when.Foreground = '#B0AEC4'; $when.Margin = '6,1,4,0'
-        [Windows.Controls.Grid]::SetColumn($when, 1)
+        [Windows.Controls.Grid]::SetColumn($when, 2)
         [void]$row.Children.Add($when)
 
         $del = New-Object Windows.Controls.Button
@@ -397,7 +451,7 @@ function Render-Todos {
         $del.Background = 'Transparent'; $del.BorderThickness = '0'; $del.Foreground = '#B0AEC4'
         $del.Cursor = 'Hand'; $del.ToolTip = 'Supprimer'; $del.VerticalAlignment = 'Top'
         $del.Add_Click({ param($s, $e) Invoke-Safe { Remove-Todo $s.Tag } })
-        [Windows.Controls.Grid]::SetColumn($del, 2)
+        [Windows.Controls.Grid]::SetColumn($del, 3)
         [void]$row.Children.Add($del)
 
         [void]$pn.TodoList.Children.Add($row)
@@ -406,6 +460,21 @@ function Render-Todos {
     $pn.TodoCount.Text = "$done / $($NB.Todos.Count) terminée(s)"
     $pn.TodoClear.IsEnabled = $done -gt 0
     Update-Tabs
+}
+
+function Show-PrioMenu($button) {
+    $m = New-Object Windows.Controls.ContextMenu
+    foreach ($p in 1..10) {
+        $label = switch ($p) { 1 { "P1  · la plus urgente" } 10 { "P10 · quand j'ai le temps" } default { "P$p" } }
+        $mi = New-Object Windows.Controls.MenuItem
+        $mi.Header = $label
+        $mi.Tag = "$($button.Tag)|$p"
+        $mi.Foreground = Get-PrioColor $p
+        $mi.Add_Click({ param($s, $e) Invoke-Safe { $parts = $s.Tag.Split('|'); Set-TodoPrio $parts[0] $parts[1] } })
+        [void]$m.Items.Add($mi)
+    }
+    $m.PlacementTarget = $button
+    $m.IsOpen = $true
 }
 
 function Render-Clips {
@@ -503,10 +572,12 @@ $pn.TodoInput.Add_KeyDown({
     param($s, $e)
     if ($e.Key -eq 'Return') {
         $e.Handled = $true
-        Invoke-Safe { Add-Todo $pn.TodoInput.Text; $pn.TodoInput.Clear() }
+        Invoke-Safe { Add-Todo $pn.TodoInput.Text ($pn.TodoPrio.SelectedIndex + 1); $pn.TodoInput.Clear() }
     }
 })
-$pn.TodoAdd.Add_Click({ Invoke-Safe { Add-Todo $pn.TodoInput.Text; $pn.TodoInput.Clear(); $pn.TodoInput.Focus() | Out-Null } })
+$pn.TodoAdd.Add_Click({ Invoke-Safe { Add-Todo $pn.TodoInput.Text ($pn.TodoPrio.SelectedIndex + 1); $pn.TodoInput.Clear(); $pn.TodoInput.Focus() | Out-Null } })
+foreach ($p in 1..10) { [void]$pn.TodoPrio.Items.Add("P$p") }
+$pn.TodoPrio.SelectedIndex = $DefaultPrio - 1
 $pn.TodoClear.Add_Click({ Invoke-Safe { Clear-DoneTodos } })
 
 $pn.ClipSearch.Add_TextChanged({

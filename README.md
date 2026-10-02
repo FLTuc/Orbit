@@ -23,10 +23,10 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   2. ☕ pause (10 ou 5 min), puis **il attend encore** que tu cliques sur « On repart ! » (ou « On arrête là »).
   Tant que tu n'as pas répondu, il te relance toutes les 4 min et sa balise clignote en orange.
 - **Rappels de tâches** (clic droit > 🔔, activés par défaut) :
-  - **au début du focus**, il annonce ton objectif (la première tâche de ta to-do) et les deux suivantes ;
+  - **au début du focus**, il annonce ton objectif (la tâche la plus prioritaire) et les deux suivantes ;
   - **à la fin du focus**, il demande si l'objectif est bouclé, avec un bouton « ✅ C'est fait ! » qui coche la tâche ;
   - **à la fin de la pause**, il rappelle la prochaine tâche au programme.
-- **Des blagues pendant la pause** : environ une toutes les 2 minutes, sans répétition tant que toute la liste n'est pas passée.
+- **Des blagues pendant la pause** : environ une toutes les 2 minutes, piochées parmi **plus de 1000 blagues** (combles, devinettes, « Monsieur et Madame… », bureau, informatique, espace…). Orbit pose la question, puis donne la chute quelques secondes plus tard. Il retient où il en est, même après un redémarrage : aucune blague ne revient tant que toutes ne sont pas passées.
 - **Des bulles de BD** : tout ce que dit Orbit apparaît dans une bulle de bande dessinée avec un « pop ».
   - Bulle de **parole** (avec une pointe) quand il te parle : questions, chrono, indications.
   - Bulle de **pensée** (avec des petits ronds) pour ses réflexions et ses commentaires sur tes applis.
@@ -34,6 +34,8 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
 - **Statistiques** : il compte tes sessions et tes minutes de focus du jour.
 - **Une to-do en vrac** (clic droit > 📝 Ma to-do) :
   - tape une idée et appuie sur Entrée ;
+  - **priorité de 1 à 10** (1 = la plus urgente, 10 = quand j'ai le temps ; 5 par défaut) : choisis-la dans la liste à côté du champ, ou tape « !2 » dans le texte (« !2 Appeler Paul ») ; clique sur la pastille P1…P10 d'une tâche pour la changer ;
+  - les tâches sont triées par priorité, avec une couleur : rouge (1 à 3), orange (4 à 6), gris (7 à 10) ;
   - chaque ajout, coche ou suppression est **enregistré tout de suite**, rien n'est perdu même si le PC plante ;
   - les tâches non faites restent d'un jour à l'autre, et les tâches terminées des jours précédents partent dans une archive ;
   - Orbit s'en sert pour ses rappels de tâches (voir plus haut).
@@ -59,7 +61,7 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
 
 ## Personnaliser
 
-Tout est dans `orbit.ps1` (le carnet est dans `notebook.ps1`) :
+Tout est dans `orbit.ps1` (le carnet est dans `notebook.ps1`, les blagues dans `jokes\`) :
 - les réglages (fréquence des commentaires, des balades, etc.) sont dans le bloc `$Config` en haut du fichier ;
 - les phrases sont dans `$Lines`, `$AppLines` (par application) et `$TitleLines` (par mot-clé dans le titre de la fenêtre). Ajoute les tiennes !
 
@@ -75,6 +77,22 @@ Tout est enregistré dans `%APPDATA%\Orbit\` :
 | `stats.json`, `orbit.log` | statistiques et petit journal d'erreurs |
 
 Attention : l'historique des copier-coller est stocké en clair dans ton profil. Si tu copies des données sensibles, utilise la case **Pause** ou le bouton **Tout effacer**.
+
+## Ajouter tes propres blagues
+
+Les blagues sont dans le dossier `jokes\`, une par ligne, dans de simples fichiers texte (UTF-8) :
+
+```
+Quel est le comble pour un électricien ?|Ne pas être au courant.
+Orbit a déjà terminé une to-do list. Les scientifiques étudient encore le phénomène.
+```
+
+- `question|réponse` : Orbit affiche la question, puis la réponse 4 secondes après ;
+- une ligne sans `|` s'affiche d'un coup ;
+- les lignes qui commencent par `#` sont ignorées ;
+- tu peux créer ton propre fichier, par exemple `jokes\10-mes-blagues.txt`.
+
+Pour vérifier qu'il n'y a ni doublon ni erreur de format (facultatif, il faut Python) : `python tools\check_jokes.py`.
 
 ## Et sur un PC d'entreprise ?
 

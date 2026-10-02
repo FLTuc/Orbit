@@ -1,0 +1,136 @@
+# Bureau, réunions et informatique.
+Pourquoi Excel reste-t-il toujours calme ?|Parce qu'il garde toutes ses cellules sous contrôle.
+Quel est le café préféré des développeurs ?|Le Java.
+Que dit un informaticien quand il s'ennuie ?|« Je me fichier. »
+Pourquoi les développeurs confondent-ils Halloween et Noël ?|Parce que OCT 31 = DEC 25.
+Il y a 10 types de personnes dans le monde.|Celles qui comprennent le binaire, et les autres.
+Combien de développeurs faut-il pour changer une ampoule ?|Aucun : c'est un problème matériel.
+Combien de managers faut-il pour changer une ampoule ?|Trois : un qui la change, deux qui organisent une réunion pour en parler.
+Combien de consultants faut-il pour changer une ampoule ?|Ça dépend de votre budget.
+Pourquoi les programmeurs préfèrent-ils le mode sombre ?|Parce que la lumière attire les bugs.
+Quelle est la différence entre un bug et une fonctionnalité ?|La documentation.
+Un développeur va acheter du pain. Sa femme lui dit : « Prends une baguette, et s'il y a des œufs, prends-en six. »|Il revient avec six baguettes : « Il y avait des œufs. »
+Comment un informaticien éteint-il la lumière ?|Il redémarre la maison.
+Pourquoi les ordinateurs ont-ils froid ?|Parce qu'ils laissent toujours leurs fenêtres ouvertes.
+Pourquoi l'ordinateur est-il allé chez le médecin ?|Il avait un virus.
+Pourquoi l'ordinateur a-t-il été viré ?|Il plantait tout le temps.
+Pourquoi le clavier est-il toujours fatigué ?|Parce qu'il n'a jamais de pause… seulement des espaces.
+Pourquoi la souris est-elle stressée ?|Parce qu'on clique toujours sur elle.
+Que dit un ordinateur quand il a faim ?|J'ai envie d'un petit octet.
+Que dit le Wi-Fi quand il est fatigué ?|Je n'ai plus de réseau… social.
+Que dit une imprimante à une autre imprimante ?|C'est toi qui as fait ce bourrage ?
+Pourquoi l'imprimante est-elle toujours de mauvaise humeur ?|Parce qu'on lui demande toujours tout en urgence.
+Pourquoi l'imprimante ne marche-t-elle jamais le jour où on en a besoin ?|Elle sent la peur.
+Le mot de passe doit contenir 8 caractères.|J'ai mis « Blanche-Neige et les 7 nains ».
+« Votre mot de passe doit contenir une majuscule, un chiffre et un symbole. »|J'ai mis « MotDePasse1! ». Personne ne trouvera.
+Mon ordinateur m'a battu aux échecs.|Mais il n'a pas fait le poids à la boxe.
+J'ai dit à mon ordinateur que j'avais besoin d'une pause.|Il m'a ouvert 15 fenêtres de publicités pour des vacances.
+Un SQL entre dans un bar, s'approche de deux tables et demande :|« Je peux me JOIN à vous ? »
+Pourquoi les ingénieurs réseau sont-ils de bons danseurs ?|Parce qu'ils maîtrisent le protocole.
+Pourquoi la base de données est-elle allée chez le psy ?|Elle avait trop de relations.
+Que dit un développeur quand son code marche du premier coup ?|« C'est suspect. »
+Ça marchait sur ma machine.|Alors on va livrer ta machine au client.
+Le code qui marche du premier coup n'existe pas.|C'est comme les licornes : on en parle, mais personne n'en a vu.
+Pourquoi le développeur a-t-il les cheveux courts ?|À force de s'arracher les cheveux sur le CSS.
+Il y a deux problèmes difficiles en informatique :|le cache, le nommage des variables, et les erreurs de décalage d'un.
+Un testeur entre dans un bar. Il commande 1 bière, 0 bière, 99999 bières, -1 bière et un lézard.|Le premier client arrive et demande où sont les toilettes. Le bar prend feu.
+Comment appelle-t-on un développeur qui ne commente jamais son code ?|Un mystère.
+Mon code ne marche pas, je ne sais pas pourquoi.|Mon code marche, je ne sais pas pourquoi non plus.
+Pourquoi la réunion du lundi dure-t-elle si longtemps ?|Parce que le week-end a laissé des traces.
+Cette réunion aurait pu être un mail.|Et ce mail aurait pu ne pas être envoyé.
+Quel est le sport préféré au bureau ?|Le lancer de dossiers… sur le bureau du voisin.
+Pourquoi les réunions commencent-elles toujours en retard ?|Parce que quelqu'un cherche encore le lien Teams.
+Quelle est la phrase la plus prononcée en visio ?|« Tu es en sourdine. »
+Quelle est la deuxième phrase la plus prononcée en visio ?|« Tu me vois, là ? »
+Quelle est la troisième phrase la plus prononcée en visio ?|« Je partage mon écran… attends… voilà… non… attends. »
+Quel est le meuble préféré des managers ?|Le tableau… de bord.
+Pourquoi le stagiaire a-t-il apporté une échelle au bureau ?|On lui avait dit que les salaires allaient monter.
+Pourquoi la photocopieuse est-elle si populaire ?|Parce qu'elle a toujours un double de tout.
+Pourquoi l'agrafeuse est-elle si attachante ?|Parce qu'elle tient tout ensemble.
+Pourquoi le classeur est-il si organisé ?|Parce qu'il a de bons intercalaires dans sa vie.
+Pourquoi le trombone est-il le meilleur collègue ?|Il ne lâche jamais personne.
+Le lundi, c'est comme un réveil :|personne ne l'aime, mais tout le monde finit par se lever.
+Que dit un comptable à sa calculatrice ?|Je compte sur toi.
+Pourquoi les comptables sont-ils si calmes ?|Ils savent que tout finit par s'équilibrer.
+Pourquoi le chef a-t-il acheté une nouvelle chaise ?|Pour avoir plus de recul sur les dossiers.
+Mon patron m'a dit : « Tu devrais avoir plus d'initiative. »|Alors j'ai pris mon vendredi.
+Mon collègue m'a demandé si j'étais procrastinateur.|Je lui ai dit que je lui répondrais demain.
+J'ai essayé de procrastiner moins.|Je commencerai demain.
+La procrastination, c'est comme une carte de crédit :|c'est très agréable jusqu'à ce que la facture arrive.
+Je ne suis pas en retard.|Je suis en avance pour la prochaine réunion.
+Le café, c'est comme le management :|sans lui, rien ne démarre le matin.
+Pourquoi les tableurs sont-ils de bons amis ?|Parce qu'on peut toujours compter sur eux.
+Pourquoi PowerPoint est-il toujours fatigué ?|Il passe sa vie à faire des présentations.
+Pourquoi Word est-il un mauvais danseur ?|Il passe son temps à faire des retours à la ligne.
+Pourquoi Outlook ne prend-il jamais de vacances ?|Il a peur de la boîte de réception à son retour.
+Pourquoi le mail a-t-il été envoyé en copie à tout le monde ?|Parce que quelqu'un a cliqué sur « Répondre à tous ».
+Quel est le fruit préféré des informaticiens ?|La pomme… mais ils n'osent pas le dire devant Windows.
+Pourquoi Windows a-t-il des fenêtres ?|Pour que les bugs puissent sortir.
+Que dit un fichier Excel à un autre ?|On se fait un petit tableau croisé ?
+Pourquoi les cellules Excel ne sortent-elles jamais ?|Elles ont peur de se faire fusionner.
+Quelle est la formule Excel préférée des optimistes ?|=SI(tout_va_mal; "ça ira mieux"; "ça va déjà bien")
+Pourquoi les développeurs n'aiment-ils pas la nature ?|Trop de bugs, et pas de documentation.
+Que dit un serveur à un autre serveur ?|Tu as l'air surchargé aujourd'hui.
+Pourquoi le cloud est-il toujours de bonne humeur ?|Parce qu'il plane au-dessus de tout.
+Quelle est la différence entre un ordinateur et un humain ?|L'ordinateur, lui, on peut le redémarrer le lundi matin.
+Ctrl+Z, c'est la meilleure invention de l'humanité.|Dommage que ça ne marche pas sur les mails envoyés.
+J'aimerais avoir un bouton « Annuler » dans la vraie vie.|Surtout pour les réunions du vendredi à 17 h.
+Le Wi-Fi est tombé.|Alors j'ai discuté avec ma famille. Ils ont l'air sympas.
+Mon ordinateur est tellement lent…|qu'il a fini Windows Update l'année dernière.
+Le support informatique m'a dit : « Avez-vous essayé de l'éteindre et de le rallumer ? »|J'ai essayé sur moi-même. Ça s'appelle dormir.
+Pourquoi le technicien informatique est-il zen ?|Il sait que tout finit par redémarrer.
+Quelle est la différence entre un bon et un mauvais développeur ?|Le mauvais ne sait pas qu'il a des bugs.
+Quel est l'animal préféré des développeurs Python ?|Le python, mais il ne mord que sur les erreurs d'indentation.
+Un développeur entre dans un ascenseur.|Il appuie sur le bouton 0, parce que les tableaux commencent à zéro.
+Comment savoir qu'un développeur est extraverti ?|Il regarde tes chaussures quand il te parle.
+Quelle est la meilleure façon d'accélérer un ordinateur ?|Le lancer par la fenêtre. (Ne fais pas ça.)
+Pourquoi le réseau de l'entreprise est-il comme une mauvaise relation ?|Il y a toujours des problèmes de connexion.
+Il n'y a pas de mauvaise question.|Sauf « Qui a fini le café sans en refaire ? »
+Pourquoi le lundi est-il si long ?|Parce qu'il a deux jours de retard sur le week-end.
+Pourquoi le vendredi est-il si court ?|Parce qu'il est déjà dans le week-end.
+Le meilleur moment de la journée de travail ?|La pause. Tu y es. Profite !
+Pourquoi les chaises de bureau tournent-elles ?|Pour qu'on puisse fuir les discussions dans toutes les directions.
+Que dit le badge à la porte ?|Bip. On se connaît ?
+Pourquoi l'open space est-il si sportif ?|On y fait du slalom entre les conversations.
+Pourquoi les post-it sont-ils de bons collègues ?|Ils se rappellent de tout et restent toujours collés à toi.
+Quelle est la différence entre une to-do list et un roman ?|Le roman, lui, a une fin.
+Pourquoi la to-do list est-elle triste ?|Parce qu'on la raye tout le temps.
+Comment s'appelle un fichier qui n'est jamais terminé ?|Final_v7_VRAIMENT_final.docx
+Pourquoi les dossiers sont-ils toujours en retard ?|Parce qu'ils attendent la validation de la validation.
+Le télétravail, c'est génial :|on peut être en réunion en pyjama, tant que la caméra reste coupée.
+Quel est le collègue le plus fiable en télétravail ?|Le chat : il assiste à toutes les réunions sur le clavier.
+Mon chat a participé à ma visio.|Il a eu plus de succès que ma présentation.
+Pourquoi le café du bureau est-il si fort ?|Parce qu'il doit réveiller toute l'équipe d'un coup.
+Que dit la machine à café le lundi matin ?|Pitié, pas tous en même temps.
+Le secret de la productivité ?|Faire des pauses. Comme celle-ci. Tu vois, tu es productif.
+Pourquoi la salle de réunion est-elle toujours prise ?|Parce que quelqu'un y fait une réunion pour réserver la salle de réunion.
+Comment reconnaît-on un mail urgent ?|Il est en rouge, en gras, et il arrive vendredi à 18 h.
+Que dit le calendrier quand on lui ajoute une réunion ?|Encore une ? Je vais finir par être complet.
+Pourquoi l'agenda est-il toujours stressé ?|Parce que ses jours sont comptés.
+Pourquoi le stylo du bureau disparaît-il toujours ?|Il prend aussi des pauses, mais il ne revient jamais.
+Quel est le comble pour un tableau blanc ?|Se faire effacer en pleine réunion.
+Pourquoi le projecteur ne marche-t-il jamais ?|Il a le trac avant chaque présentation.
+Pourquoi le câble HDMI n'est-il jamais du bon côté ?|C'est une loi de la physique du bureau.
+Loi de Murphy du bureau :|l'imprimante tombe en panne exactement 5 minutes avant la réunion importante.
+Deuxième loi de Murphy du bureau :|le mail que tu cherches est toujours dans le dernier dossier que tu ouvres.
+Troisième loi de Murphy du bureau :|la file d'attente du micro-ondes est toujours plus longue que la tienne.
+Quatrième loi de Murphy du bureau :|le jour où tu arrives en retard, c'est le jour où le chef est à l'heure.
+Cinquième loi de Murphy du bureau :|la mise à jour obligatoire se lance pile avant ta présentation.
+Pourquoi les développeurs se disputent-ils sur les tabulations et les espaces ?|Parce qu'il faut bien un peu d'espace entre eux.
+Pourquoi les fichiers PDF sont-ils si têtus ?|On ne peut jamais les modifier.
+Pourquoi le zip est-il un bon voyageur ?|Il sait faire ses valises en compressant tout.
+Pourquoi le disque dur est-il nostalgique ?|Parce qu'il garde tous ses souvenirs.
+Que dit la clé USB à l'ordinateur ?|Je me suis fait insérer à l'envers trois fois avant de rentrer.
+Pourquoi la clé USB ne rentre-t-elle jamais du premier coup ?|C'est un mystère que même la NASA n'a pas résolu.
+Pourquoi le développeur ne trouve-t-il jamais ses chaussettes ?|Il les a mises dans une boucle infinie.
+Comment un développeur fait-il ses courses ?|Il remplit son panier avec un « for each » rayon.
+Que fait un développeur dans la nature ?|Il cherche les arbres binaires.
+Quel est le comble pour un débogueur ?|Se faire attraper par un point d'arrêt… au feu rouge.
+Que dit le bug au développeur ?|Tu ne me trouveras jamais. Je suis dans le code d'un collègue.
+Pourquoi la réunion d'une heure dure-t-elle deux heures ?|À cause du « petit point rapide » à la fin.
+Que veut dire « on se fait un petit point rapide » ?|Il faut prévoir une heure.
+Que veut dire « c'est presque fini » ?|Il reste 90 % du travail.
+Que veut dire « je reviens vers toi » ?|Tu ne reverras jamais ce mail.
+Que veut dire « selon mon dernier mail » ?|Tu ne l'as pas lu, n'est-ce pas ?
+Que veut dire « je mets mon chef en copie » ?|C'est la guerre.
+Que veut dire « c'est une question rapide » ?|Ça ne l'est pas.

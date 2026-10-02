@@ -1,0 +1,103 @@
+# Animaux.
+Que dit un escargot sur le dos d'une tortue ?|Waouh, ça va vite !
+Que dit une vache quand elle se réveille ?|Meuh-rci pour cette belle journée.
+Que dit un canard quand il va au restaurant ?|Mets-le sur ma note… coin !
+Que dit une poule quand elle est fâchée ?|J'en ai plein le dos… de mes œufs.
+Que dit une chèvre quand elle se trompe ?|Oups, c'est biquette.
+Que dit un chat quand il gagne ?|C'est miaou le meilleur !
+Que dit un chien quand il voit le facteur ?|Encore du courrier pour moi ? Wouf.
+Que dit un mouton à un autre mouton ?|Bêêê-nvenue !
+Que dit un serpent à un autre serpent ?|Tu as l'air venimeux aujourd'hui.
+Que dit un lion qui croise un zèbre ?|Tiens, un code-barres !
+Que dit un éléphant à une souris ?|Pourquoi tu es si petite ? — J'ai été malade.
+Que dit un poisson quand il se cogne contre un mur ?|Mur !
+Que dit une puce à une autre puce ?|On y va à pied ou on prend le chien ?
+Que dit une abeille quand elle rentre chez elle ?|Chérie, je suis rentrée… à la ruche.
+Que dit un pigeon à un autre pigeon ?|Tu viens, on va se poser sur une statue ?
+Que dit un hibou à un autre hibou ?|Tu es chouette !
+Que dit un kangourou à son petit ?|Arrête de sauter dans ma poche avec tes chaussures !
+Que dit un poussin à sa mère ?|Maman, je suis sorti de ma coquille !
+Que dit un loup à la pleine lune ?|Hou hou, t'es là ?
+Que dit un perroquet qui travaille dans un bureau ?|« Réunion ! Réunion ! »
+Que dit une baleine à une autre baleine ?|Tu as pris du poids ? Non, c'est juste l'eau.
+Que dit une fourmi à un éléphant ?|Pousse-toi, tu me caches le soleil.
+Que dit un ver de terre à un autre ver de terre ?|Je suis dans le coin.
+Que dit un cochon qui se brûle ?|Je suis cuit !
+Que dit une vache qui fait du yoga ?|Meuhditation.
+Que dit un cheval quand il est content ?|C'est hennissime !
+Que dit un âne qui a perdu son chemin ?|Hi-han… je suis perdu.
+Que dit une grenouille qui passe sa journée au bureau ?|Je suis crevée, je vais faire coâ-sieste.
+Que dit un papillon à une chenille ?|Tu verras, un jour, toi aussi tu voleras.
+Pourquoi les poissons ne jouent-ils pas au tennis ?|Parce qu'ils ont peur du filet.
+Pourquoi les chats n'aiment-ils pas Internet ?|Parce qu'il y a trop de souris.
+Pourquoi les chiens n'aiment-ils pas la musique classique ?|Parce qu'ils préfèrent le « Bach ».
+Pourquoi les poules traversent-elles la route ?|Pour montrer aux hérissons que c'est possible.
+Pourquoi les vaches portent-elles des cloches ?|Parce que leurs cornes ne marchent pas.
+Pourquoi les éléphants sont-ils gris ?|Pour qu'on ne les confonde pas avec des fraises.
+Pourquoi les éléphants ont-ils de grandes oreilles ?|Parce que le Père Noël ne veut pas leur acheter d'appareils auditifs.
+Pourquoi les flamants roses se tiennent-ils sur une patte ?|Parce que s'ils levaient l'autre, ils tomberaient.
+Pourquoi les moustiques piquent-ils la nuit ?|Parce que le jour, ils travaillent au bureau.
+Pourquoi les araignées sont-elles de bonnes développeuses ?|Elles savent tisser leur toile… Web.
+Pourquoi le zèbre est-il rayé ?|Parce qu'il s'est échappé de prison.
+Pourquoi les kangourous sont-ils de mauvais joueurs de cartes ?|Parce qu'ils sautent toujours un tour.
+Pourquoi les hérissons ne font-ils pas de câlins ?|Par peur de piquer une crise.
+Pourquoi les ours dorment-ils tout l'hiver ?|Parce qu'ils ont pris leurs congés d'un coup.
+Pourquoi les chats retombent-ils toujours sur leurs pattes ?|Parce qu'ils ont fait un stage de parachutisme.
+Pourquoi les lapins ont-ils de grandes oreilles ?|Pour entendre les carottes pousser.
+Pourquoi les pingouins portent-ils un costume ?|Parce qu'ils vont toujours à des réunions importantes.
+Pourquoi le chien remue-t-il la queue ?|Parce que la queue ne peut pas remuer le chien.
+Pourquoi les poissons-chats ne miaulent-ils pas ?|Parce qu'ils ont la bouche pleine d'eau.
+Pourquoi la vache regarde-t-elle passer les trains ?|Parce qu'il n'y a rien à la télé.
+Pourquoi le canard est-il si détendu ?|Parce que tout glisse sur lui.
+Pourquoi les tortues sont-elles calmes ?|Parce qu'elles prennent toujours le temps.
+Pourquoi les escargots sont-ils toujours chez eux ?|Ils ont la flemme de déménager.
+Pourquoi le paresseux est-il le roi de la pause ?|Parce qu'il en fait une toute la journée.
+Pourquoi le guépard ne joue-t-il jamais à cache-cache ?|Parce qu'il est toujours repéré.
+Pourquoi les ânes sont-ils de bons élèves ?|Parce qu'ils ont toujours un bonnet… d'âne.
+Pourquoi les chouettes sont-elles si intelligentes ?|Parce qu'elles font leurs devoirs la nuit.
+Pourquoi le rhinocéros a-t-il une corne ?|Pour ouvrir les boîtes de conserve.
+Pourquoi les mouches ne vont-elles pas à la plage ?|Parce qu'elles ont peur des tapettes.
+Pourquoi la girafe ne peut-elle pas mentir ?|Parce qu'on la voit venir de loin.
+Pourquoi le mille-pattes est-il toujours en retard ?|Il met une heure à lacer ses chaussures.
+Pourquoi le poisson rouge tourne-t-il en rond ?|Parce qu'il a oublié où il allait.
+Pourquoi le homard est-il rouge ?|Parce qu'il a honte d'avoir pincé tout le monde.
+Pourquoi les crabes ne donnent-ils jamais rien ?|Parce qu'ils sont pinces.
+Pourquoi le lion ne mange-t-il pas de clowns ?|Parce qu'ils ont un goût bizarre.
+Pourquoi les chameaux ont-ils deux bosses ?|Parce qu'ils ont deux sacs à dos.
+Pourquoi les ours polaires sont-ils blancs ?|Parce que le noir, c'est trop salissant dans la neige.
+Comment appelle-t-on un chien magicien ?|Un labracadabrador.
+Comment appelle-t-on une vache qui fait du ski ?|Une vache à la neige.
+Comment appelle-t-on un chat qui a perdu sa queue ?|Un « ch ».
+Comment appelle-t-on une poule qui fait des blagues ?|Une poule de rire.
+Comment appelle-t-on un lapin qui fait du sport ?|Un lapin de course.
+Comment appelle-t-on un poisson qui fait de la musique ?|Un thon.
+Comment appelle-t-on une chouette qui travaille de nuit ?|Une chouette de garde.
+Comment appelle-t-on un hérisson sans piquants ?|Un hérisson chauve.
+Comment appelle-t-on un chien qui fait de la plongée ?|Un chien de mer.
+Comment appelle-t-on un escargot sur un bateau ?|Un escar-go.
+Quel est le comble pour un chat ?|Avoir une vie de chien.
+Quel est le comble pour un chien ?|Être un chat dans une autre vie.
+Quel est le comble pour un poisson ?|Avoir le mal de mer.
+Quel est le comble pour une girafe ?|Avoir un torticolis.
+Quel est le comble pour un oiseau ?|Avoir le vertige.
+Quel est le comble pour un serpent ?|Avoir des fourmis dans les jambes.
+Quel est le comble pour une tortue ?|Être pressée.
+Quel est le comble pour un kangourou ?|Être à court de poches.
+Quel est le comble pour un escargot ?|Se faire doubler par une tortue.
+Quel est le comble pour un hibou ?|Se lever tôt.
+Quel est le comble pour un caméléon ?|Ne pas savoir quoi mettre ce matin.
+Quel est le comble pour une araignée ?|Ne pas être sur la toile.
+Quel est le comble pour une abeille ?|Ne pas aimer le miel.
+Quel est le comble pour un chien de garde ?|Se faire voler sa niche.
+Quel est le comble pour un poisson rouge ?|Avoir une mémoire d'éléphant.
+Quel est le comble pour un éléphant ?|Avoir une mémoire de poisson rouge.
+Un escargot se fait renverser par une tortue. À l'hôpital, on lui demande ce qui s'est passé.|« Je ne sais pas, tout est allé si vite ! »
+Deux poissons dans un bocal. L'un dit à l'autre :|« Tu sais conduire ce truc ? »
+Deux vaches discutent dans un pré. L'une dit : « Tu n'as pas peur de la vache folle ? »|L'autre répond : « Non, moi je suis un canard. »
+Un chien entre dans un bureau de poste et écrit un télégramme : « Ouaf ouaf ouaf. »|L'employé : « Vous pouvez ajouter un quatrième ouaf, c'est le même prix. » Le chien : « Ça n'aurait aucun sens. »
+Deux moutons dans un pré. L'un dit : « Bêêê. »|L'autre répond : « C'est exactement ce que j'allais dire ! »
+Une maman taupe dit à ses enfants :|« Ce soir, on dîne… chez les taupes-modèles. »
+Un pingouin entre chez le médecin. Le médecin lui demande : « Qu'est-ce qui ne va pas ? »|« Je ne sais pas, j'ai l'impression d'être en noir et blanc. »
+Un poisson croise un autre poisson. « Salut, ça va ? »|« Bof, je suis un peu dans le bain en ce moment. »
+Un lapin entre dans une boucherie et demande : « Vous avez des carottes ? »|« Non, c'est une boucherie. » Le lendemain, il revient : « Vous avez des carottes ? »… et ça dure toute la semaine.
+Un hibou dit à un autre hibou : « Tu sais pourquoi on ne voit jamais d'éléphants cachés dans les arbres ? »|« Parce qu'ils sont très bien cachés ! »
