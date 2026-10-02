@@ -2430,6 +2430,7 @@ function Quit-Orbit {
     Save-Stats
     if ($NB.EditId) { End-EditTodo -NoRender } else { Save-Todos }
     Flush-Notebook
+    if ($script:qnWin -and $qnWin.IsVisible) { Close-QuickNote }
     # fermeture voulue : au prochain lancement, on repart de zero
     Remove-Item -LiteralPath $StateFile -Force -ErrorAction SilentlyContinue
     $NB.Quitting = $true
@@ -2442,9 +2443,12 @@ function Quit-Orbit {
 #  Carnet : tableaux Kanban + historique des copier-coller (voir notebook.ps1)
 # ---------------------------------------------------------------------------
 . (Join-Path $PSScriptRoot 'notebook.ps1')
+. (Join-Path $PSScriptRoot 'notes.ps1')
 . (Join-Path $PSScriptRoot 'settings.ps1')
 
 $menu = New-Object Windows.Controls.ContextMenu
+$miNote   = New-MenuItem "📝  Note rapide" { Show-QuickNote }
+$miNotes  = New-MenuItem "📒  Mes notes" { Open-Notebook 'Notes' }
 $miTodo   = New-MenuItem "🗂️  Mes tableaux (Kanban)" { Open-Notebook 'Todo' }
 $miClip   = New-MenuItem "📋  Mes copier-coller du jour" { Open-Notebook 'Clip' }
 $miFocus  = New-MenuItem "🚀  Lancer un focus" { Start-Focus }
@@ -2491,7 +2495,7 @@ foreach ($k in $Skins.Keys) {
 [void]$miSkin.Items.Add((New-Object Windows.Controls.Separator))
 [void]$miSkin.Items.Add((New-MenuItem "🖼️  Choisir une autre image…" { if (Choose-CustomImage) { Set-Skin 'Custom'; Save-Settings } }))
 
-foreach ($i in @($miTodo, $miClip, $miSearch, (New-Object Windows.Controls.Separator),
+foreach ($i in @($miNote, $miNotes, $miTodo, $miClip, $miSearch, (New-Object Windows.Controls.Separator),
                  $miFocus, $miCards, $miPlan, $miBreak, $miPause, $miStop, $miRhythm, $miTasks, (New-Object Windows.Controls.Separator),
                  $miSkin, $miQuiet, $miWander, $miMini, $miHome, $miHide, $miAuto, (New-Object Windows.Controls.Separator),
                  $miStats, $miMove, $miSettings, $miQuit)) { [void]$menu.Items.Add($i) }
@@ -2633,6 +2637,8 @@ try {
     [void]$cms.Items.Add('Prendre ma pause', $null, { Invoke-Safe { Ensure-Visible; Start-Break } })
     [void]$cms.Items.Add('Couper le chrono', $null, { Invoke-Safe { Stop-Cycle } })
     [void]$cms.Items.Add('-')
+    [void]$cms.Items.Add('📝 Note rapide', $null, { Invoke-Safe { Show-QuickNote } })
+    [void]$cms.Items.Add('Mes notes', $null, { Invoke-Safe { Open-Notebook 'Notes' } })
     [void]$cms.Items.Add('Mes tableaux', $null, { Invoke-Safe { Open-Notebook 'Todo' } })
     [void]$cms.Items.Add('Mes copier-coller du jour', $null, { Invoke-Safe { Open-Notebook 'Clip' } })
     [void]$cms.Items.Add('Rechercher partout…', $null, { Invoke-Safe { Open-Notebook 'Search' } })

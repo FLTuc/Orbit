@@ -109,6 +109,24 @@ try {
     Check 'icone : satellite au repos' ($script:TrayKey -eq 'Idle|')
 } catch { Check 'plan et icone sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
 
+Section 'Notes rapides (post-it)'
+try {
+    Show-QuickNote
+    Check 'le post-it s''ouvre' ($qnWin.IsVisible)
+    $qn.QnText.Text = "Note de test`nsur deux lignes"
+    Close-QuickNote
+    $nt = (Get-SortedNotes)[0]
+    Check 'fermer garde la note' (-not $qnWin.IsVisible -and $nt.text -match 'Note de test')
+    Show-QuickNote $nt.id
+    Check 'rouvrir une note la recharge' ($qn.QnText.Text -match 'deux lignes')
+    Close-QuickNote -ToCard
+    Check 'en carte' ($null -eq (Find-Note $nt.id) -and (Find-Todo $NB.LastAddedId).text -eq 'Note de test')
+    [void](Add-Note 'Une autre note')
+    Open-Notebook 'Notes'
+    Check 'onglet Notes' ($pn.NotesPanel.Visibility -eq 'Visible' -and $pn.NotesList.Children.Count -ge 1)
+    Close-Notebook
+} catch { Check 'notes sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
+
 Section 'Export vers un autre PC'
 try {
     $zip = Join-Path $appData 'export-test.zip'

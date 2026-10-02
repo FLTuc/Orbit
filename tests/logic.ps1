@@ -197,6 +197,30 @@ $r = Find-Everything 'budget 2025'
 Check 'cherche dans les archives' ($r.Archives.Count -eq 1 -and $r.Archives[0].section -match '2026-09-01')
 Check 'rien pour un mot absent' (@((Find-Everything 'zzzz').Cards).Count -eq 0)
 
+Section 'Notes rapides'
+foreach ($def in Get-ScriptFunctions (Join-Path $Root 'notes.ps1')) { . ([scriptblock]::Create($def)) }
+foreach ($a4 in Get-ScriptAssignments (Join-Path $Root 'notes.ps1') '^\$Notes') { . ([scriptblock]::Create($a4)) }
+function Render-Notes {}
+$NB.Notes = New-Object System.Collections.ArrayList; $NB.NotesBackupDay = ''
+$n1 = Add-Note "  Appeler le garage`nPour le controle technique  "
+Check 'note ajoutee (espaces retires)' ($NB.Notes.Count -eq 1 -and $n1.text.StartsWith('Appeler') -and $n1.text.EndsWith('technique'))
+Check 'note vide ignoree' ($null -eq (Add-Note '   '))
+$n2 = Add-Note 'Idee : reunion du lundi plus courte'
+Set-NotePinned $n1.id $true
+Check 'epinglee en premier' ((Get-SortedNotes)[0].id -eq $n1.id)
+Update-Note $n2.id 'Idee : reunion du lundi en 15 min'
+Check 'note modifiee' ((Find-Note $n2.id).text -match '15 min')
+Load-Notes
+Check 'notes relues du disque' ($NB.Notes.Count -eq 2 -and (Find-Note $n1.id).pinned)
+Check 'copie lisible notes.md' ((Get-Content $NotesMd -Raw) -match 'Appeler le garage')
+Check 'titre = 1re ligne' ((Get-NoteTitle (Find-Note $n1.id)) -eq 'Appeler le garage')
+Check 'la recherche trouve les notes' (@((Find-Everything 'reunion lundi').Notes).Count -eq 1)
+$card = Convert-NoteToCard $n1.id
+Check 'note -> carte : 1re ligne = titre, le reste = description' ($card.text -eq 'Appeler le garage' -and $card.desc -match 'controle technique')
+Check 'et la note disparait' ($null -eq (Find-Note $n1.id) -and $NB.Notes.Count -eq 1)
+Update-Note $n2.id '   '
+Check 'vider une note la supprime' ($NB.Notes.Count -eq 0)
+
 Section 'Transfert vers un autre PC'
 foreach ($def in Get-ScriptFunctions (Join-Path $Root 'transfer.ps1')) { . ([scriptblock]::Create($def)) }
 foreach ($a2 in Get-ScriptAssignments (Join-Path $Root 'transfer.ps1') '^\$Export') { . ([scriptblock]::Create($a2)) }
