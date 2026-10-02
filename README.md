@@ -36,6 +36,8 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   - tape une idée et appuie sur Entrée ;
   - **priorité de 1 à 10** (1 = la plus urgente, 10 = quand j'ai le temps ; 5 par défaut) : choisis-la dans la liste à côté du champ, ou tape « !2 » dans le texte (« !2 Appeler Paul ») ; clique sur la pastille P1…P10 d'une tâche pour la changer ;
   - les tâches sont triées par priorité, avec une couleur : rouge (1 à 3), orange (4 à 6), gris (7 à 10) ;
+  - **modifier une tâche** : clique sur son texte (ou sur ✏️). Tu peux changer son titre et lui ajouter une **description** (détails, liens, étapes…), modifiable à tout moment. Tout s'enregistre automatiquement pendant que tu tapes ; Entrée dans le titre passe à la description, Ctrl+Entrée ou Échap termine ;
+  - la description apparaît en aperçu sous la tâche, et Orbit la rappelle au début du focus quand c'est ton objectif ;
   - chaque ajout, coche ou suppression est **enregistré tout de suite**, rien n'est perdu même si le PC plante ;
   - les tâches non faites restent d'un jour à l'autre, et les tâches terminées des jours précédents partent dans une archive ;
   - Orbit s'en sert pour ses rappels de tâches (voir plus haut).

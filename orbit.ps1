@@ -664,6 +664,7 @@ function Start-Focus {
         if ($open.Count) {
             $O.FocusTaskId = $open[0].id
             $msg += "`n`n🎯 Objectif (P$($open[0].prio)) : « $(Short-Text $open[0].text) »"
+            if ($open[0].desc) { $msg += "`n   📄 $(Short-Text $open[0].desc 90)" }
             if ($open.Count -gt 1) {
                 $msg += "`n📝 Ensuite :"
                 foreach ($t in ($open | Select-Object -Skip 1 -First 2)) { $msg += "`n   • P$($t.prio) $(Short-Text $t.text 45)" }
@@ -1170,7 +1171,7 @@ function Hide-Orbit {
 
 function Quit-Orbit {
     Save-Stats
-    Save-Todos
+    if ($NB.EditId) { End-EditTodo -NoRender } else { Save-Todos }
     $NB.Quitting = $true
     $script:frameTimer.Stop()
     $script:secondTimer.Stop()

@@ -17,6 +17,8 @@ $NB = @{
     ClipPaused = $false
     LastClip   = ''
     Tab        = 'Todo'
+    EditId     = ''
+    EditOrig   = ''
     ClipDirty  = $true
     MaxClips   = 150
     MaxClipLen = 10000
@@ -66,6 +68,7 @@ function Load-Todos {
             $item = [pscustomobject]@{
                 id      = [string]$t.id
                 text    = [string]$t.text
+                desc    = [string]$t.desc
                 prio    = Limit-Prio $t.prio
                 done    = [bool]$t.done
                 created = To-IsoString $t.created
@@ -93,7 +96,10 @@ function Save-Todos {
     try {
         Write-FileSafe $TodoFile (ConvertTo-JsonArray $NB.Todos)
         $lines = @("# To-do Orbit", "", "_Mis à jour le $((Get-Date).ToString('dd/MM/yyyy HH:mm'))_", "")
-        foreach ($t in (Get-SortedTodos)) { $lines += $(if ($t.done) { "- [x] (P$($t.prio)) $($t.text)" } else { "- [ ] (P$($t.prio)) $($t.text)" }) }
+        foreach ($t in (Get-SortedTodos)) {
+            $lines += $(if ($t.done) { "- [x] (P$($t.prio)) $($t.text)" } else { "- [ ] (P$($t.prio)) $($t.text)" })
+            if ($t.desc) { foreach ($d in ($t.desc -split "`r?`n")) { $lines += "    > $d" } }
+        }
         Write-FileSafe $TodoMd ($lines -join "`r`n")
     } catch { Write-Log "Ecriture to-do : $($_.Exception.Message)" }
 }
@@ -110,6 +116,7 @@ function Add-Todo([string]$text, $prio = $DefaultPrio) {
     [void]$NB.Todos.Add([pscustomobject]@{
         id      = [guid]::NewGuid().ToString('N')
         text    = $text
+        desc    = ''
         prio    = $prio
         done    = $false
         created = (Get-Date).ToString('s')
@@ -148,7 +155,10 @@ function Set-TodoDone([string]$id, [bool]$done, [switch]$Quiet) {
 
 function Remove-Todo([string]$id) {
     $t = Find-Todo $id
-    if ($t) { $NB.Todos.Remove($t); Save-Todos; Render-Todos }
+    if ($t) {
+        if ($NB.EditId -eq $id) { $NB.EditId = ''; $NB.SaveTimer.Stop() }
+        $NB.Todos.Remove($t); Save-Todos; Render-Todos
+    }
 }
 
 function Clear-DoneTodos {
@@ -405,13 +415,11 @@ function Render-Todos {
     # les taches a faire d'abord, les terminees ensuite
     foreach ($t in (Get-SortedTodos)) {
         $row = New-Object Windows.Controls.Grid
-        $row.Margin = '0,0,0,4'
-        $c1 = New-Object Windows.Controls.ColumnDefinition; $c1.Width = '*'
-        $c2 = New-Object Windows.Controls.ColumnDefinition; $c2.Width = 'Auto'
-        $c3 = New-Object Windows.Controls.ColumnDefinition; $c3.Width = 'Auto'
-        $c0 = New-Object Windows.Controls.ColumnDefinition; $c0.Width = 'Auto'
-        $row.ColumnDefinitions.Add($c0)
-        $row.ColumnDefinitions.Add($c1); $row.ColumnDefinitions.Add($c2); $row.ColumnDefinitions.Add($c3)
+        $row.Margin = '0,0,0,6'
+        foreach ($w in 'Auto', 'Auto', '*', 'Auto', 'Auto', 'Auto') {
+            $cd = New-Object Windows.Controls.ColumnDefinition; $cd.Width = $w
+            $row.ColumnDefinitions.Add($cd)
+        }
 
         # pastille de priorite : un clic ouvre le choix de 1 a 10
         $pb = New-Object Windows.Controls.Button
@@ -427,31 +435,57 @@ function Render-Todos {
         $cb = New-Object Windows.Controls.CheckBox
         $cb.IsChecked = $t.done
         $cb.Tag = $t.id
-        $cb.VerticalContentAlignment = 'Top'
-        $cb.Padding = '6,0,0,0'
-        $cb.Cursor = 'Hand'
-        $tb = New-Object Windows.Controls.TextBlock
-        $tb.Text = $t.text
-        $tb.TextWrapping = 'Wrap'
-        if ($t.done) { $tb.TextDecorations = [Windows.TextDecorations]::Strikethrough; $tb.Foreground = '#9A98B0' }
-        else { $tb.Foreground = '#1E1B3A' }
-        $cb.Content = $tb
+        $cb.VerticalAlignment = 'Top'; $cb.Margin = '0,2,6,0'
+        $cb.Cursor = 'Hand'; $cb.ToolTip = 'Cocher comme terminée'
         $cb.Add_Click({ param($s, $e) Invoke-Safe { Set-TodoDone $s.Tag ([bool]$s.IsChecked) } })
         [Windows.Controls.Grid]::SetColumn($cb, 1)
         [void]$row.Children.Add($cb)
 
+        if ($NB.EditId -eq $t.id) {
+            $content = New-TodoEditor $t
+        } else {
+            # titre + apercu de la description ; un clic ouvre la modification
+            $content = New-Object Windows.Controls.StackPanel
+            $content.Background = 'Transparent'; $content.Cursor = 'Hand'; $content.Tag = $t.id
+            $content.ToolTip = 'Clic pour modifier la tâche et sa description'
+            $tb = New-Object Windows.Controls.TextBlock
+            $tb.Text = $t.text
+            $tb.TextWrapping = 'Wrap'
+            if ($t.done) { $tb.TextDecorations = [Windows.TextDecorations]::Strikethrough; $tb.Foreground = '#9A98B0' }
+            else { $tb.Foreground = '#1E1B3A' }
+            [void]$content.Children.Add($tb)
+            if ($t.desc) {
+                $dp = New-Object Windows.Controls.TextBlock
+                $dp.Text = '📄 ' + (($t.desc -replace '\s+', ' ').Trim())
+                $dp.FontSize = 11.5; $dp.Foreground = '#7A7794'; $dp.Margin = '0,1,0,0'
+                $dp.TextWrapping = 'Wrap'; $dp.MaxHeight = 32; $dp.TextTrimming = 'CharacterEllipsis'
+                [void]$content.Children.Add($dp)
+            }
+            $content.Add_MouseLeftButtonUp({ param($s, $e) Invoke-Safe { Start-EditTodo $s.Tag } })
+        }
+        [Windows.Controls.Grid]::SetColumn($content, 2)
+        [void]$row.Children.Add($content)
+
         $when = New-Object Windows.Controls.TextBlock
         $when.Text = Format-Day $t.created
         $when.FontSize = 11; $when.Foreground = '#B0AEC4'; $when.Margin = '6,1,4,0'
-        [Windows.Controls.Grid]::SetColumn($when, 2)
+        [Windows.Controls.Grid]::SetColumn($when, 3)
         [void]$row.Children.Add($when)
+
+        $ed = New-Object Windows.Controls.Button
+        $ed.Content = '✏️'; $ed.Tag = $t.id; $ed.Width = 24; $ed.Height = 20; $ed.VerticalAlignment = 'Top'
+        $ed.Background = 'Transparent'; $ed.BorderThickness = '0'; $ed.Cursor = 'Hand'
+        $ed.ToolTip = 'Modifier la tâche et sa description'
+        $ed.Add_Click({ param($s, $e) Invoke-Safe { if ($NB.EditId -eq $s.Tag) { End-EditTodo } else { Start-EditTodo $s.Tag } } })
+        [Windows.Controls.Grid]::SetColumn($ed, 4)
+        [void]$row.Children.Add($ed)
 
         $del = New-Object Windows.Controls.Button
         $del.Content = '✕'; $del.Tag = $t.id; $del.Width = 22; $del.Height = 20
         $del.Background = 'Transparent'; $del.BorderThickness = '0'; $del.Foreground = '#B0AEC4'
         $del.Cursor = 'Hand'; $del.ToolTip = 'Supprimer'; $del.VerticalAlignment = 'Top'
         $del.Add_Click({ param($s, $e) Invoke-Safe { Remove-Todo $s.Tag } })
-        [Windows.Controls.Grid]::SetColumn($del, 3)
+        [Windows.Controls.Grid]::SetColumn($del, 5)
         [void]$row.Children.Add($del)
 
         [void]$pn.TodoList.Children.Add($row)
@@ -460,6 +494,92 @@ function Render-Todos {
     $pn.TodoCount.Text = "$done / $($NB.Todos.Count) terminée(s)"
     $pn.TodoClear.IsEnabled = $done -gt 0
     Update-Tabs
+}
+
+# ---------------------------------------------------------------------------
+#  Modification d'une tache (titre + description), enregistree en continu
+# ---------------------------------------------------------------------------
+$NB.SaveTimer = New-Object Windows.Threading.DispatcherTimer
+$NB.SaveTimer.Interval = [timespan]::FromMilliseconds(700)
+$NB.SaveTimer.Add_Tick({ $NB.SaveTimer.Stop(); Invoke-Safe { Save-Todos } })
+
+function Queue-SaveTodos { $NB.SaveTimer.Stop(); $NB.SaveTimer.Start() }
+
+function Start-EditTodo([string]$id) {
+    if ($NB.EditId -and $NB.EditId -ne $id) { End-EditTodo -NoRender }
+    $t = Find-Todo $id
+    if (-not $t) { return }
+    $NB.EditId = $id
+    $NB.EditOrig = $t.text
+    Render-Todos
+}
+
+function End-EditTodo([switch]$NoRender) {
+    if (-not $NB.EditId) { return }
+    $t = Find-Todo $NB.EditId
+    if ($t) {
+        # un titre vide n'a pas de sens : on remet l'ancien
+        if (-not $t.text.Trim()) { $t.text = $NB.EditOrig } else { $t.text = $t.text.Trim() }
+        $t.desc = $t.desc.TrimEnd()
+    }
+    $NB.EditId = ''
+    $NB.SaveTimer.Stop()
+    Save-Todos
+    if (-not $NoRender) { Render-Todos }
+}
+
+function New-TodoEditor($t) {
+    $box = New-Object Windows.Controls.StackPanel
+
+    $title = New-Object Windows.Controls.TextBox
+    $title.Text = $t.text
+    $title.Tag = $t.id
+    $title.FontWeight = 'SemiBold'; $title.Padding = '6,4'; $title.BorderBrush = '#6C5CE7'; $title.BorderThickness = '1.5'
+    $title.TextWrapping = 'Wrap'
+    $title.Add_TextChanged({ param($s, $e) $x = Find-Todo $s.Tag; if ($x) { $x.text = $s.Text; Queue-SaveTodos } })
+    [void]$box.Children.Add($title)
+
+    $lbl = New-Object Windows.Controls.TextBlock
+    $lbl.Text = 'Description'
+    $lbl.FontSize = 11; $lbl.Foreground = '#8A87A3'; $lbl.Margin = '2,6,0,2'
+    [void]$box.Children.Add($lbl)
+
+    $desc = New-Object Windows.Controls.TextBox
+    $desc.Text = $t.desc
+    $desc.Tag = $t.id
+    $desc.AcceptsReturn = $true; $desc.TextWrapping = 'Wrap'
+    $desc.MinHeight = 70; $desc.MaxHeight = 180; $desc.VerticalScrollBarVisibility = 'Auto'
+    $desc.Padding = '6,4'; $desc.BorderBrush = '#C9C3F5'; $desc.BorderThickness = '1.5'
+    $desc.ToolTip = 'Détails, liens, étapes… (Ctrl+Entrée pour terminer)'
+    $desc.Add_TextChanged({ param($s, $e) $x = Find-Todo $s.Tag; if ($x) { $x.desc = $s.Text; Queue-SaveTodos } })
+    $desc.Add_PreviewKeyDown({
+        param($s, $e)
+        if ($e.Key -eq 'Return' -and ([Windows.Input.Keyboard]::Modifiers -band [Windows.Input.ModifierKeys]::Control)) {
+            $e.Handled = $true; Invoke-Safe { End-EditTodo }
+        }
+    })
+    [void]$box.Children.Add($desc)
+
+    # Entree dans le titre : on passe a la description
+    $title.Add_PreviewKeyDown({ param($s, $e) if ($e.Key -eq 'Return') { $e.Handled = $true; $desc.Focus() | Out-Null } }.GetNewClosure())
+
+    $foot = New-Object Windows.Controls.DockPanel
+    $foot.Margin = '0,6,0,0'
+    $ok = New-Object Windows.Controls.Button
+    $ok.Content = '✓ Terminé'; $ok.Padding = '10,3'; $ok.Cursor = 'Hand'
+    $ok.Background = '#6C5CE7'; $ok.Foreground = 'White'; $ok.BorderThickness = '0'
+    $ok.Add_Click({ Invoke-Safe { End-EditTodo } })
+    [Windows.Controls.DockPanel]::SetDock($ok, 'Right')
+    [void]$foot.Children.Add($ok)
+    $info = New-Object Windows.Controls.TextBlock
+    $info.Text = '💾 Enregistré automatiquement'
+    $info.FontSize = 11; $info.Foreground = '#8A87A3'; $info.VerticalAlignment = 'Center'
+    [void]$foot.Children.Add($info)
+    [void]$box.Children.Add($foot)
+
+    # le curseur se place directement dans le titre
+    $title.Add_Loaded({ param($s, $e) $s.Focus() | Out-Null; $s.CaretIndex = $s.Text.Length })
+    return $box
 }
 
 function Show-PrioMenu($button) {
@@ -557,13 +677,22 @@ function Open-Notebook([string]$tab = 'Todo') {
     Select-Tab $tab
 }
 
-function Close-Notebook { $panel.Hide() }
+function Close-Notebook {
+    if ($NB.EditId) { End-EditTodo -NoRender }
+    $panel.Hide()
+}
 
 # --- evenements du carnet ---
 $pn.Header.Add_MouseLeftButtonDown({ try { $panel.DragMove() } catch {} })
 $pn.CloseBtn.Add_Click({ Close-Notebook })
 $panel.Add_Closing({ param($s, $e) if (-not $NB.Quitting) { $e.Cancel = $true; Close-Notebook } })
-$panel.Add_KeyDown({ param($s, $e) if ($e.Key -eq 'Escape') { Close-Notebook } })
+$panel.Add_PreviewKeyDown({
+    param($s, $e)
+    if ($e.Key -eq 'Escape') {
+        $e.Handled = $true
+        if ($NB.EditId) { Invoke-Safe { End-EditTodo } } else { Close-Notebook }
+    }
+})
 $pn.TabTodo.Add_Click({ Invoke-Safe { Select-Tab 'Todo' } })
 $pn.TabClip.Add_Click({ Invoke-Safe { Select-Tab 'Clip' } })
 
