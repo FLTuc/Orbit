@@ -617,6 +617,7 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
 
         <!-- ===== Apparence 2 : droide de maintenance ===== -->
         <Canvas x:Name="SkinDroid" Visibility="Collapsed">
+          <Canvas.RenderTransform><ScaleTransform CenterX="60" CenterY="88" ScaleX="1.25" ScaleY="1.25"/></Canvas.RenderTransform>
           <Ellipse x:Name="DGlow" Canvas.Left="44.00" Canvas.Top="79.00" Width="32.00" Height="18.00" Fill="{StaticResource OGlow}"/>
           <Path Data="M 37,52 L 27,58 L 25,68" Stroke="#7F8A99" StrokeThickness="3.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
           <Ellipse Canvas.Left="24.60" Canvas.Top="55.60" Width="4.80" Height="4.80" Fill="#4D5766"/>
@@ -631,7 +632,7 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           <Path Data="M 38,62 Q 60,70 82,62" Stroke="#6E7988" StrokeThickness="0.7"/>
           <Path Data="M 40,50 Q 60,44 80,50" Stroke="#6E7988" StrokeThickness="0.5" Opacity="0.6"/>
           <Path Data="M 37.5,64 Q 60,73 82.5,64 L 81.6,67.5 Q 60,76 38.4,67.5 Z" Fill="{StaticResource OStripe}"/>
-          <Border x:Name="DClockBox" Canvas.Left="46.5" Canvas.Top="57.8" Width="27" Height="7.6" CornerRadius="1.4" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="DClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="5.3" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+          <Border x:Name="DClockBox" Canvas.Left="48" Canvas.Top="57.4" Width="24" Height="9.2" CornerRadius="1.4" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="DClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="5" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
           <Rectangle Canvas.Left="47" Canvas.Top="69" Width="26" Height="6" RadiusX="1.2" RadiusY="1.2" Fill="#141B24"/>
           <Rectangle x:Name="DBit0" Canvas.Left="70.0" Canvas.Top="70.8" Width="2.6" Height="2.4" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
           <Rectangle x:Name="DBit1" Canvas.Left="65.8" Canvas.Top="70.8" Width="2.6" Height="2.4" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
@@ -657,6 +658,7 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
 
         <!-- ===== Apparence 3 : robot assistant ===== -->
         <Canvas x:Name="SkinRobot" Visibility="Collapsed">
+          <Canvas.RenderTransform><ScaleTransform CenterX="60" CenterY="88" ScaleX="1.1" ScaleY="1.1"/></Canvas.RenderTransform>
           <Ellipse x:Name="RGlow" Canvas.Left="38.00" Canvas.Top="81.00" Width="44.00" Height="14.00" Fill="{StaticResource OGlow}" Opacity="0.8"/>
           <Rectangle Canvas.Left="30" Canvas.Top="58" Width="12" Height="9" RadiusX="4" RadiusY="4" Fill="{StaticResource OMetalV}" Stroke="#4A5260" StrokeThickness="0.9"/>
           <Rectangle Canvas.Left="78" Canvas.Top="58" Width="12" Height="9" RadiusX="4" RadiusY="4" Fill="{StaticResource OMetalV}" Stroke="#4A5260" StrokeThickness="0.9"/>
@@ -666,13 +668,13 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           <Ellipse Canvas.Left="86.40" Canvas.Top="78.40" Width="5.20" Height="5.20" Fill="#4D5766"/>
           <Path Data="M 40,56 L 80,56 L 77,84 L 43,84 Z" Fill="{StaticResource OMetal}" Stroke="#4A5260" StrokeThickness="1"/>
           <Path Data="M 45,60 L 75,60 L 73.5,72 L 46.5,72 Z" Fill="#1B2330" Stroke="#3A4556" StrokeThickness="0.7"/>
-          <Rectangle x:Name="RBit0" Canvas.Left="70.0" Canvas.Top="61.4" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
-          <Rectangle x:Name="RBit1" Canvas.Left="65.7" Canvas.Top="61.4" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
-          <Rectangle x:Name="RBit2" Canvas.Left="61.4" Canvas.Top="61.4" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
-          <Rectangle x:Name="RBit3" Canvas.Left="57.1" Canvas.Top="61.4" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
-          <Rectangle x:Name="RBit4" Canvas.Left="52.8" Canvas.Top="61.4" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
-          <Rectangle x:Name="RBit5" Canvas.Left="48.5" Canvas.Top="61.4" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
-          <Border x:Name="RClockBox" Canvas.Left="47.5" Canvas.Top="64.4" Width="25" Height="7" CornerRadius="1" Background="#00000000" BorderBrush="#5FD3FF" BorderThickness="0"><TextBlock x:Name="RClock" Text="▶ FOCUS" Foreground="#5FD3FF" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="5.8" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+          <Rectangle x:Name="RBit0" Canvas.Left="70.0" Canvas.Top="57.3" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="RBit1" Canvas.Left="65.7" Canvas.Top="57.3" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="RBit2" Canvas.Left="61.4" Canvas.Top="57.3" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="RBit3" Canvas.Left="57.1" Canvas.Top="57.3" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="RBit4" Canvas.Left="52.8" Canvas.Top="57.3" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="RBit5" Canvas.Left="48.5" Canvas.Top="57.3" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Border x:Name="RClockBox" Canvas.Left="46.6" Canvas.Top="60.7" Width="26.8" Height="10.8" CornerRadius="1" Background="#00000000" BorderBrush="#5FD3FF" BorderThickness="0"><TextBlock x:Name="RClock" Text="▶ FOCUS" Foreground="#5FD3FF" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="5.7" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
           <Rectangle Canvas.Left="43.5" Canvas.Top="76" Width="33" Height="2.2" Fill="{StaticResource OStripe}"/>
           <Rectangle Canvas.Left="55" Canvas.Top="50" Width="10" Height="7" Fill="{StaticResource ODark}"/>
           <Line X1="55" Y1="52.5" X2="65" Y2="52.5" Stroke="#6E7988" StrokeThickness="0.5"/>
@@ -696,6 +698,7 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
 
         <!-- ===== Apparence 4 : majordome (anneau holographique, plateau et cafe) ===== -->
         <Canvas x:Name="SkinButler" Visibility="Collapsed">
+          <Canvas.RenderTransform><ScaleTransform CenterX="60" CenterY="88" ScaleX="1.05" ScaleY="1.05"/></Canvas.RenderTransform>
           <Canvas Opacity="0.55">
             <Canvas.RenderTransform><RotateTransform x:Name="MHud" CenterX="60" CenterY="27" Angle="20"/></Canvas.RenderTransform>
             <Ellipse x:Name="MHud1" Canvas.Left="36.00" Canvas.Top="3.00" Width="48.00" Height="48.00" Stroke="#5FD3FF" StrokeThickness="0.6" StrokeDashArray="2 3.6"/>
@@ -708,11 +711,11 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           <Ellipse Canvas.Left="42.80" Canvas.Top="65.80" Width="4.40" Height="4.40" Fill="#E8ECF1"/>
           <Path Data="M 79,49 L 86,60 L 95,57" Stroke="#1A2540" StrokeThickness="4.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
           <Ellipse Canvas.Left="93.80" Canvas.Top="54.30" Width="4.40" Height="4.40" Fill="#E8ECF1"/>
-          <Ellipse Canvas.Left="81.50" Canvas.Top="51.50" Width="31.00" Height="5.00" Fill="{StaticResource OTray}" Stroke="#7F8A99" StrokeThickness="0.6"/>
-          <Border x:Name="MClockBox" Canvas.Left="81.6" Canvas.Top="45.4" Width="23.4" Height="7.6" CornerRadius="1.3" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="MClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="4.7" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
-          <Path Data="M 105.5,48.6 L 111.5,48.6 L 110.8,53 L 106.2,53 Z" Fill="White" Stroke="#AEB6C2" StrokeThickness="0.5"/>
-          <Path Data="M 111.4,49.6 Q 113.8,50.4 111,52.3" Stroke="#AEB6C2" StrokeThickness="0.7"/>
-          <Path x:Name="MSteam" Data="M 107.4,47.4 Q 106.6,45.4 107.8,43.6 M 109.6,47.4 Q 108.8,45 110,43" Stroke="#C9D0D9" StrokeThickness="0.55" Opacity="0.8"/>
+          <Ellipse Canvas.Left="77.50" Canvas.Top="51.50" Width="37.00" Height="5.00" Fill="{StaticResource OTray}" Stroke="#7F8A99" StrokeThickness="0.6"/>
+          <Border x:Name="MClockBox" Canvas.Left="79" Canvas.Top="42.8" Width="25.5" Height="9.8" CornerRadius="1.3" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="MClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="5.4" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+          <Path Data="M 106.6,48.6 L 112.6,48.6 L 111.9,53 L 107.3,53 Z" Fill="White" Stroke="#AEB6C2" StrokeThickness="0.5"/>
+          <Path Data="M 112.5,49.6 Q 114.9,50.4 112.1,52.3" Stroke="#AEB6C2" StrokeThickness="0.7"/>
+          <Path x:Name="MSteam" Data="M 108.5,47.4 Q 107.7,45.4 108.9,43.6 M 110.7,47.4 Q 109.9,45 111.1,43" Stroke="#C9D0D9" StrokeThickness="0.55" Opacity="0.8"/>
           <Path Data="M 41,46 Q 60,42 79,46 L 80,72 L 74,82 L 66,72 L 54,72 L 46,82 L 40,72 Z" Fill="{StaticResource OCoat}" Stroke="#0A0F1A" StrokeThickness="0.8"/>
           <Path Data="M 52.5,45 L 67.5,45 L 60,71 Z" Fill="#F4F6F9" Stroke="#C9D0D9" StrokeThickness="0.5"/>
           <Path Data="M 52.5,45 L 60,71 L 49,56 Z" Fill="#26355A" Stroke="#0A0F1A" StrokeThickness="0.5"/>
@@ -745,17 +748,18 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
 
         <!-- ===== Apparence 6 : majordome humain ===== -->
         <Canvas x:Name="SkinHuman" Visibility="Collapsed">
+          <Canvas.RenderTransform><ScaleTransform CenterX="60" CenterY="88" ScaleX="1.1" ScaleY="1.1"/></Canvas.RenderTransform>
           <Ellipse Canvas.Left="43.00" Canvas.Top="85.40" Width="34.00" Height="5.20" Fill="#33000000"/>
           <Path Data="M 41,49 L 36,62 L 44,68" Stroke="#1A2540" StrokeThickness="4.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
           <Path Data="M 36.5,60 L 41.5,61 L 40.5,73 L 35,71 Z" Fill="#F4F6F9" Stroke="#C9D0D9" StrokeThickness="0.5"/>
           <Ellipse Canvas.Left="42.80" Canvas.Top="65.80" Width="4.40" Height="4.40" Fill="White" Stroke="#D5DAE1" StrokeThickness="0.4"/>
           <Path Data="M 79,49 L 86,60 L 95,57" Stroke="#1A2540" StrokeThickness="4.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
           <Ellipse Canvas.Left="93.80" Canvas.Top="54.30" Width="4.40" Height="4.40" Fill="White" Stroke="#D5DAE1" StrokeThickness="0.4"/>
-          <Ellipse Canvas.Left="81.50" Canvas.Top="51.50" Width="31.00" Height="5.00" Fill="{StaticResource OTray}" Stroke="#7F8A99" StrokeThickness="0.6"/>
-          <Border x:Name="HClockBox" Canvas.Left="81.6" Canvas.Top="45.4" Width="23.4" Height="7.6" CornerRadius="1.3" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="HClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="4.7" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
-          <Path Data="M 105.5,48.6 L 111.5,48.6 L 110.8,53 L 106.2,53 Z" Fill="White" Stroke="#AEB6C2" StrokeThickness="0.5"/>
-          <Path Data="M 111.4,49.6 Q 113.8,50.4 111,52.3" Stroke="#AEB6C2" StrokeThickness="0.7"/>
-          <Path x:Name="HSteam" Data="M 107.4,47.4 Q 106.6,45.4 107.8,43.6 M 109.6,47.4 Q 108.8,45 110,43" Stroke="#C9D0D9" StrokeThickness="0.55" Opacity="0.8"/>
+          <Ellipse Canvas.Left="77.50" Canvas.Top="51.50" Width="37.00" Height="5.00" Fill="{StaticResource OTray}" Stroke="#7F8A99" StrokeThickness="0.6"/>
+          <Border x:Name="HClockBox" Canvas.Left="79" Canvas.Top="42.8" Width="25.5" Height="9.8" CornerRadius="1.3" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="HClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="5.4" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+          <Path Data="M 106.6,48.6 L 112.6,48.6 L 111.9,53 L 107.3,53 Z" Fill="White" Stroke="#AEB6C2" StrokeThickness="0.5"/>
+          <Path Data="M 112.5,49.6 Q 114.9,50.4 112.1,52.3" Stroke="#AEB6C2" StrokeThickness="0.7"/>
+          <Path x:Name="HSteam" Data="M 108.5,47.4 Q 107.7,45.4 108.9,43.6 M 110.7,47.4 Q 109.9,45 111.1,43" Stroke="#C9D0D9" StrokeThickness="0.55" Opacity="0.8"/>
           <Path Data="M 41,46 Q 60,42 79,46 L 80,72 L 74,82 L 66,72 L 54,72 L 46,82 L 40,72 Z" Fill="{StaticResource OCoat}" Stroke="#0A0F1A" StrokeThickness="0.8"/>
           <Path Data="M 52.5,45 L 67.5,45 L 60,71 Z" Fill="#F4F6F9" Stroke="#C9D0D9" StrokeThickness="0.5"/>
           <Path Data="M 52.5,45 L 60,71 L 49,56 Z" Fill="#26355A" Stroke="#0A0F1A" StrokeThickness="0.5"/>
@@ -794,6 +798,7 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
 
         <!-- ===== Apparence 5 : cerveau augmente (plaque chromee, circuits, oeil bionique) ===== -->
         <Canvas x:Name="SkinBrain" Visibility="Collapsed">
+          <Canvas.RenderTransform><ScaleTransform CenterX="60" CenterY="88" ScaleX="1.1" ScaleY="1.1"/></Canvas.RenderTransform>
           <Ellipse x:Name="CGlow" Canvas.Left="42.00" Canvas.Top="81.00" Width="36.00" Height="12.00" Fill="{StaticResource OGlow}"/>
           <Path x:Name="CStem" Data="M 63.5,62 C 64.5,66 64,69 62.5,72 L 58.5,72 C 59.5,69 59.6,65 58.8,62 Z" Fill="{StaticResource OGlass}" Stroke="#5FD3FF" StrokeThickness="0.6" Opacity="0.95"/>
           <Rectangle Canvas.Left="40" Canvas.Top="71" Width="40" Height="12.5" RadiusX="5" RadiusY="5" Fill="{StaticResource OMetalV}" Stroke="#4A5260" StrokeThickness="1"/>
@@ -827,7 +832,7 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           <Ellipse x:Name="CHalo" Canvas.Left="39.60" Canvas.Top="37.60" Width="8.80" Height="8.80" Stroke="#5FD3FF" StrokeThickness="0.5" Opacity="0.6"/>
           <Ellipse x:Name="CEye" Canvas.Left="41.60" Canvas.Top="39.60" Width="4.80" Height="4.80" Fill="#4C8DFF"/>
           <Ellipse x:Name="CGlint" Canvas.Left="42.40" Canvas.Top="40.30" Width="1.60" Height="1.60" Fill="#E6FFFFFF"/>
-          <Border x:Name="CClockBox" Canvas.Left="44" Canvas.Top="72.4" Width="32" Height="7.6" CornerRadius="1.6" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="CClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="6" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+          <Border x:Name="CClockBox" Canvas.Left="44" Canvas.Top="72.2" Width="32" Height="8.4" CornerRadius="1.6" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="CClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="5.8" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
         </Canvas>
       </Canvas>
 
@@ -1004,19 +1009,19 @@ $Skins = [ordered]@{
     Satellite = @{ Label = '🛰️ Satellite'; Root = 'SkinSatellite'; Clock = 'SClock'; Bits = 'Bit'; EyeX = 60; EyeY = 39.5; EyeMax = 1.8
                    Eyes = @(@('Lens', 56.7, 36.2), @('LensGlint', 57.9, 37.4))
                    Fill = @('Lens', 'Beacon', 'StatusLed'); Stroke = @(); Beacons = @('Beacon'); Glows = @() }
-    Droid     = @{ Label = '🤖 Droïde de maintenance'; Root = 'SkinDroid'; Clock = 'DClock'; Bits = 'DBit'; EyeX = 62; EyeY = 49.5; EyeMax = 1.6
+    Droid     = @{ Label = '🤖 Droïde de maintenance'; Root = 'SkinDroid'; Scale = 1.25; Clock = 'DClock'; Bits = 'DBit'; EyeX = 62; EyeY = 49.5; EyeMax = 1.6
                    Eyes = @(@('DLens', 59, 46.5), @('DGlint', 60, 47.3))
                    Fill = @('DLens', 'DBeacon'); Stroke = @('DRing'); Beacons = @('DBeacon'); Glows = @('DGlow', 'DJet1', 'DJet2') }
-    Robot     = @{ Label = '🦾 Robot assistant'; Root = 'SkinRobot'; Clock = 'RClock'; Bits = 'RBit'; EyeX = 60; EyeY = 34.5; EyeMax = 1.3
+    Robot     = @{ Label = '🦾 Robot assistant'; Root = 'SkinRobot'; Scale = 1.1; Clock = 'RClock'; Bits = 'RBit'; EyeX = 60; EyeY = 34.5; EyeMax = 1.3
                    Eyes = @(@('REyeL', 50.2, 31.2), @('REyeR', 63.2, 31.2), @('RGlintL', 51.6, 32.5), @('RGlintR', 64.6, 32.5))
                    Fill = @('REyeL', 'REyeR', 'RBeacon'); Stroke = @(); Beacons = @('RBeacon'); Glows = @('RGlow') }
-    Butler    = @{ Label = '🎩 Majordome robot'; Root = 'SkinButler'; Clock = 'MClock'; Bits = 'MBit'; EyeX = 60; EyeY = 25.7; EyeMax = 0.9
+    Butler    = @{ Label = '🎩 Majordome robot'; Root = 'SkinButler'; Scale = 1.05; Clock = 'MClock'; Bits = 'MBit'; EyeX = 60; EyeY = 25.7; EyeMax = 0.9
                    Eyes = @(@('MEyeL', 52.9, 23.6), @('MEyeR', 62.9, 23.6), @('MGlintL', 53.6, 24.3), @('MGlintR', 63.6, 24.3))
                    Fill = @('MEyeL', 'MEyeR', 'MPocket'); Stroke = @('MHud1', 'MHud2', 'MHud3'); Beacons = @(); Glows = @('MGlow') }
-    Human     = @{ Label = '🤵 Majordome humain'; Root = 'SkinHuman'; Clock = 'HClock'; Bits = 'HBit'; EyeX = 60; EyeY = 24.4; EyeMax = 0.9
+    Human     = @{ Label = '🤵 Majordome humain'; Root = 'SkinHuman'; Scale = 1.1; Clock = 'HClock'; Bits = 'HBit'; EyeX = 60; EyeY = 24.4; EyeMax = 0.9
                    Eyes = @(@('HEyeL', 53.95, 23.35), @('HEyeR', 63.95, 23.35), @('HGlintL', 54.25, 23.65), @('HGlintR', 64.25, 23.65))
                    Fill = @('HPocket'); Stroke = @(); Beacons = @(); Glows = @() }
-    Brain     = @{ Label = '🧠 Cerveau holographique'; Root = 'SkinBrain'; Clock = 'CClock'; Bits = 'CBit'; EyeX = 44; EyeY = 42; EyeMax = 1.6
+    Brain     = @{ Label = '🧠 Cerveau holographique'; Root = 'SkinBrain'; Scale = 1.1; Clock = 'CClock'; Bits = 'CBit'; EyeX = 44; EyeY = 42; EyeMax = 1.6
                    Eyes = @(@('CEye', 41.6, 39.6), @('CGlint', 42.4, 40.3))
                    Fill = @('CEye', 'CBeacon', 'CNode1', 'CNode2', 'CNode3', 'CSpark1', 'CSpark2', 'CSpark3', 'CSpark4', 'CRing')
                    Stroke = @('CTrace1', 'CTrace2', 'CTrace3', 'COutline', 'CFolds', 'CCereb', 'CCerebLines', 'CStem', 'CHalo')
@@ -1629,8 +1634,12 @@ function On-Frame {
     # les yeux (ou la camera) suivent la souris
     $c = Get-CursorDip
     $scale = $ui.BotScale.ScaleX
-    $cx = $window.Left + $window.Width - (120 - $sk.EyeX) * $scale
-    $cy = $window.Top + $window.Height - (98 - $sk.EyeY) * $scale
+    # centre du regard, en tenant compte de l'agrandissement propre a chaque dessin (autour de 60,88)
+    $k = if ($sk.Scale) { $sk.Scale } else { 1 }
+    $ex = 60 + ($sk.EyeX - 60) * $k
+    $ey = 88 + ($sk.EyeY - 88) * $k
+    $cx = $window.Left + $window.Width - (120 - $ex) * $scale
+    $cy = $window.Top + $window.Height - (98 - $ey) * $scale
     $vx = $c.X - $cx; $vy = $c.Y - $cy
     $len = [math]::Sqrt($vx * $vx + $vy * $vy)
     if ($len -gt 1) { $vx = $vx / $len * $sk.EyeMax; $vy = $vy / $len * $sk.EyeMax }
