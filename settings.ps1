@@ -58,7 +58,8 @@
             <RadioButton x:Name="SSkinSatellite" Content="🛰️ Satellite" GroupName="Skin" Margin="0,2,14,2" VerticalContentAlignment="Center"/>
             <RadioButton x:Name="SSkinDroid" Content="🤖 Droïde" GroupName="Skin" Margin="0,2,14,2" VerticalContentAlignment="Center"/>
             <RadioButton x:Name="SSkinRobot" Content="🦾 Robot" GroupName="Skin" Margin="0,2,14,2" VerticalContentAlignment="Center"/>
-            <RadioButton x:Name="SSkinButler" Content="🎩 Majordome" GroupName="Skin" Margin="0,2,14,2" VerticalContentAlignment="Center"/>
+            <RadioButton x:Name="SSkinButler" Content="🎩 Majordome robot" GroupName="Skin" Margin="0,2,14,2" VerticalContentAlignment="Center"/>
+            <RadioButton x:Name="SSkinHuman" Content="🤵 Majordome humain" GroupName="Skin" Margin="0,2,14,2" VerticalContentAlignment="Center"/>
             <RadioButton x:Name="SSkinBrain" Content="🧠 Cerveau" GroupName="Skin" Margin="0,2,0,2" VerticalContentAlignment="Center"/>
           </WrapPanel>
 
@@ -142,7 +143,7 @@ $settingsWin = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeR
 $sw = @{}
 foreach ($n in 'SHeader','SClose','SDefaults','SCancel','SSave','SError','SR50','SR25','SRPerso','SPersoFocus','SPersoBreak',
                'SIdle','SIdleMin','STasks','SNudge','SJokes','SJokeMin','SMotiv','SApps','SQuiet','SWander','SWanderMin',
-               'SWanderMax','SSounds','SDroid','SDroidVol','SDroidTest','SAuto','SSkinSatellite','SSkinDroid','SSkinRobot','SSkinButler','SSkinBrain') {
+               'SWanderMax','SSounds','SDroid','SDroidVol','SDroidTest','SAuto','SSkinSatellite','SSkinDroid','SSkinRobot','SSkinButler','SSkinBrain','SSkinHuman') {
     $sw[$n] = $settingsWin.FindName($n)
 }
 
@@ -175,7 +176,7 @@ function Fill-SettingsForm($d) {
     $sw.SSounds.IsChecked = $d.sounds
     $sw.SDroid.IsChecked = $d.droidSounds
     $sw.SDroidVol.Value = [math]::Max(5, [double]$d.droidVolume)
-    foreach ($k in 'Satellite', 'Droid', 'Robot', 'Butler', 'Brain') { $sw["SSkin$k"].IsChecked = ($d.skin -eq $k) }
+    foreach ($k in 'Satellite', 'Droid', 'Robot', 'Butler', 'Human', 'Brain') { $sw["SSkin$k"].IsChecked = ($d.skin -eq $k) }
     $sw.SError.Visibility = 'Collapsed'
     foreach ($tb in 'SPersoFocus','SPersoBreak','SIdleMin','SNudge','SJokeMin','SMotiv','SWanderMin','SWanderMax') {
         $sw[$tb].ClearValue([Windows.Controls.Control]::BorderBrushProperty)
@@ -227,7 +228,7 @@ function Save-SettingsForm {
     })
     Apply-Rhythm
     $skin = 'Satellite'
-    foreach ($k in 'Droid', 'Robot', 'Butler', 'Brain') { if ($sw["SSkin$k"].IsChecked) { $skin = $k } }
+    foreach ($k in 'Droid', 'Robot', 'Butler', 'Human', 'Brain') { if ($sw["SSkin$k"].IsChecked) { $skin = $k } }
     if ($skin -ne $O.Skin) { Set-Skin $skin -Quiet }
     if (-not $O.Wander) { $O.Walking = $false }
     if ($O.Quiet) { Hide-Bubble }

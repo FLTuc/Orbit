@@ -441,8 +441,11 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
         <LinearGradientBrush x:Key="OCoat" StartPoint="0,0" EndPoint="1,0">
           <GradientStop Color="#2A3A5E" Offset="0"/><GradientStop Color="#1A2540" Offset="0.5"/><GradientStop Color="#0E1526" Offset="1"/>
         </LinearGradientBrush>
-        <RadialGradientBrush x:Key="OBrain" GradientOrigin="0.35,0.3" Center="0.4,0.35" RadiusX="0.75" RadiusY="0.75">
-          <GradientStop Color="#FFD3DA" Offset="0"/><GradientStop Color="#F2A7B4" Offset="0.45"/><GradientStop Color="#CF6B7C" Offset="1"/>
+        <RadialGradientBrush x:Key="OSkin" GradientOrigin="0.4,0.35" Center="0.45,0.4" RadiusX="0.7" RadiusY="0.7">
+          <GradientStop Color="#F6D8BF" Offset="0"/><GradientStop Color="#EDC3A3" Offset="0.6"/><GradientStop Color="#D9A583" Offset="1"/>
+        </RadialGradientBrush>
+        <RadialGradientBrush x:Key="OGlass" GradientOrigin="0.35,0.3" Center="0.45,0.4" RadiusX="0.75" RadiusY="0.75">
+          <GradientStop Color="#F0243A5E" Offset="0"/><GradientStop Color="#F0142338" Offset="0.6"/><GradientStop Color="#F00A1322" Offset="1"/>
         </RadialGradientBrush>
         <LinearGradientBrush x:Key="OTray" StartPoint="0,0" EndPoint="0,1">
           <GradientStop Color="#FAFBFC" Offset="0"/><GradientStop Color="#9AA3B0" Offset="1"/>
@@ -699,17 +702,17 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
             <Path x:Name="MHud2" Data="M 39,19 A 22,22 0 0 1 60,5" Stroke="#5FD3FF" StrokeThickness="1.4"/>
             <Path x:Name="MHud3" Data="M 81,35 A 22,22 0 0 1 70,47" Stroke="#5FD3FF" StrokeThickness="1.4"/>
           </Canvas>
-          <Border x:Name="MClockBox" Canvas.Left="3" Canvas.Top="30.5" Width="31" Height="10.5" CornerRadius="2" Background="#335FD3FF" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="MClock" Text="▶ FOCUS" Foreground="#EAF7FF" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="6.4" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
           <Ellipse x:Name="MGlow" Canvas.Left="45.00" Canvas.Top="81.00" Width="30.00" Height="10.00" Fill="{StaticResource OGlow}"/>
           <Path Data="M 41,49 L 36,62 L 44,68" Stroke="#1A2540" StrokeThickness="4.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
           <Path Data="M 36.5,60 L 41.5,61 L 40.5,73 L 35,71 Z" Fill="#F4F6F9" Stroke="#C9D0D9" StrokeThickness="0.5"/>
           <Ellipse Canvas.Left="42.80" Canvas.Top="65.80" Width="4.40" Height="4.40" Fill="#E8ECF1"/>
           <Path Data="M 79,49 L 86,60 L 95,57" Stroke="#1A2540" StrokeThickness="4.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
           <Ellipse Canvas.Left="93.80" Canvas.Top="54.30" Width="4.40" Height="4.40" Fill="#E8ECF1"/>
-          <Ellipse Canvas.Left="85.00" Canvas.Top="51.60" Width="26.00" Height="4.80" Fill="{StaticResource OTray}" Stroke="#7F8A99" StrokeThickness="0.6"/>
-          <Path Data="M 94,47 L 102,47 L 101,53 L 95,53 Z" Fill="White" Stroke="#AEB6C2" StrokeThickness="0.5"/>
-          <Path Data="M 102,48.5 Q 105,49.5 101.6,51.6" Stroke="#AEB6C2" StrokeThickness="0.8"/>
-          <Path x:Name="MSteam" Data="M 96.5,45 Q 95.5,42.5 97,40.5 M 99.5,45 Q 98.5,42 100,39.5" Stroke="#C9D0D9" StrokeThickness="0.6" Opacity="0.8"/>
+          <Ellipse Canvas.Left="81.50" Canvas.Top="51.50" Width="31.00" Height="5.00" Fill="{StaticResource OTray}" Stroke="#7F8A99" StrokeThickness="0.6"/>
+          <Border x:Name="MClockBox" Canvas.Left="81.6" Canvas.Top="45.4" Width="23.4" Height="7.6" CornerRadius="1.3" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="MClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="4.7" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+          <Path Data="M 105.5,48.6 L 111.5,48.6 L 110.8,53 L 106.2,53 Z" Fill="White" Stroke="#AEB6C2" StrokeThickness="0.5"/>
+          <Path Data="M 111.4,49.6 Q 113.8,50.4 111,52.3" Stroke="#AEB6C2" StrokeThickness="0.7"/>
+          <Path x:Name="MSteam" Data="M 107.4,47.4 Q 106.6,45.4 107.8,43.6 M 109.6,47.4 Q 108.8,45 110,43" Stroke="#C9D0D9" StrokeThickness="0.55" Opacity="0.8"/>
           <Path Data="M 41,46 Q 60,42 79,46 L 80,72 L 74,82 L 66,72 L 54,72 L 46,82 L 40,72 Z" Fill="{StaticResource OCoat}" Stroke="#0A0F1A" StrokeThickness="0.8"/>
           <Path Data="M 52.5,45 L 67.5,45 L 60,71 Z" Fill="#F4F6F9" Stroke="#C9D0D9" StrokeThickness="0.5"/>
           <Path Data="M 52.5,45 L 60,71 L 49,56 Z" Fill="#26355A" Stroke="#0A0F1A" StrokeThickness="0.5"/>
@@ -740,57 +743,91 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           <Path Data="M 60,33 Q 56,32 53.5,34.5 Q 56.5,35.5 60,34.2 Q 63.5,35.5 66.5,34.5 Q 64,32 60,33 Z" Fill="#3A4352"/>
         </Canvas>
 
+        <!-- ===== Apparence 6 : majordome humain ===== -->
+        <Canvas x:Name="SkinHuman" Visibility="Collapsed">
+          <Ellipse Canvas.Left="43.00" Canvas.Top="85.40" Width="34.00" Height="5.20" Fill="#33000000"/>
+          <Path Data="M 41,49 L 36,62 L 44,68" Stroke="#1A2540" StrokeThickness="4.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+          <Path Data="M 36.5,60 L 41.5,61 L 40.5,73 L 35,71 Z" Fill="#F4F6F9" Stroke="#C9D0D9" StrokeThickness="0.5"/>
+          <Ellipse Canvas.Left="42.80" Canvas.Top="65.80" Width="4.40" Height="4.40" Fill="White" Stroke="#D5DAE1" StrokeThickness="0.4"/>
+          <Path Data="M 79,49 L 86,60 L 95,57" Stroke="#1A2540" StrokeThickness="4.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+          <Ellipse Canvas.Left="93.80" Canvas.Top="54.30" Width="4.40" Height="4.40" Fill="White" Stroke="#D5DAE1" StrokeThickness="0.4"/>
+          <Ellipse Canvas.Left="81.50" Canvas.Top="51.50" Width="31.00" Height="5.00" Fill="{StaticResource OTray}" Stroke="#7F8A99" StrokeThickness="0.6"/>
+          <Border x:Name="HClockBox" Canvas.Left="81.6" Canvas.Top="45.4" Width="23.4" Height="7.6" CornerRadius="1.3" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="HClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="4.7" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+          <Path Data="M 105.5,48.6 L 111.5,48.6 L 110.8,53 L 106.2,53 Z" Fill="White" Stroke="#AEB6C2" StrokeThickness="0.5"/>
+          <Path Data="M 111.4,49.6 Q 113.8,50.4 111,52.3" Stroke="#AEB6C2" StrokeThickness="0.7"/>
+          <Path x:Name="HSteam" Data="M 107.4,47.4 Q 106.6,45.4 107.8,43.6 M 109.6,47.4 Q 108.8,45 110,43" Stroke="#C9D0D9" StrokeThickness="0.55" Opacity="0.8"/>
+          <Path Data="M 41,46 Q 60,42 79,46 L 80,72 L 74,82 L 66,72 L 54,72 L 46,82 L 40,72 Z" Fill="{StaticResource OCoat}" Stroke="#0A0F1A" StrokeThickness="0.8"/>
+          <Path Data="M 52.5,45 L 67.5,45 L 60,71 Z" Fill="#F4F6F9" Stroke="#C9D0D9" StrokeThickness="0.5"/>
+          <Path Data="M 52.5,45 L 60,71 L 49,56 Z" Fill="#26355A" Stroke="#0A0F1A" StrokeThickness="0.5"/>
+          <Path Data="M 67.5,45 L 60,71 L 71,56 Z" Fill="#26355A" Stroke="#0A0F1A" StrokeThickness="0.5"/>
+          <Path x:Name="HPocket" Data="M 70,57.5 L 75,57.5 L 73.5,60.5 L 72.5,59 L 71.5,60.5 Z" Fill="#4C8DFF"/>
+          <Line X1="69.5" Y1="60.6" X2="75.5" Y2="60.6" Stroke="#0A0F1A" StrokeThickness="0.7"/>
+          <Ellipse x:Name="HBit0" Canvas.Left="58.90" Canvas.Top="65.90" Width="2.20" Height="2.20" Fill="#2A3442"/>
+          <Ellipse x:Name="HBit1" Canvas.Left="58.90" Canvas.Top="62.70" Width="2.20" Height="2.20" Fill="#2A3442"/>
+          <Ellipse x:Name="HBit2" Canvas.Left="58.90" Canvas.Top="59.50" Width="2.20" Height="2.20" Fill="#2A3442"/>
+          <Ellipse x:Name="HBit3" Canvas.Left="58.90" Canvas.Top="56.30" Width="2.20" Height="2.20" Fill="#2A3442"/>
+          <Ellipse x:Name="HBit4" Canvas.Left="58.90" Canvas.Top="53.10" Width="2.20" Height="2.20" Fill="#2A3442"/>
+          <Ellipse x:Name="HBit5" Canvas.Left="58.90" Canvas.Top="49.90" Width="2.20" Height="2.20" Fill="#2A3442"/>
+          <Rectangle Canvas.Left="56.5" Canvas.Top="37.5" Width="7" Height="6.5" Fill="{StaticResource OSkin}"/>
+          <Path Data="M 54,43.5 L 60,46 L 66,43.5 L 65,41.5 L 60,43.5 L 55,41.5 Z" Fill="White" Stroke="#C9D0D9" StrokeThickness="0.4"/>
+          <Path Data="M 54.5,44 L 59.2,46 L 54.5,48 Z" Fill="#111722"/>
+          <Path Data="M 65.5,44 L 60.8,46 L 65.5,48 Z" Fill="#111722"/>
+          <Rectangle Canvas.Left="58.6" Canvas.Top="44.9" Width="2.8" Height="2.2" RadiusX="0.6" RadiusY="0.6" Fill="#2B323D"/>
+          <Ellipse Canvas.Left="45.40" Canvas.Top="23.20" Width="4.40" Height="6.60" Fill="#E2AE8C"/>
+          <Ellipse Canvas.Left="70.20" Canvas.Top="23.20" Width="4.40" Height="6.60" Fill="#E2AE8C"/>
+          <Ellipse Canvas.Left="48.00" Canvas.Top="11.50" Width="24.00" Height="28.00" Fill="{StaticResource OSkin}" Stroke="#C9967A" StrokeThickness="0.5"/>
+          <Path Data="M 48.2,23.5 C 46.5,13 53,9.4 60,9.6 C 67.5,9.4 74,13 71.8,23.5 C 70.8,18.5 68,16 63.5,15.6 C 59,17.3 54.5,15.8 51.2,18.2 C 49.4,19.6 48.6,21.4 48.2,23.5 Z" Fill="#B9BFC7"/>
+          <Path Data="M 52,13.2 C 55,12 58,12.4 60.5,14.2 M 62,11.6 C 65.5,11.4 69,13 70.6,16.4 M 54,15.4 C 56,14.6 58,15 59.5,16" Stroke="#8E959E" StrokeThickness="0.45"/>
+          <Path Data="M 52.4,21 Q 55,19.6 57.6,20.8 M 62.4,20.8 Q 65,19.6 67.6,21" Stroke="#8E959E" StrokeThickness="0.9" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+          <Ellipse Canvas.Left="52.60" Canvas.Top="22.80" Width="4.80" Height="3.20" Fill="White" Stroke="#C9967A" StrokeThickness="0.3"/>
+          <Ellipse Canvas.Left="62.60" Canvas.Top="22.80" Width="4.80" Height="3.20" Fill="White" Stroke="#C9967A" StrokeThickness="0.3"/>
+          <Ellipse x:Name="HEyeL" Canvas.Left="53.95" Canvas.Top="23.35" Width="2.10" Height="2.10" Fill="#3B5876"/>
+          <Ellipse x:Name="HEyeR" Canvas.Left="63.95" Canvas.Top="23.35" Width="2.10" Height="2.10" Fill="#3B5876"/>
+          <Ellipse x:Name="HGlintL" Canvas.Left="54.25" Canvas.Top="23.65" Width="0.70" Height="0.70" Fill="White"/>
+          <Ellipse x:Name="HGlintR" Canvas.Left="64.25" Canvas.Top="23.65" Width="0.70" Height="0.70" Fill="White"/>
+          <Path Data="M 60,24.5 C 59.2,28 58.6,29.6 60.8,30.2" Stroke="#BF8A6C" StrokeThickness="0.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+          <Path Data="M 60,31.4 Q 56,30.6 53.2,33.2 Q 56.6,34 60,32.8 Q 63.4,34 66.8,33.2 Q 64,30.6 60,31.4 Z" Fill="#A3AAB3"/>
+          <Path Data="M 57.2,35.6 Q 60,37 62.8,35.6" Stroke="#A86B57" StrokeThickness="0.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+          <Ellipse Canvas.Left="50.40" Canvas.Top="29.20" Width="4.40" Height="2.60" Fill="#33E58F7A"/>
+          <Ellipse Canvas.Left="65.20" Canvas.Top="29.20" Width="4.40" Height="2.60" Fill="#33E58F7A"/>
+        </Canvas>
+
         <!-- ===== Apparence 5 : cerveau augmente (plaque chromee, circuits, oeil bionique) ===== -->
         <Canvas x:Name="SkinBrain" Visibility="Collapsed">
-          <Ellipse x:Name="CGlow" Canvas.Left="42.00" Canvas.Top="84.00" Width="36.00" Height="12.00" Fill="{StaticResource OGlow}"/>
-          <Path Data="M 58,62 L 62,62 L 62.6,73 L 57.4,73 Z" Fill="{StaticResource ODark}"/>
-          <Line X1="57.6" Y1="65.5" X2="62.4" Y2="65.5" Stroke="#6E7988" StrokeThickness="0.6"/>
-          <Line X1="57.4" Y1="68.5" X2="62.6" Y2="68.5" Stroke="#6E7988" StrokeThickness="0.6"/>
+          <Ellipse x:Name="CGlow" Canvas.Left="42.00" Canvas.Top="81.00" Width="36.00" Height="12.00" Fill="{StaticResource OGlow}"/>
+          <Path x:Name="CStem" Data="M 63.5,62 C 64.5,66 64,69 62.5,72 L 58.5,72 C 59.5,69 59.6,65 58.8,62 Z" Fill="{StaticResource OGlass}" Stroke="#5FD3FF" StrokeThickness="0.6" Opacity="0.95"/>
           <Rectangle Canvas.Left="40" Canvas.Top="71" Width="40" Height="12.5" RadiusX="5" RadiusY="5" Fill="{StaticResource OMetalV}" Stroke="#4A5260" StrokeThickness="1"/>
-          <Border x:Name="CClockBox" Canvas.Left="44" Canvas.Top="72.4" Width="32" Height="7.6" CornerRadius="1.6" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="CClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="6" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
-          <Rectangle x:Name="CRing" Canvas.Left="45" Canvas.Top="81" Width="30" Height="1.2" RadiusX="0.7" RadiusY="0.7" Fill="#5FD3FF"/>
+          <Rectangle x:Name="CRing" Canvas.Left="45" Canvas.Top="81" Width="30" Height="1.2" RadiusX="0.6" RadiusY="0.6" Fill="#5FD3FF"/>
           <Path Data="M 50,83.5 L 55,83.5 L 54,86.5 L 51,86.5 Z" Fill="#4D5664"/>
           <Path Data="M 65,83.5 L 70,83.5 L 69,86.5 L 66,86.5 Z" Fill="#4D5664"/>
-          <Path Data="M 34,50 C 30,38 38,26 50,24 C 56,16 70,16 76,23 C 86,22 92,32 90,42 C 94,50 88,60 80,60 C 74,66 62,66 56,62 C 48,66 36,62 34,50 Z" Fill="{StaticResource OBrain}" Stroke="#A8505F" StrokeThickness="1"/>
-          <Path Data="M 38,48 C 41,44 46,46 48,42 C 50,38 46,34 50,31" Stroke="#B85566" StrokeThickness="0.9" Opacity="0.75"/>
-          <Path Data="M 42,57 C 46,54 50,57 54,54 C 57,52 56,48 60,47" Stroke="#B85566" StrokeThickness="0.9" Opacity="0.75"/>
-          <Path Data="M 52,26 C 54,30 59,29 60,33 C 61,37 57,39 60,42" Stroke="#B85566" StrokeThickness="0.9" Opacity="0.75"/>
-          <Path Data="M 57,21 C 60,24 64,22 66,25" Stroke="#B85566" StrokeThickness="0.8" Opacity="0.7"/>
-          <Path Data="M 36,40 C 39,38 40,34 44,33" Stroke="#B85566" StrokeThickness="0.8" Opacity="0.7"/>
-          <Path Data="M 47,60 C 50,58 53,61 56,59" Stroke="#B85566" StrokeThickness="0.8" Opacity="0.7"/>
-          <Path Data="M 40,36 C 44,30 50,27 56,25" Stroke="White" StrokeThickness="0.7" Opacity="0.35"/>
-          <Path Data="M 66,19.5 C 72,17.5 75,20 76,23 C 86,22 92,32 90,42 C 94,50 88,60 80,60 C 77,63 73,64.5 70,64.5 C 72,56 66,50 68,42 C 70,34 64,26 66,19.5 Z" Fill="{StaticResource OMetal}" Stroke="#4A5260" StrokeThickness="1"/>
-          <Path Data="M 67.8,24 C 67,30 70.5,36 69.6,42 C 68.4,49 73,55 71.6,62" Stroke="#2B323D" StrokeThickness="0.6" Opacity="0.6"/>
-          <Path x:Name="CTrace1" Data="M 72,27 L 78,27 L 81,30 L 86,30" Stroke="#5FD3FF" StrokeThickness="0.7"/>
-          <Path x:Name="CTrace2" Data="M 71,47 L 77,47 L 80,50 L 87,50" Stroke="#5FD3FF" StrokeThickness="0.7"/>
-          <Path x:Name="CTrace3" Data="M 73,55 L 79,55 L 82,52" Stroke="#5FD3FF" StrokeThickness="0.7"/>
-          <Ellipse x:Name="CNode1" Canvas.Left="85.00" Canvas.Top="29.00" Width="2.00" Height="2.00" Fill="#5FD3FF"/>
-          <Ellipse x:Name="CNode2" Canvas.Left="86.00" Canvas.Top="49.00" Width="2.00" Height="2.00" Fill="#5FD3FF"/>
-          <Ellipse x:Name="CNode3" Canvas.Left="81.10" Canvas.Top="51.10" Width="1.80" Height="1.80" Fill="#5FD3FF"/>
-          <Ellipse Canvas.Left="73.20" Canvas.Top="21.70" Width="1.60" Height="1.60" Fill="#7F8A99"/>
-          <Ellipse Canvas.Left="87.70" Canvas.Top="39.20" Width="1.60" Height="1.60" Fill="#7F8A99"/>
-          <Ellipse Canvas.Left="82.20" Canvas.Top="57.70" Width="1.60" Height="1.60" Fill="#7F8A99"/>
-          <Rectangle Canvas.Left="71.5" Canvas.Top="38.5" Width="17.5" Height="5" RadiusX="1" RadiusY="1" Fill="#141B24"/>
-          <Rectangle x:Name="CBit0" Canvas.Left="86.3" Canvas.Top="39.9" Width="2.2" Height="2.2" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
-          <Rectangle x:Name="CBit1" Canvas.Left="83.6" Canvas.Top="39.9" Width="2.2" Height="2.2" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
-          <Rectangle x:Name="CBit2" Canvas.Left="80.9" Canvas.Top="39.9" Width="2.2" Height="2.2" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
-          <Rectangle x:Name="CBit3" Canvas.Left="78.2" Canvas.Top="39.9" Width="2.2" Height="2.2" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
-          <Rectangle x:Name="CBit4" Canvas.Left="75.5" Canvas.Top="39.9" Width="2.2" Height="2.2" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
-          <Rectangle x:Name="CBit5" Canvas.Left="72.8" Canvas.Top="39.9" Width="2.2" Height="2.2" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
-          <Ellipse Canvas.Left="48.50" Canvas.Top="28.50" Width="3.00" Height="3.00" Fill="#C9D0D9" Stroke="#4A5260" StrokeThickness="0.5"/>
-          <Ellipse Canvas.Left="52.50" Canvas.Top="50.50" Width="3.00" Height="3.00" Fill="#C9D0D9" Stroke="#4A5260" StrokeThickness="0.5"/>
-          <Path Data="M 51.4,29.4 C 58,26 62,30 68,28" Stroke="#7F8A99" StrokeThickness="0.6"/>
-          <Path Data="M 55.4,52.4 C 60,55 64,50 69,52" Stroke="#7F8A99" StrokeThickness="0.6"/>
-          <Ellipse x:Name="CSpark1" Canvas.Left="40.10" Canvas.Top="44.10" Width="1.80" Height="1.80" Fill="#5FD3FF"/>
-          <Ellipse x:Name="CSpark2" Canvas.Left="55.20" Canvas.Top="35.20" Width="1.60" Height="1.60" Fill="#5FD3FF"/>
-          <Ellipse x:Name="CSpark3" Canvas.Left="47.20" Canvas.Top="56.20" Width="1.60" Height="1.60" Fill="#5FD3FF"/>
-          <Ellipse x:Name="CSpark4" Canvas.Left="61.20" Canvas.Top="21.20" Width="1.60" Height="1.60" Fill="#5FD3FF"/>
-          <Ellipse Canvas.Left="37.80" Canvas.Top="35.80" Width="12.40" Height="12.40" Fill="{StaticResource OMetal}" Stroke="#4A5260" StrokeThickness="0.9"/>
-          <Ellipse Canvas.Left="39.60" Canvas.Top="37.60" Width="8.80" Height="8.80" Fill="#0B121C" Stroke="#3A4556" StrokeThickness="0.6"/>
+          <Path x:Name="CCereb" Data="M 70,59 C 74,56 84,55 88,58 C 90,63 86,68 79,68 C 74,68 70,64 70,59 Z" Fill="{StaticResource OGlass}" Stroke="#5FD3FF" StrokeThickness="0.9"/>
+          <Path x:Name="CCerebLines" Data="M 72,60.5 C 77,59 84,59 88.5,60.5 M 71.2,63 C 77,61.8 84,62 88.8,63 M 72,65.5 C 77,64.6 83,64.8 87.4,65.6" Stroke="#5FD3FF" StrokeThickness="0.45" Opacity="0.6"/>
+          <Path x:Name="COutline" Data="M 32,47 C 30,35 38,24 50,21 C 58,15 72,15 80,20 C 89,24 94,33 92,43 C 92,50 88,54 83,55 C 81,60 76,62 71,61 C 67,64 61,64 57,61 C 51,63 44,63 40,59 C 35,57 32,53 32,47 Z" Fill="{StaticResource OGlass}" Stroke="#5FD3FF" StrokeThickness="1.2"/>
+          <Path Data="M 38,33 C 42,26 50,22 58,20" Stroke="White" StrokeThickness="0.7" Opacity="0.25"/>
+          <Path x:Name="CFolds" Data="M 61,17 C 63,22 59,26 62,31 C 64,35 60,39 61,43 M 42,53 C 48,50 53,52 58,49 C 62,47 66,48 70,45 M 37,40 C 41,37 41,32 46,30 C 50,28 49,24 53,22 M 36,48 C 40,46 44,47 46,43 C 48,39 52,40 54,36 C 56,32 54,28 57,25 M 45,57 C 49,55 52,58 56,56 M 59,57 C 63,55 66,57 70,54 C 73,52 77,53 80,51 M 66,21 C 68,25 72,24 74,28 C 76,32 73,35 76,39 M 80,24 C 81,29 85,30 86,35 C 87,39 85,43 88,46 M 66,35 C 69,38 73,37 75,41 C 77,45 82,44 84,48 M 50,46 C 53,44 57,45 59,42" Stroke="#5FD3FF" StrokeThickness="0.6" Opacity="0.6"/>
+          <Path x:Name="CTrace1" Data="M 46,30 L 54,36 L 61,31" Stroke="#5FD3FF" StrokeThickness="0.5"/>
+          <Path x:Name="CTrace2" Data="M 56,56 L 62,49 L 70,54" Stroke="#5FD3FF" StrokeThickness="0.5"/>
+          <Path x:Name="CTrace3" Data="M 74,28 L 75,41 L 84,48" Stroke="#5FD3FF" StrokeThickness="0.5"/>
+          <Ellipse x:Name="CNode1" Canvas.Left="53.10" Canvas.Top="35.10" Width="1.80" Height="1.80" Fill="#5FD3FF"/>
+          <Ellipse x:Name="CNode2" Canvas.Left="61.10" Canvas.Top="48.10" Width="1.80" Height="1.80" Fill="#5FD3FF"/>
+          <Ellipse x:Name="CNode3" Canvas.Left="74.10" Canvas.Top="40.10" Width="1.80" Height="1.80" Fill="#5FD3FF"/>
+          <Ellipse x:Name="CSpark1" Canvas.Left="45.20" Canvas.Top="29.20" Width="1.60" Height="1.60" Fill="#5FD3FF"/>
+          <Ellipse x:Name="CSpark2" Canvas.Left="69.20" Canvas.Top="53.20" Width="1.60" Height="1.60" Fill="#5FD3FF"/>
+          <Ellipse x:Name="CSpark3" Canvas.Left="83.20" Canvas.Top="47.20" Width="1.60" Height="1.60" Fill="#5FD3FF"/>
+          <Ellipse x:Name="CSpark4" Canvas.Left="60.20" Canvas.Top="30.20" Width="1.60" Height="1.60" Fill="#5FD3FF"/>
+          <Rectangle Canvas.Left="70" Canvas.Top="22.4" Width="19" Height="6.2" RadiusX="1.2" RadiusY="1.2" Fill="#141B24" Stroke="#7F8A99" StrokeThickness="0.6"/>
+          <Rectangle x:Name="CBit0" Canvas.Left="85.0" Canvas.Top="24.4" Width="2.2" Height="2.2" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
+          <Rectangle x:Name="CBit1" Canvas.Left="82.3" Canvas.Top="24.4" Width="2.2" Height="2.2" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
+          <Rectangle x:Name="CBit2" Canvas.Left="79.6" Canvas.Top="24.4" Width="2.2" Height="2.2" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
+          <Rectangle x:Name="CBit3" Canvas.Left="76.9" Canvas.Top="24.4" Width="2.2" Height="2.2" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
+          <Rectangle x:Name="CBit4" Canvas.Left="74.2" Canvas.Top="24.4" Width="2.2" Height="2.2" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
+          <Rectangle x:Name="CBit5" Canvas.Left="71.5" Canvas.Top="24.4" Width="2.2" Height="2.2" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
+          <Line X1="84" Y1="22.4" X2="88" Y2="11.5" Stroke="#7F8A99" StrokeThickness="1"/>
+          <Ellipse x:Name="CBeacon" Canvas.Left="86.40" Canvas.Top="9.00" Width="3.60" Height="3.60" Fill="#5FD3FF"/>
+          <Ellipse x:Name="CHalo" Canvas.Left="39.60" Canvas.Top="37.60" Width="8.80" Height="8.80" Stroke="#5FD3FF" StrokeThickness="0.5" Opacity="0.6"/>
           <Ellipse x:Name="CEye" Canvas.Left="41.60" Canvas.Top="39.60" Width="4.80" Height="4.80" Fill="#4C8DFF"/>
           <Ellipse x:Name="CGlint" Canvas.Left="42.40" Canvas.Top="40.30" Width="1.60" Height="1.60" Fill="#E6FFFFFF"/>
-          <Line X1="82" Y1="24" X2="87" Y2="12" Stroke="#7F8A99" StrokeThickness="1"/>
-          <Ellipse x:Name="CBeacon" Canvas.Left="85.50" Canvas.Top="9.40" Width="3.60" Height="3.60" Fill="#5FD3FF"/>
+          <Border x:Name="CClockBox" Canvas.Left="44" Canvas.Top="72.4" Width="32" Height="7.6" CornerRadius="1.6" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="CClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="6" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
         </Canvas>
       </Canvas>
 
@@ -973,13 +1010,17 @@ $Skins = [ordered]@{
     Robot     = @{ Label = '🦾 Robot assistant'; Root = 'SkinRobot'; Clock = 'RClock'; Bits = 'RBit'; EyeX = 60; EyeY = 34.5; EyeMax = 1.3
                    Eyes = @(@('REyeL', 50.2, 31.2), @('REyeR', 63.2, 31.2), @('RGlintL', 51.6, 32.5), @('RGlintR', 64.6, 32.5))
                    Fill = @('REyeL', 'REyeR', 'RBeacon'); Stroke = @(); Beacons = @('RBeacon'); Glows = @('RGlow') }
-    Butler    = @{ Label = '🎩 Majordome'; Root = 'SkinButler'; Clock = 'MClock'; Bits = 'MBit'; EyeX = 60; EyeY = 25.7; EyeMax = 0.9
+    Butler    = @{ Label = '🎩 Majordome robot'; Root = 'SkinButler'; Clock = 'MClock'; Bits = 'MBit'; EyeX = 60; EyeY = 25.7; EyeMax = 0.9
                    Eyes = @(@('MEyeL', 52.9, 23.6), @('MEyeR', 62.9, 23.6), @('MGlintL', 53.6, 24.3), @('MGlintR', 63.6, 24.3))
                    Fill = @('MEyeL', 'MEyeR', 'MPocket'); Stroke = @('MHud1', 'MHud2', 'MHud3'); Beacons = @(); Glows = @('MGlow') }
-    Brain     = @{ Label = '🧠 Cerveau augmenté'; Root = 'SkinBrain'; Clock = 'CClock'; Bits = 'CBit'; EyeX = 44; EyeY = 42; EyeMax = 1.6
+    Human     = @{ Label = '🤵 Majordome humain'; Root = 'SkinHuman'; Clock = 'HClock'; Bits = 'HBit'; EyeX = 60; EyeY = 24.4; EyeMax = 0.9
+                   Eyes = @(@('HEyeL', 53.95, 23.35), @('HEyeR', 63.95, 23.35), @('HGlintL', 54.25, 23.65), @('HGlintR', 64.25, 23.65))
+                   Fill = @('HPocket'); Stroke = @(); Beacons = @(); Glows = @() }
+    Brain     = @{ Label = '🧠 Cerveau holographique'; Root = 'SkinBrain'; Clock = 'CClock'; Bits = 'CBit'; EyeX = 44; EyeY = 42; EyeMax = 1.6
                    Eyes = @(@('CEye', 41.6, 39.6), @('CGlint', 42.4, 40.3))
                    Fill = @('CEye', 'CBeacon', 'CNode1', 'CNode2', 'CNode3', 'CSpark1', 'CSpark2', 'CSpark3', 'CSpark4', 'CRing')
-                   Stroke = @('CTrace1', 'CTrace2', 'CTrace3'); Beacons = @('CBeacon'); Glows = @('CGlow') }
+                   Stroke = @('CTrace1', 'CTrace2', 'CTrace3', 'COutline', 'CFolds', 'CCereb', 'CCerebLines', 'CStem', 'CHalo')
+                   Beacons = @('CBeacon'); Glows = @('CGlow') }
 }
 
 function Set-Skin([string]$name, [switch]$Quiet) {
@@ -993,7 +1034,8 @@ function Set-Skin([string]$name, [switch]$Quiet) {
             'Droid'     { "Droïde de maintenance opérationnel. Je répare… surtout ta motivation 🔧" }
             'Robot'     { "Robot assistant en ligne. > focus_ 🦾" }
             'Butler'    { "Votre majordome est à votre service. Un café avec votre focus ? ☕🎩" }
-            'Brain'     { "Cerveau augmenté connecté. Neurones chargés à 100 % 🧠⚡" }
+            'Brain'     { "Cerveau holographique connecté. Neurones chargés à 100 % 🧠⚡" }
+            'Human'     { "Bonjour. Votre majordome est à votre service : un café, l'heure, et votre liste de tâches ☕🤵" }
         }
         Show-Bubble $hello -Force -Seconds 4
     }
@@ -1619,6 +1661,9 @@ function On-Frame {
             }
             $pulse = 0.55 + 0.45 * [math]::Sin($t * 2.6)
             foreach ($n in 'CTrace1', 'CTrace2', 'CTrace3', 'CNode1', 'CNode2', 'CNode3') { $ui[$n].Opacity = $pulse }
+        }
+        'Human' {
+            $ui.HSteam.Opacity = 0.45 + 0.35 * [math]::Sin($t * 2.3)
         }
         'Butler' {
             # l'anneau holographique tourne lentement, la vapeur du cafe ondule
