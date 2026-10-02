@@ -632,7 +632,7 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           <Path Data="M 38,62 Q 60,70 82,62" Stroke="#6E7988" StrokeThickness="0.7"/>
           <Path Data="M 40,50 Q 60,44 80,50" Stroke="#6E7988" StrokeThickness="0.5" Opacity="0.6"/>
           <Path Data="M 37.5,64 Q 60,73 82.5,64 L 81.6,67.5 Q 60,76 38.4,67.5 Z" Fill="{StaticResource OStripe}"/>
-          <Border x:Name="DClockBox" Canvas.Left="48" Canvas.Top="57.4" Width="24" Height="9.2" CornerRadius="1.4" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="DClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="5" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+          <Border x:Name="DClockBox" Canvas.Left="48" Canvas.Top="57.4" Width="24" Height="9.2" CornerRadius="1.4" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="DClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="5.04" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
           <Rectangle Canvas.Left="47" Canvas.Top="69" Width="26" Height="6" RadiusX="1.2" RadiusY="1.2" Fill="#141B24"/>
           <Rectangle x:Name="DBit0" Canvas.Left="70.0" Canvas.Top="70.8" Width="2.6" Height="2.4" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
           <Rectangle x:Name="DBit1" Canvas.Left="65.8" Canvas.Top="70.8" Width="2.6" Height="2.4" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
@@ -674,7 +674,7 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           <Rectangle x:Name="RBit3" Canvas.Left="57.1" Canvas.Top="57.3" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
           <Rectangle x:Name="RBit4" Canvas.Left="52.8" Canvas.Top="57.3" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
           <Rectangle x:Name="RBit5" Canvas.Left="48.5" Canvas.Top="57.3" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
-          <Border x:Name="RClockBox" Canvas.Left="46.6" Canvas.Top="60.7" Width="26.8" Height="10.8" CornerRadius="1" Background="#00000000" BorderBrush="#5FD3FF" BorderThickness="0"><TextBlock x:Name="RClock" Text="▶ FOCUS" Foreground="#5FD3FF" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="5.7" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+          <Border x:Name="RClockBox" Canvas.Left="46.36" Canvas.Top="61.0" Width="27.27" Height="10.45" CornerRadius="1" Background="#00000000" BorderBrush="#5FD3FF" BorderThickness="0"><TextBlock x:Name="RClock" Text="▶ FOCUS" Foreground="#5FD3FF" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="5.73" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
           <Rectangle Canvas.Left="43.5" Canvas.Top="76" Width="33" Height="2.2" Fill="{StaticResource OStripe}"/>
           <Rectangle Canvas.Left="55" Canvas.Top="50" Width="10" Height="7" Fill="{StaticResource ODark}"/>
           <Line X1="55" Y1="52.5" X2="65" Y2="52.5" Stroke="#6E7988" StrokeThickness="0.5"/>
@@ -712,7 +712,7 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           <Path Data="M 79,49 L 86,60 L 95,57" Stroke="#1A2540" StrokeThickness="4.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
           <Ellipse Canvas.Left="93.80" Canvas.Top="54.30" Width="4.40" Height="4.40" Fill="#E8ECF1"/>
           <Ellipse Canvas.Left="77.50" Canvas.Top="51.50" Width="37.00" Height="5.00" Fill="{StaticResource OTray}" Stroke="#7F8A99" StrokeThickness="0.6"/>
-          <Border x:Name="MClockBox" Canvas.Left="79" Canvas.Top="42.8" Width="25.5" Height="9.8" CornerRadius="1.3" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="MClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="5.4" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+          <Border x:Name="MClockBox" Canvas.Left="77.6" Canvas.Top="42.05" Width="28.57" Height="10.95" CornerRadius="1.3" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="MClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="6.0" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
           <Path Data="M 106.6,48.6 L 112.6,48.6 L 111.9,53 L 107.3,53 Z" Fill="White" Stroke="#AEB6C2" StrokeThickness="0.5"/>
           <Path Data="M 112.5,49.6 Q 114.9,50.4 112.1,52.3" Stroke="#AEB6C2" StrokeThickness="0.7"/>
           <Path x:Name="MSteam" Data="M 108.5,47.4 Q 107.7,45.4 108.9,43.6 M 110.7,47.4 Q 109.9,45 111.1,43" Stroke="#C9D0D9" StrokeThickness="0.55" Opacity="0.8"/>
@@ -756,7 +756,7 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           <Path Data="M 79,49 L 86,60 L 95,57" Stroke="#1A2540" StrokeThickness="4.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
           <Ellipse Canvas.Left="93.80" Canvas.Top="54.30" Width="4.40" Height="4.40" Fill="White" Stroke="#D5DAE1" StrokeThickness="0.4"/>
           <Ellipse Canvas.Left="77.50" Canvas.Top="51.50" Width="37.00" Height="5.00" Fill="{StaticResource OTray}" Stroke="#7F8A99" StrokeThickness="0.6"/>
-          <Border x:Name="HClockBox" Canvas.Left="79" Canvas.Top="42.8" Width="25.5" Height="9.8" CornerRadius="1.3" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="HClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="5.4" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+          <Border x:Name="HClockBox" Canvas.Left="78.6" Canvas.Top="42.55" Width="27.27" Height="10.45" CornerRadius="1.3" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="HClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="5.73" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
           <Path Data="M 106.6,48.6 L 112.6,48.6 L 111.9,53 L 107.3,53 Z" Fill="White" Stroke="#AEB6C2" StrokeThickness="0.5"/>
           <Path Data="M 112.5,49.6 Q 114.9,50.4 112.1,52.3" Stroke="#AEB6C2" StrokeThickness="0.7"/>
           <Path x:Name="HSteam" Data="M 108.5,47.4 Q 107.7,45.4 108.9,43.6 M 110.7,47.4 Q 109.9,45 111.1,43" Stroke="#C9D0D9" StrokeThickness="0.55" Opacity="0.8"/>
@@ -802,7 +802,7 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           <Ellipse x:Name="CGlow" Canvas.Left="42.00" Canvas.Top="81.00" Width="36.00" Height="12.00" Fill="{StaticResource OGlow}"/>
           <Path x:Name="CStem" Data="M 63.5,62 C 64.5,66 64,69 62.5,72 L 58.5,72 C 59.5,69 59.6,65 58.8,62 Z" Fill="{StaticResource OGlass}" Stroke="#5FD3FF" StrokeThickness="0.6" Opacity="0.95"/>
           <Rectangle Canvas.Left="40" Canvas.Top="71" Width="40" Height="12.5" RadiusX="5" RadiusY="5" Fill="{StaticResource OMetalV}" Stroke="#4A5260" StrokeThickness="1"/>
-          <Rectangle x:Name="CRing" Canvas.Left="45" Canvas.Top="81" Width="30" Height="1.2" RadiusX="0.6" RadiusY="0.6" Fill="#5FD3FF"/>
+          <Rectangle x:Name="CRing" Canvas.Left="45" Canvas.Top="82.5" Width="30" Height="0.9" RadiusX="0.6" RadiusY="0.6" Fill="#5FD3FF"/>
           <Path Data="M 50,83.5 L 55,83.5 L 54,86.5 L 51,86.5 Z" Fill="#4D5664"/>
           <Path Data="M 65,83.5 L 70,83.5 L 69,86.5 L 66,86.5 Z" Fill="#4D5664"/>
           <Path x:Name="CCereb" Data="M 70,59 C 74,56 84,55 88,58 C 90,63 86,68 79,68 C 74,68 70,64 70,59 Z" Fill="{StaticResource OGlass}" Stroke="#5FD3FF" StrokeThickness="0.9"/>
@@ -832,7 +832,7 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           <Ellipse x:Name="CHalo" Canvas.Left="39.60" Canvas.Top="37.60" Width="8.80" Height="8.80" Stroke="#5FD3FF" StrokeThickness="0.5" Opacity="0.6"/>
           <Ellipse x:Name="CEye" Canvas.Left="41.60" Canvas.Top="39.60" Width="4.80" Height="4.80" Fill="#4C8DFF"/>
           <Ellipse x:Name="CGlint" Canvas.Left="42.40" Canvas.Top="40.30" Width="1.60" Height="1.60" Fill="#E6FFFFFF"/>
-          <Border x:Name="CClockBox" Canvas.Left="44" Canvas.Top="72.2" Width="32" Height="8.4" CornerRadius="1.6" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="CClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="5.8" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+          <Border x:Name="CClockBox" Canvas.Left="46.36" Canvas.Top="71.9" Width="27.27" Height="10.45" CornerRadius="1.6" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="CClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="5.73" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
         </Canvas>
       </Canvas>
 
