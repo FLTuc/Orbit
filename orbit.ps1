@@ -380,7 +380,7 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
   <Grid x:Name="Root">
     <!-- bulle facon bande dessinee : contour epais + queue qui pointe vers Orbit -->
     <Grid x:Name="BubbleWrap" HorizontalAlignment="Right" VerticalAlignment="Bottom"
-          Margin="0,0,10,126" MaxWidth="300" Visibility="Collapsed" RenderTransformOrigin="0.8,1">
+          Margin="0,0,10,127" MaxWidth="300" Visibility="Collapsed" RenderTransformOrigin="0.8,1">
       <Grid.RenderTransform>
         <ScaleTransform x:Name="BubblePop" ScaleX="1" ScaleY="1"/>
       </Grid.RenderTransform>
@@ -400,21 +400,21 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
         </StackPanel>
       </Border>
       <!-- queue de bulle "parole" -->
-      <Path x:Name="SpeechTail" Grid.Row="1" HorizontalAlignment="Right" Margin="0,-3.5,46,0"
+      <Path x:Name="SpeechTail" Grid.Row="1" HorizontalAlignment="Right" Margin="0,-3.5,61,0"
             Fill="White" Stroke="#1E1B3A" StrokeThickness="2.5" StrokeLineJoin="Round"
             Data="M 0,0 Q 8,12 22,20 Q 14,9 16,0"/>
       <!-- queue de bulle "pensee" : petits ronds -->
       <Canvas x:Name="ThoughtTail" Grid.Row="1" HorizontalAlignment="Right" Width="26" Height="22"
-              Margin="0,3,44,0" Visibility="Collapsed">
+              Margin="0,3,59,0" Visibility="Collapsed">
         <Ellipse Canvas.Left="0" Canvas.Top="0" Width="12" Height="10" Fill="White" Stroke="#1E1B3A" StrokeThickness="2.2"/>
         <Ellipse Canvas.Left="14" Canvas.Top="12" Width="7" Height="6" Fill="White" Stroke="#1E1B3A" StrokeThickness="2"/>
       </Canvas>
     </Grid>
 
-    <Canvas x:Name="Bot" Width="120" Height="122" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+    <Canvas x:Name="Bot" Width="120" Height="98" HorizontalAlignment="Right" VerticalAlignment="Bottom"
             Background="#01000000" Cursor="Hand" RenderTransformOrigin="1,1">
       <Canvas.RenderTransform>
-        <ScaleTransform x:Name="BotScale" ScaleX="1" ScaleY="1"/>
+        <ScaleTransform x:Name="BotScale" ScaleX="1.25" ScaleY="1.25"/>
       </Canvas.RenderTransform>
       <Canvas.Resources>
         <LinearGradientBrush x:Key="OMetal" StartPoint="0,0" EndPoint="1,0">
@@ -580,6 +580,9 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
                    Stroke="#4A5260" StrokeThickness="1.1"/>
         <Line X1="42.6" Y1="52" X2="77.4" Y2="52" Stroke="#6B7380" StrokeThickness="0.7"/>
 
+        <!-- ecran du chrono -->
+        <Border x:Name="SClockBox" Canvas.Left="45" Canvas.Top="55" Width="30" Height="11.5" CornerRadius="1.6" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.8"><TextBlock x:Name="SClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="6.3" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+
         <!-- voyant d'etat -->
         <Ellipse x:Name="StatusLed" Canvas.Left="44.7" Canvas.Top="30.3" Width="3" Height="3" Fill="#5FD3FF"/>
 
@@ -625,6 +628,7 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           <Path Data="M 38,62 Q 60,70 82,62" Stroke="#6E7988" StrokeThickness="0.7"/>
           <Path Data="M 40,50 Q 60,44 80,50" Stroke="#6E7988" StrokeThickness="0.5" Opacity="0.6"/>
           <Path Data="M 37.5,64 Q 60,73 82.5,64 L 81.6,67.5 Q 60,76 38.4,67.5 Z" Fill="{StaticResource OStripe}"/>
+          <Border x:Name="DClockBox" Canvas.Left="46.5" Canvas.Top="57.8" Width="27" Height="7.6" CornerRadius="1.4" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="DClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="5.3" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
           <Rectangle Canvas.Left="47" Canvas.Top="69" Width="26" Height="6" RadiusX="1.2" RadiusY="1.2" Fill="#141B24"/>
           <Rectangle x:Name="DBit0" Canvas.Left="70.0" Canvas.Top="70.8" Width="2.6" Height="2.4" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
           <Rectangle x:Name="DBit1" Canvas.Left="65.8" Canvas.Top="70.8" Width="2.6" Height="2.4" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
@@ -659,13 +663,13 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           <Ellipse Canvas.Left="86.40" Canvas.Top="78.40" Width="5.20" Height="5.20" Fill="#4D5766"/>
           <Path Data="M 40,56 L 80,56 L 77,84 L 43,84 Z" Fill="{StaticResource OMetal}" Stroke="#4A5260" StrokeThickness="1"/>
           <Path Data="M 45,60 L 75,60 L 73.5,72 L 46.5,72 Z" Fill="#1B2330" Stroke="#3A4556" StrokeThickness="0.7"/>
-          <Rectangle x:Name="RBit0" Canvas.Left="70.0" Canvas.Top="63" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
-          <Rectangle x:Name="RBit1" Canvas.Left="65.7" Canvas.Top="63" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
-          <Rectangle x:Name="RBit2" Canvas.Left="61.4" Canvas.Top="63" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
-          <Rectangle x:Name="RBit3" Canvas.Left="57.1" Canvas.Top="63" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
-          <Rectangle x:Name="RBit4" Canvas.Left="52.8" Canvas.Top="63" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
-          <Rectangle x:Name="RBit5" Canvas.Left="48.5" Canvas.Top="63" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
-          <TextBlock x:Name="RTerm" Canvas.Left="47.0" Canvas.Top="67.07" Width="26" TextAlignment="Center" Text="&gt; focus_" FontFamily="Consolas" FontSize="3.4" Foreground="#5FD3FF" Opacity="0.9"/>
+          <Rectangle x:Name="RBit0" Canvas.Left="70.0" Canvas.Top="61.4" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="RBit1" Canvas.Left="65.7" Canvas.Top="61.4" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="RBit2" Canvas.Left="61.4" Canvas.Top="61.4" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="RBit3" Canvas.Left="57.1" Canvas.Top="61.4" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="RBit4" Canvas.Left="52.8" Canvas.Top="61.4" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="RBit5" Canvas.Left="48.5" Canvas.Top="61.4" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Border x:Name="RClockBox" Canvas.Left="47.5" Canvas.Top="64.4" Width="25" Height="7" CornerRadius="1" Background="#00000000" BorderBrush="#5FD3FF" BorderThickness="0"><TextBlock x:Name="RClock" Text="▶ FOCUS" Foreground="#5FD3FF" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="5.8" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
           <Rectangle Canvas.Left="43.5" Canvas.Top="76" Width="33" Height="2.2" Fill="{StaticResource OStripe}"/>
           <Rectangle Canvas.Left="55" Canvas.Top="50" Width="10" Height="7" Fill="{StaticResource ODark}"/>
           <Line X1="55" Y1="52.5" X2="65" Y2="52.5" Stroke="#6E7988" StrokeThickness="0.5"/>
@@ -695,6 +699,7 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
             <Path x:Name="MHud2" Data="M 39,19 A 22,22 0 0 1 60,5" Stroke="#5FD3FF" StrokeThickness="1.4"/>
             <Path x:Name="MHud3" Data="M 81,35 A 22,22 0 0 1 70,47" Stroke="#5FD3FF" StrokeThickness="1.4"/>
           </Canvas>
+          <Border x:Name="MClockBox" Canvas.Left="3" Canvas.Top="30.5" Width="31" Height="10.5" CornerRadius="2" Background="#335FD3FF" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="MClock" Text="▶ FOCUS" Foreground="#EAF7FF" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="6.4" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
           <Ellipse x:Name="MGlow" Canvas.Left="45.00" Canvas.Top="81.00" Width="30.00" Height="10.00" Fill="{StaticResource OGlow}"/>
           <Path Data="M 41,49 L 36,62 L 44,68" Stroke="#1A2540" StrokeThickness="4.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
           <Path Data="M 36.5,60 L 41.5,61 L 40.5,73 L 35,71 Z" Fill="#F4F6F9" Stroke="#C9D0D9" StrokeThickness="0.5"/>
@@ -737,14 +742,15 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
 
         <!-- ===== Apparence 5 : cerveau augmente (plaque chromee, circuits, oeil bionique) ===== -->
         <Canvas x:Name="SkinBrain" Visibility="Collapsed">
-          <Ellipse x:Name="CGlow" Canvas.Left="42.00" Canvas.Top="81.00" Width="36.00" Height="12.00" Fill="{StaticResource OGlow}"/>
+          <Ellipse x:Name="CGlow" Canvas.Left="42.00" Canvas.Top="84.00" Width="36.00" Height="12.00" Fill="{StaticResource OGlow}"/>
           <Path Data="M 58,62 L 62,62 L 62.6,73 L 57.4,73 Z" Fill="{StaticResource ODark}"/>
           <Line X1="57.6" Y1="65.5" X2="62.4" Y2="65.5" Stroke="#6E7988" StrokeThickness="0.6"/>
           <Line X1="57.4" Y1="68.5" X2="62.6" Y2="68.5" Stroke="#6E7988" StrokeThickness="0.6"/>
-          <Rectangle Canvas.Left="43" Canvas.Top="72" Width="34" Height="8" RadiusX="4" RadiusY="4" Fill="{StaticResource OMetalV}" Stroke="#4A5260" StrokeThickness="1"/>
-          <Rectangle x:Name="CRing" Canvas.Left="46" Canvas.Top="77.6" Width="28" Height="1.4" RadiusX="0.7" RadiusY="0.7" Fill="#5FD3FF"/>
-          <Path Data="M 50,80 L 55,80 L 54,83 L 51,83 Z" Fill="#4D5664"/>
-          <Path Data="M 65,80 L 70,80 L 69,83 L 66,83 Z" Fill="#4D5664"/>
+          <Rectangle Canvas.Left="40" Canvas.Top="71" Width="40" Height="12.5" RadiusX="5" RadiusY="5" Fill="{StaticResource OMetalV}" Stroke="#4A5260" StrokeThickness="1"/>
+          <Border x:Name="CClockBox" Canvas.Left="44" Canvas.Top="72.4" Width="32" Height="7.6" CornerRadius="1.6" Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="0.7"><TextBlock x:Name="CClock" Text="▶ FOCUS" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="6" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+          <Rectangle x:Name="CRing" Canvas.Left="45" Canvas.Top="81" Width="30" Height="1.2" RadiusX="0.7" RadiusY="0.7" Fill="#5FD3FF"/>
+          <Path Data="M 50,83.5 L 55,83.5 L 54,86.5 L 51,86.5 Z" Fill="#4D5664"/>
+          <Path Data="M 65,83.5 L 70,83.5 L 69,86.5 L 66,86.5 Z" Fill="#4D5664"/>
           <Path Data="M 34,50 C 30,38 38,26 50,24 C 56,16 70,16 76,23 C 86,22 92,32 90,42 C 94,50 88,60 80,60 C 74,66 62,66 56,62 C 48,66 36,62 34,50 Z" Fill="{StaticResource OBrain}" Stroke="#A8505F" StrokeThickness="1"/>
           <Path Data="M 38,48 C 41,44 46,46 48,42 C 50,38 46,34 50,31" Stroke="#B85566" StrokeThickness="0.9" Opacity="0.75"/>
           <Path Data="M 42,57 C 46,54 50,57 54,54 C 57,52 56,48 60,47" Stroke="#B85566" StrokeThickness="0.9" Opacity="0.75"/>
@@ -788,12 +794,6 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
         </Canvas>
       </Canvas>
 
-      <!-- chrono -->
-      <Border x:Name="Pill" Canvas.Left="21" Canvas.Top="94" Width="78" Height="22" CornerRadius="3"
-              Background="#F0141B24" BorderBrush="#5FD3FF" BorderThickness="1.2">
-        <TextBlock x:Name="PillText" Text="▶" Foreground="#E8EEF5" FontFamily="Consolas, Segoe UI"
-                   FontWeight="Bold" FontSize="12.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-      </Border>
     </Canvas>
   </Grid>
 </Window>
@@ -964,19 +964,19 @@ $Moods = @{
 #  Eyes : elements qui suivent la souris (position de repos) ; EyeX/EyeY : centre du regard
 # ---------------------------------------------------------------------------
 $Skins = [ordered]@{
-    Satellite = @{ Label = '🛰️ Satellite'; Root = 'SkinSatellite'; Bits = 'Bit'; EyeX = 60; EyeY = 39.5; EyeMax = 1.8
+    Satellite = @{ Label = '🛰️ Satellite'; Root = 'SkinSatellite'; Clock = 'SClock'; Bits = 'Bit'; EyeX = 60; EyeY = 39.5; EyeMax = 1.8
                    Eyes = @(@('Lens', 56.7, 36.2), @('LensGlint', 57.9, 37.4))
                    Fill = @('Lens', 'Beacon', 'StatusLed'); Stroke = @(); Beacons = @('Beacon'); Glows = @() }
-    Droid     = @{ Label = '🤖 Droïde de maintenance'; Root = 'SkinDroid'; Bits = 'DBit'; EyeX = 62; EyeY = 49.5; EyeMax = 1.6
+    Droid     = @{ Label = '🤖 Droïde de maintenance'; Root = 'SkinDroid'; Clock = 'DClock'; Bits = 'DBit'; EyeX = 62; EyeY = 49.5; EyeMax = 1.6
                    Eyes = @(@('DLens', 59, 46.5), @('DGlint', 60, 47.3))
                    Fill = @('DLens', 'DBeacon'); Stroke = @('DRing'); Beacons = @('DBeacon'); Glows = @('DGlow', 'DJet1', 'DJet2') }
-    Robot     = @{ Label = '🦾 Robot assistant'; Root = 'SkinRobot'; Bits = 'RBit'; EyeX = 60; EyeY = 34.5; EyeMax = 1.3
+    Robot     = @{ Label = '🦾 Robot assistant'; Root = 'SkinRobot'; Clock = 'RClock'; Bits = 'RBit'; EyeX = 60; EyeY = 34.5; EyeMax = 1.3
                    Eyes = @(@('REyeL', 50.2, 31.2), @('REyeR', 63.2, 31.2), @('RGlintL', 51.6, 32.5), @('RGlintR', 64.6, 32.5))
                    Fill = @('REyeL', 'REyeR', 'RBeacon'); Stroke = @(); Beacons = @('RBeacon'); Glows = @('RGlow') }
-    Butler    = @{ Label = '🎩 Majordome'; Root = 'SkinButler'; Bits = 'MBit'; EyeX = 60; EyeY = 25.7; EyeMax = 0.9
+    Butler    = @{ Label = '🎩 Majordome'; Root = 'SkinButler'; Clock = 'MClock'; Bits = 'MBit'; EyeX = 60; EyeY = 25.7; EyeMax = 0.9
                    Eyes = @(@('MEyeL', 52.9, 23.6), @('MEyeR', 62.9, 23.6), @('MGlintL', 53.6, 24.3), @('MGlintR', 63.6, 24.3))
                    Fill = @('MEyeL', 'MEyeR', 'MPocket'); Stroke = @('MHud1', 'MHud2', 'MHud3'); Beacons = @(); Glows = @('MGlow') }
-    Brain     = @{ Label = '🧠 Cerveau augmenté'; Root = 'SkinBrain'; Bits = 'CBit'; EyeX = 44; EyeY = 42; EyeMax = 1.6
+    Brain     = @{ Label = '🧠 Cerveau augmenté'; Root = 'SkinBrain'; Clock = 'CClock'; Bits = 'CBit'; EyeX = 44; EyeY = 42; EyeMax = 1.6
                    Eyes = @(@('CEye', 41.6, 39.6), @('CGlint', 42.4, 40.3))
                    Fill = @('CEye', 'CBeacon', 'CNode1', 'CNode2', 'CNode3', 'CSpark1', 'CSpark2', 'CSpark3', 'CSpark4', 'CRing')
                    Stroke = @('CTrace1', 'CTrace2', 'CTrace3'); Beacons = @('CBeacon'); Glows = @('CGlow') }
@@ -1006,7 +1006,7 @@ function Set-Mood([string]$mood) {
     $sk = $Skins[$O.Skin]
     foreach ($n in $sk.Fill) { $ui[$n].Fill = $accent }
     foreach ($n in $sk.Stroke) { $ui[$n].Stroke = $accent }
-    $ui.Pill.BorderBrush = $accent
+    $ui["$($sk.Clock)Box"].BorderBrush = $accent
     $O.AccentBrush = $accent
     $O.MoodBrush = New-Object Windows.Media.SolidColorBrush((New-Color $c[1]))
 }
@@ -1400,11 +1400,11 @@ function Update-Pill {
             if ($left -lt [timespan]::Zero) { $left = [timespan]::Zero }
             $t = '{0:00}:{1:00}' -f [math]::Floor($left.TotalMinutes), $left.Seconds
             # compte a rebours facon controle de mission pendant le focus
-            $prefix = if ($O.Paused) { '⏸ ' } elseif ($O.State -eq 'Break') { '☕ ' } else { 'T-' }
+            $prefix = if ($O.Paused) { '⏸' } elseif ($O.State -eq 'Break') { '☕' } else { 'T-' }
             $prefix + $t
         }
     }
-    $ui.PillText.Text = $txt
+    foreach ($k in $Skins.Keys) { $ui[$Skins[$k].Clock].Text = $txt }
     if ($script:tray) {
         $tip = "Orbit - $txt - $($O.FocusToday) focus aujourd'hui"
         if ($tip.Length -gt 63) { $tip = $tip.Substring(0, 63) }
@@ -1588,7 +1588,7 @@ function On-Frame {
     $c = Get-CursorDip
     $scale = $ui.BotScale.ScaleX
     $cx = $window.Left + $window.Width - (120 - $sk.EyeX) * $scale
-    $cy = $window.Top + $window.Height - (122 - $sk.EyeY) * $scale
+    $cy = $window.Top + $window.Height - (98 - $sk.EyeY) * $scale
     $vx = $c.X - $cx; $vy = $c.Y - $cy
     $len = [math]::Sqrt($vx * $vx + $vy * $vy)
     if ($len -gt 1) { $vx = $vx / $len * $sk.EyeMax; $vy = $vy / $len * $sk.EyeMax }
@@ -1610,12 +1610,6 @@ function On-Frame {
             $g = $t % 7
             $ui.GlintL.X = -40 + [math]::Min(1, $g / 1.4) * 90
             $ui.GlintR.X = -40 + [math]::Min(1, [math]::Max(0, $g - 0.35) / 1.4) * 90
-        }
-        'Robot' {
-            # petit terminal sur la poitrine, curseur clignotant
-            $word = switch -Wildcard ($O.State) { 'Focus' { 'focus' } 'Break' { 'pause' } 'Await*' { 'input?' } default { 'idle' } }
-            if ($O.Paused) { $word = 'paused' }
-            $ui.RTerm.Text = '> ' + $word + $(if (($t % 1) -lt 0.5) { '_' } else { ' ' })
         }
         'Brain' {
             # etincelles de synapses qui s'allument a tour de role, circuits qui pulsent
@@ -1779,12 +1773,12 @@ function Toggle-Autostart { Set-Autostart (-not (Test-Path $StartupLink)) }
 
 function Set-Mini([bool]$on) {
     $O.Mini = $on
-    $s = if ($on) { 0.55 } else { 1 }
+    $s = if ($on) { 0.7 } else { 1.25 }
     $ui.BotScale.ScaleX = $s
     $ui.BotScale.ScaleY = $s
-    $ui.BubbleWrap.Margin = if ($on) { '0,0,10,70' } else { '0,0,10,126' }
-    $ui.SpeechTail.Margin = if ($on) { '0,-3.5,20,0' } else { '0,-3.5,46,0' }
-    $ui.ThoughtTail.Margin = if ($on) { '0,3,18,0' } else { '0,3,44,0' }
+    $ui.BubbleWrap.Margin = if ($on) { '0,0,10,72' } else { '0,0,10,127' }
+    $ui.SpeechTail.Margin = if ($on) { '0,-3.5,28,0' } else { '0,-3.5,61,0' }
+    $ui.ThoughtTail.Margin = if ($on) { '0,3,26,0' } else { '0,3,59,0' }
     if ($on) { $O.Walking = $false }
 }
 

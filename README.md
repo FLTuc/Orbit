@@ -24,7 +24,7 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   - 🎩 **Majordome** : un robot en queue-de-pie, avec nœud papillon, monocle, moustache, serviette sur le bras et plateau avec un café fumant, entouré d'un anneau holographique qui tourne ;
   - 🧠 **Cerveau augmenté** : un cerveau à moitié recouvert d'une plaque chromée avec des circuits lumineux qui pulsent, un œil bionique, des électrodes, des étincelles de synapses et une antenne, posé sur un petit module flottant.
   Dans tous les cas, les yeux suivent ta souris, les couleurs suivent le moment (focus, pause, attente) et les LED affichent les minutes restantes en binaire (sur le majordome, ce sont les boutons de sa chemise).
-- **Il reste au-dessus** de toutes les applications, sans te voler le focus. Le chrono s'affiche sous lui.
+- **Il reste au-dessus** de toutes les applications, sans te voler le focus. Le chrono est intégré au dessin : sur un petit écran (panneau du satellite, sphère du droïde, terminal du robot, panneau holographique du majordome, socle du cerveau).
 - **Cycle Pomodoro avec confirmation**, en 50/10, en 25/5 ou avec ton propre rythme (dans les réglages) :
   1. 🚀 focus (50 ou 25 min), puis **il s'arrête et attend** que tu cliques sur « Je prends ma pause » (ou « On arrête là ») ;
   2. ☕ pause (10 ou 5 min), puis **il attend encore** que tu cliques sur « On repart ! » (ou « On arrête là »).
