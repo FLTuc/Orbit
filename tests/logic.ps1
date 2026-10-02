@@ -218,7 +218,8 @@ New-Item -ItemType Directory -Force -Path $DataDir | Out-Null
 Check 'import sur un PC neuf' (Import-OrbitData (Join-Path $app 'donnees'))
 Check 'tableaux recuperes' (Test-Path (Join-Path $DataDir 'kanban.json'))
 $js = [IO.File]::ReadAllText((Join-Path $DataDir 'settings.json'))
-Check 'chemins de l''image et des sons adaptes au nouveau PC' ($js.Contains(((ConvertTo-Json -InputObject $DataDir).Trim('"'))) -and -not $js.Contains(((ConvertTo-Json -InputObject $OldData).Trim('"') + '\\')) -or $OldData -eq $DataDir)
+$sj = ConvertFrom-Json $js
+Check 'chemins de l''image et des sons adaptes au nouveau PC' ($sj.customImage -eq (Join-Path $DataDir 'mon-image.png') -and @($sj.bubbleSoundFiles)[0] -eq (Join-Path $DataDir 'sons/bip.wav'))
 Check 'pas de manifeste laisse dans les donnees' (-not (Test-Path (Join-Path $DataDir 'orbit-export.json')))
 Check 'deuxieme import : les donnees actuelles sont gardees a part' ((Import-OrbitData (Join-Path $app 'donnees') -NoConfirm) -and @(Get-ChildItem $DataDir -Directory -Filter 'avant-import-*').Count -eq 1)
 $DataDir = $OldData
