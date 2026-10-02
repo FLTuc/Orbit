@@ -404,6 +404,36 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
       <Canvas.RenderTransform>
         <ScaleTransform x:Name="BotScale" ScaleX="1" ScaleY="1"/>
       </Canvas.RenderTransform>
+      <Canvas.Resources>
+        <LinearGradientBrush x:Key="OMetal" StartPoint="0,0" EndPoint="1,0">
+          <GradientStop Color="#F2F4F7" Offset="0"/><GradientStop Color="#C9D0D9" Offset="0.45"/><GradientStop Color="#7F8A99" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="OMetalV" StartPoint="0,0" EndPoint="0,1">
+          <GradientStop Color="#F2F4F7" Offset="0"/><GradientStop Color="#8E98A6" Offset="1"/>
+        </LinearGradientBrush>
+        <RadialGradientBrush x:Key="ODome" GradientOrigin="0.35,0.3" Center="0.35,0.3" RadiusX="0.8" RadiusY="0.8">
+          <GradientStop Color="#FFFFFF" Offset="0"/><GradientStop Color="#C9D0D9" Offset="0.5"/><GradientStop Color="#6E7988" Offset="1"/>
+        </RadialGradientBrush>
+        <LinearGradientBrush x:Key="OVisor" StartPoint="0,0" EndPoint="0,1">
+          <GradientStop Color="#22324A" Offset="0"/><GradientStop Color="#0A0F17" Offset="1"/>
+        </LinearGradientBrush>
+        <RadialGradientBrush x:Key="OGlow" GradientOrigin="0.5,0.2" Center="0.5,0.2" RadiusX="0.8" RadiusY="0.8">
+          <GradientStop Color="#E67FD8FF" Offset="0"/><GradientStop Color="#004C8DFF" Offset="1"/>
+        </RadialGradientBrush>
+        <LinearGradientBrush x:Key="ODark" StartPoint="0,0" EndPoint="1,0">
+          <GradientStop Color="#4D5766" Offset="0"/><GradientStop Color="#2B323D" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="OStripe" StartPoint="0,0" EndPoint="1,0">
+          <GradientStop Color="#F08C00" Offset="0"/><GradientStop Color="#C96F00" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="OCoat" StartPoint="0,0" EndPoint="1,0">
+          <GradientStop Color="#2A3A5E" Offset="0"/><GradientStop Color="#1A2540" Offset="0.5"/><GradientStop Color="#0E1526" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="OTray" StartPoint="0,0" EndPoint="0,1">
+          <GradientStop Color="#FAFBFC" Offset="0"/><GradientStop Color="#9AA3B0" Offset="1"/>
+        </LinearGradientBrush>
+      </Canvas.Resources>
+
 
       <Canvas x:Name="Bobber" Width="120" Height="100" RenderTransformOrigin="0.5,0.5">
         <Canvas.RenderTransform>
@@ -413,6 +443,8 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           </TransformGroup>
         </Canvas.RenderTransform>
 
+        <!-- ===== Apparence 1 : satellite ===== -->
+        <Canvas x:Name="SkinSatellite">
         <!-- bras et charnieres des panneaux solaires -->
         <Rectangle Canvas.Left="35" Canvas.Top="49.6" Width="8" Height="2.4" Fill="#7D8796"/>
         <Rectangle Canvas.Left="77" Canvas.Top="49.6" Width="8" Height="2.4" Fill="#7D8796"/>
@@ -562,6 +594,135 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
         <Ellipse Canvas.Left="36.1" Canvas.Top="83.1" Width="1.8" Height="1.8" Fill="#8A94A3"/>
         <Line X1="76" Y1="73" X2="83" Y2="84" Stroke="#8A94A3" StrokeThickness="0.8"/>
         <Ellipse Canvas.Left="82.1" Canvas.Top="83.1" Width="1.8" Height="1.8" Fill="#8A94A3"/>
+        </Canvas>
+
+        <!-- ===== Apparence 2 : droide de maintenance ===== -->
+        <Canvas x:Name="SkinDroid" Visibility="Collapsed">
+          <Ellipse x:Name="DGlow" Canvas.Left="44.00" Canvas.Top="79.00" Width="32.00" Height="18.00" Fill="{StaticResource OGlow}"/>
+          <Path Data="M 37,52 L 27,58 L 25,68" Stroke="#7F8A99" StrokeThickness="3.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+          <Ellipse Canvas.Left="24.60" Canvas.Top="55.60" Width="4.80" Height="4.80" Fill="#4D5766"/>
+          <Ellipse Canvas.Left="34.00" Canvas.Top="49.00" Width="6.00" Height="6.00" Fill="#4D5766"/>
+          <Path Data="M 22.5,68 L 25,73 M 27.5,68 L 26,73" Stroke="#4D5766" StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+          <Path Data="M 83,52 L 93,57 L 96,66" Stroke="#7F8A99" StrokeThickness="3.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+          <Ellipse Canvas.Left="90.60" Canvas.Top="54.60" Width="4.80" Height="4.80" Fill="#4D5766"/>
+          <Ellipse Canvas.Left="80.00" Canvas.Top="49.00" Width="6.00" Height="6.00" Fill="#4D5766"/>
+          <Rectangle Canvas.Left="94.6" Canvas.Top="65" Width="3" Height="5" RadiusX="0.6" RadiusY="0.6" Fill="#F08C00"/>
+          <Line X1="96.1" Y1="70" X2="96.1" Y2="76" Stroke="#AEB6C2" StrokeThickness="0.9"/>
+          <Ellipse Canvas.Left="36.00" Canvas.Top="33.00" Width="48.00" Height="48.00" Fill="{StaticResource ODome}" Stroke="#4A5260" StrokeThickness="1.1"/>
+          <Path Data="M 38,62 Q 60,70 82,62" Stroke="#6E7988" StrokeThickness="0.7"/>
+          <Path Data="M 40,50 Q 60,44 80,50" Stroke="#6E7988" StrokeThickness="0.5" Opacity="0.6"/>
+          <Path Data="M 37.5,64 Q 60,73 82.5,64 L 81.6,67.5 Q 60,76 38.4,67.5 Z" Fill="{StaticResource OStripe}"/>
+          <Rectangle Canvas.Left="47" Canvas.Top="69" Width="26" Height="6" RadiusX="1.2" RadiusY="1.2" Fill="#141B24"/>
+          <Rectangle x:Name="DBit0" Canvas.Left="70.0" Canvas.Top="70.8" Width="2.6" Height="2.4" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="DBit1" Canvas.Left="65.8" Canvas.Top="70.8" Width="2.6" Height="2.4" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="DBit2" Canvas.Left="61.6" Canvas.Top="70.8" Width="2.6" Height="2.4" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="DBit3" Canvas.Left="57.4" Canvas.Top="70.8" Width="2.6" Height="2.4" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="DBit4" Canvas.Left="53.2" Canvas.Top="70.8" Width="2.6" Height="2.4" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="DBit5" Canvas.Left="49.0" Canvas.Top="70.8" Width="2.6" Height="2.4" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Path Data="M 42,47 Q 60,36 78,47 L 76,58 Q 60,52 44,58 Z" Fill="{StaticResource OVisor}" Stroke="#3A4556" StrokeThickness="1"/>
+          <Ellipse x:Name="DRing" Canvas.Left="56.60" Canvas.Top="44.10" Width="10.80" Height="10.80" Fill="#0B121C" Stroke="#4C8DFF" StrokeThickness="1"/>
+          <Ellipse x:Name="DLens" Canvas.Left="59.00" Canvas.Top="46.50" Width="6.00" Height="6.00" Fill="#4C8DFF"/>
+          <Ellipse x:Name="DGlint" Canvas.Left="60.00" Canvas.Top="47.30" Width="2.00" Height="2.00" Fill="#E6FFFFFF"/>
+          <Ellipse Canvas.Left="49.60" Canvas.Top="49.60" Width="2.80" Height="2.80" Fill="#FF4D4D" Opacity="0.85"/>
+          <Path Data="M 44,46.5 Q 60,38 76,46.5" Stroke="White" StrokeThickness="0.6" Opacity="0.35"/>
+          <Line X1="70" Y1="35" X2="76" Y2="22" Stroke="#7F8A99" StrokeThickness="1"/>
+          <Ellipse x:Name="DBeacon" Canvas.Left="74.20" Canvas.Top="19.70" Width="3.60" Height="3.60" Fill="#5FD3FF"/>
+          <Line X1="66" Y1="34" X2="68" Y2="27" Stroke="#7F8A99" StrokeThickness="0.8"/>
+          <Rectangle Canvas.Left="66.7" Canvas.Top="25.4" Width="2.6" Height="2" RadiusX="0.4" RadiusY="0.4" Fill="#4D5766"/>
+          <TextBlock Canvas.Left="45.0" Canvas.Top="60.59" Width="30" TextAlignment="Center" Text="ORB-1" FontFamily="Consolas" FontSize="3.8" Foreground="#4A5260" FontWeight="Bold"/>
+          <Path Data="M 50,79 L 56,79 L 55,84 L 51,84 Z" Fill="{StaticResource ODark}"/>
+          <Path Data="M 64,79 L 70,79 L 69,84 L 65,84 Z" Fill="{StaticResource ODark}"/>
+          <Ellipse x:Name="DJet1" Canvas.Left="51.00" Canvas.Top="84.30" Width="4.00" Height="2.40" Fill="#7FD8FF"/>
+          <Ellipse x:Name="DJet2" Canvas.Left="65.00" Canvas.Top="84.30" Width="4.00" Height="2.40" Fill="#7FD8FF"/>
+        </Canvas>
+
+        <!-- ===== Apparence 3 : robot assistant ===== -->
+        <Canvas x:Name="SkinRobot" Visibility="Collapsed">
+          <Ellipse x:Name="RGlow" Canvas.Left="38.00" Canvas.Top="81.00" Width="44.00" Height="14.00" Fill="{StaticResource OGlow}" Opacity="0.8"/>
+          <Rectangle Canvas.Left="30" Canvas.Top="58" Width="12" Height="9" RadiusX="4" RadiusY="4" Fill="{StaticResource OMetalV}" Stroke="#4A5260" StrokeThickness="0.9"/>
+          <Rectangle Canvas.Left="78" Canvas.Top="58" Width="12" Height="9" RadiusX="4" RadiusY="4" Fill="{StaticResource OMetalV}" Stroke="#4A5260" StrokeThickness="0.9"/>
+          <Path Data="M 33,67 L 31,79" Stroke="#7F8A99" StrokeThickness="4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+          <Path Data="M 87,67 L 89,79" Stroke="#7F8A99" StrokeThickness="4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+          <Ellipse Canvas.Left="28.40" Canvas.Top="78.40" Width="5.20" Height="5.20" Fill="#4D5766"/>
+          <Ellipse Canvas.Left="86.40" Canvas.Top="78.40" Width="5.20" Height="5.20" Fill="#4D5766"/>
+          <Path Data="M 40,56 L 80,56 L 77,84 L 43,84 Z" Fill="{StaticResource OMetal}" Stroke="#4A5260" StrokeThickness="1"/>
+          <Path Data="M 45,60 L 75,60 L 73.5,72 L 46.5,72 Z" Fill="#1B2330" Stroke="#3A4556" StrokeThickness="0.7"/>
+          <Rectangle x:Name="RBit0" Canvas.Left="70.0" Canvas.Top="63" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="RBit1" Canvas.Left="65.7" Canvas.Top="63" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="RBit2" Canvas.Left="61.4" Canvas.Top="63" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="RBit3" Canvas.Left="57.1" Canvas.Top="63" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="RBit4" Canvas.Left="52.8" Canvas.Top="63" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <Rectangle x:Name="RBit5" Canvas.Left="48.5" Canvas.Top="63" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
+          <TextBlock x:Name="RTerm" Canvas.Left="47.0" Canvas.Top="67.07" Width="26" TextAlignment="Center" Text="&gt; focus_" FontFamily="Consolas" FontSize="3.4" Foreground="#5FD3FF" Opacity="0.9"/>
+          <Rectangle Canvas.Left="43.5" Canvas.Top="76" Width="33" Height="2.2" Fill="{StaticResource OStripe}"/>
+          <TextBlock Canvas.Left="45.0" Canvas.Top="79.18" Width="30" TextAlignment="Center" Text="ORBIT·1" FontFamily="Consolas" FontSize="3.6" Foreground="#4A5260" FontWeight="Bold"/>
+          <Rectangle Canvas.Left="55" Canvas.Top="50" Width="10" Height="7" Fill="{StaticResource ODark}"/>
+          <Line X1="55" Y1="52.5" X2="65" Y2="52.5" Stroke="#6E7988" StrokeThickness="0.5"/>
+          <Line X1="55" Y1="54.5" X2="65" Y2="54.5" Stroke="#6E7988" StrokeThickness="0.5"/>
+          <Rectangle Canvas.Left="41" Canvas.Top="21" Width="38" Height="30" RadiusX="9" RadiusY="9" Fill="{StaticResource OMetal}" Stroke="#4A5260" StrokeThickness="1.1"/>
+          <Rectangle Canvas.Left="37.5" Canvas.Top="30" Width="4" Height="11" RadiusX="1.5" RadiusY="1.5" Fill="{StaticResource ODark}"/>
+          <Rectangle Canvas.Left="78.5" Canvas.Top="30" Width="4" Height="11" RadiusX="1.5" RadiusY="1.5" Fill="{StaticResource ODark}"/>
+          <Ellipse x:Name="RStatus" Canvas.Left="38.40" Canvas.Top="34.40" Width="2.20" Height="2.20" Fill="#3DDC84"/>
+          <Rectangle Canvas.Left="45" Canvas.Top="28" Width="30" Height="13" RadiusX="6.5" RadiusY="6.5" Fill="{StaticResource OVisor}" Stroke="#3A4556" StrokeThickness="0.8"/>
+          <Ellipse x:Name="REyeL" Canvas.Left="50.20" Canvas.Top="31.20" Width="6.60" Height="6.60" Fill="#4C8DFF"/>
+          <Ellipse x:Name="REyeR" Canvas.Left="63.20" Canvas.Top="31.20" Width="6.60" Height="6.60" Fill="#4C8DFF"/>
+          <Ellipse x:Name="RGlintL" Canvas.Left="51.60" Canvas.Top="32.50" Width="2.00" Height="2.00" Fill="#E6FFFFFF"/>
+          <Ellipse x:Name="RGlintR" Canvas.Left="64.60" Canvas.Top="32.50" Width="2.00" Height="2.00" Fill="#E6FFFFFF"/>
+          <Path Data="M 47,30.5 Q 60,27.5 73,30.5" Stroke="White" StrokeThickness="0.5" Opacity="0.35"/>
+          <Line X1="54" Y1="45" X2="66" Y2="45" Stroke="#6E7988" StrokeThickness="0.7"/>
+          <Line X1="55" Y1="47" X2="65" Y2="47" Stroke="#6E7988" StrokeThickness="0.7"/>
+          <Line X1="60" Y1="21" X2="60" Y2="12" Stroke="#7F8A99" StrokeThickness="1.4"/>
+          <Ellipse x:Name="RBeacon" Canvas.Left="57.70" Canvas.Top="8.30" Width="4.60" Height="4.60" Fill="#5FD3FF"/>
+          <Rectangle Canvas.Left="56.5" Canvas.Top="19" Width="7" Height="3" RadiusX="1" RadiusY="1" Fill="{StaticResource ODark}"/>
+        </Canvas>
+
+        <!-- ===== Apparence 4 : majordome (anneau holographique, plateau et cafe) ===== -->
+        <Canvas x:Name="SkinButler" Visibility="Collapsed">
+          <Canvas Opacity="0.55">
+            <Canvas.RenderTransform><RotateTransform x:Name="MHud" CenterX="60" CenterY="27" Angle="20"/></Canvas.RenderTransform>
+            <Ellipse x:Name="MHud1" Canvas.Left="36.00" Canvas.Top="3.00" Width="48.00" Height="48.00" Stroke="#5FD3FF" StrokeThickness="0.6" StrokeDashArray="2 3.6"/>
+            <Path x:Name="MHud2" Data="M 39,19 A 22,22 0 0 1 60,5" Stroke="#5FD3FF" StrokeThickness="1.4"/>
+            <Path x:Name="MHud3" Data="M 81,35 A 22,22 0 0 1 70,47" Stroke="#5FD3FF" StrokeThickness="1.4"/>
+          </Canvas>
+          <Ellipse x:Name="MGlow" Canvas.Left="45.00" Canvas.Top="81.00" Width="30.00" Height="10.00" Fill="{StaticResource OGlow}"/>
+          <Path Data="M 41,49 L 36,62 L 44,68" Stroke="#1A2540" StrokeThickness="4.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+          <Path Data="M 36.5,60 L 41.5,61 L 40.5,73 L 35,71 Z" Fill="#F4F6F9" Stroke="#C9D0D9" StrokeThickness="0.5"/>
+          <Ellipse Canvas.Left="42.80" Canvas.Top="65.80" Width="4.40" Height="4.40" Fill="#E8ECF1"/>
+          <Path Data="M 79,49 L 86,60 L 95,57" Stroke="#1A2540" StrokeThickness="4.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+          <Ellipse Canvas.Left="93.80" Canvas.Top="54.30" Width="4.40" Height="4.40" Fill="#E8ECF1"/>
+          <Ellipse Canvas.Left="85.00" Canvas.Top="51.60" Width="26.00" Height="4.80" Fill="{StaticResource OTray}" Stroke="#7F8A99" StrokeThickness="0.6"/>
+          <Path Data="M 94,47 L 102,47 L 101,53 L 95,53 Z" Fill="White" Stroke="#AEB6C2" StrokeThickness="0.5"/>
+          <Path Data="M 102,48.5 Q 105,49.5 101.6,51.6" Stroke="#AEB6C2" StrokeThickness="0.8"/>
+          <Path x:Name="MSteam" Data="M 96.5,45 Q 95.5,42.5 97,40.5 M 99.5,45 Q 98.5,42 100,39.5" Stroke="#C9D0D9" StrokeThickness="0.6" Opacity="0.8"/>
+          <Path Data="M 41,46 Q 60,42 79,46 L 80,72 L 74,82 L 66,72 L 54,72 L 46,82 L 40,72 Z" Fill="{StaticResource OCoat}" Stroke="#0A0F1A" StrokeThickness="0.8"/>
+          <Path Data="M 52.5,45 L 67.5,45 L 60,71 Z" Fill="#F4F6F9" Stroke="#C9D0D9" StrokeThickness="0.5"/>
+          <Path Data="M 52.5,45 L 60,71 L 49,56 Z" Fill="#26355A" Stroke="#0A0F1A" StrokeThickness="0.5"/>
+          <Path Data="M 67.5,45 L 60,71 L 71,56 Z" Fill="#26355A" Stroke="#0A0F1A" StrokeThickness="0.5"/>
+          <Path x:Name="MPocket" Data="M 70,57.5 L 75,57.5 L 73.5,60.5 L 72.5,59 L 71.5,60.5 Z" Fill="#4C8DFF"/>
+          <Line X1="69.5" Y1="60.6" X2="75.5" Y2="60.6" Stroke="#0A0F1A" StrokeThickness="0.7"/>
+          <Ellipse x:Name="MBit0" Canvas.Left="58.90" Canvas.Top="65.90" Width="2.20" Height="2.20" Fill="#2A3442"/>
+          <Ellipse x:Name="MBit1" Canvas.Left="58.90" Canvas.Top="62.70" Width="2.20" Height="2.20" Fill="#2A3442"/>
+          <Ellipse x:Name="MBit2" Canvas.Left="58.90" Canvas.Top="59.50" Width="2.20" Height="2.20" Fill="#2A3442"/>
+          <Ellipse x:Name="MBit3" Canvas.Left="58.90" Canvas.Top="56.30" Width="2.20" Height="2.20" Fill="#2A3442"/>
+          <Ellipse x:Name="MBit4" Canvas.Left="58.90" Canvas.Top="53.10" Width="2.20" Height="2.20" Fill="#2A3442"/>
+          <Ellipse x:Name="MBit5" Canvas.Left="58.90" Canvas.Top="49.90" Width="2.20" Height="2.20" Fill="#2A3442"/>
+          <Path Data="M 54.5,44 L 59.2,46 L 54.5,48 Z" Fill="#111722"/>
+          <Path Data="M 65.5,44 L 60.8,46 L 65.5,48 Z" Fill="#111722"/>
+          <Rectangle Canvas.Left="58.6" Canvas.Top="44.9" Width="2.8" Height="2.2" RadiusX="0.6" RadiusY="0.6" Fill="#2B323D"/>
+          <Rectangle Canvas.Left="56.5" Canvas.Top="39" Width="7" Height="5" Fill="{StaticResource ODark}"/>
+          <Rectangle Canvas.Left="46" Canvas.Top="12" Width="28" Height="28" RadiusX="10" RadiusY="10" Fill="{StaticResource OMetal}" Stroke="#4A5260" StrokeThickness="1.1"/>
+          <Path Data="M 47.5,20 Q 48,11.5 60,11.2 Q 72,11.5 72.5,20 Q 66,15.5 60,16 Q 53,15.6 47.5,20 Z" Fill="#3A4352"/>
+          <Rectangle Canvas.Left="44" Canvas.Top="22" Width="3" Height="8" RadiusX="1.2" RadiusY="1.2" Fill="{StaticResource ODark}"/>
+          <Rectangle Canvas.Left="73" Canvas.Top="22" Width="3" Height="8" RadiusX="1.2" RadiusY="1.2" Fill="{StaticResource ODark}"/>
+          <Rectangle Canvas.Left="49" Canvas.Top="21.5" Width="22" Height="8.5" RadiusX="4.2" RadiusY="4.2" Fill="{StaticResource OVisor}" Stroke="#3A4556" StrokeThickness="0.7"/>
+          <Ellipse x:Name="MEyeL" Canvas.Left="52.90" Canvas.Top="23.60" Width="4.20" Height="4.20" Fill="#4C8DFF"/>
+          <Ellipse x:Name="MEyeR" Canvas.Left="62.90" Canvas.Top="23.60" Width="4.20" Height="4.20" Fill="#4C8DFF"/>
+          <Ellipse x:Name="MGlintL" Canvas.Left="53.60" Canvas.Top="24.30" Width="1.40" Height="1.40" Fill="#E6FFFFFF"/>
+          <Ellipse x:Name="MGlintR" Canvas.Left="63.60" Canvas.Top="24.30" Width="1.40" Height="1.40" Fill="#E6FFFFFF"/>
+          <Ellipse Canvas.Left="61.00" Canvas.Top="21.70" Width="8.00" Height="8.00" Stroke="#C9A227" StrokeThickness="0.9"/>
+          <Path Data="M 68.6,27.5 Q 72,36 70.5,44" Stroke="#C9A227" StrokeThickness="0.4"/>
+          <Path Data="M 60,33 Q 56,32 53.5,34.5 Q 56.5,35.5 60,34.2 Q 63.5,35.5 66.5,34.5 Q 64,32 60,33 Z" Fill="#3A4352"/>
+        </Canvas>
       </Canvas>
 
       <!-- chrono -->
@@ -577,10 +738,10 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
 
 $window = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xaml))
 $ui = @{}
-foreach ($n in 'Root','BubbleWrap','BubblePop','SpeechTail','ThoughtTail','Bubble','BubbleText','BubbleButtons','Bot','BotScale','Bob','Tilt','Beacon','Lens','LensGlint','StatusLed','Pill','PillText',
-               'NavL','NavR','GlintL','GlintR','Bit0','Bit1','Bit2','Bit3','Bit4','Bit5') {
-    $ui[$n] = $window.FindName($n)
-}
+# tous les elements nommes (x:Name) du dessin, accessibles par $ui.Nom
+$nsm = New-Object Xml.XmlNamespaceManager($xaml.NameTable)
+$nsm.AddNamespace('x', 'http://schemas.microsoft.com/winfx/2006/xaml')
+foreach ($node in $xaml.SelectNodes('//@x:Name', $nsm)) { $ui[$node.Value] = $window.FindName($node.Value) }
 
 # ---------------------------------------------------------------------------
 #  Etat
@@ -618,6 +779,8 @@ $O = @{
     Home         = $null
     MoodBrush    = $null
     AccentBrush  = $null
+    Skin         = 'Satellite'
+    Mood         = ''
     Today        = (Get-Date).ToString('yyyy-MM-dd')
     FocusToday   = 0
     FocusMinToday = 0
@@ -677,6 +840,7 @@ function Get-SettingsSnapshot {
         appComments        = $Config.AppComments
         sounds             = $Config.Sounds
         droidSounds        = $Config.DroidSounds
+        skin               = $O.Skin
         idlePause          = $Config.IdlePause
         idleMinutes        = $Config.IdleMinutes
     }
@@ -700,6 +864,7 @@ function Apply-SettingsData($d) {
     if (Has 'appComments') { $Config.AppComments = [bool]$d.appComments }
     if (Has 'sounds') { $Config.Sounds = [bool]$d.sounds }
     if (Has 'droidSounds') { $Config.DroidSounds = [bool]$d.droidSounds }
+    if ($d.skin) { $O.Skin = [string]$d.skin }   # verifie par Set-Skin
     if (Has 'idlePause') { $Config.IdlePause = [bool]$d.idlePause }
     if (Has 'idleMinutes') { $Config.IdleMinutes = [int]$d.idleMinutes }
     if ($Config.WanderMaxMin -le $Config.WanderMinMin) { $Config.WanderMaxMin = $Config.WanderMinMin + 1 }
@@ -729,12 +894,48 @@ $Moods = @{
     Await      = @('#FF9F1C', '#D9480F')
 }
 
+# ---------------------------------------------------------------------------
+#  Apparences : ce que chaque dessin anime (yeux, balises, LED binaires...)
+#  Eyes : elements qui suivent la souris (position de repos) ; EyeX/EyeY : centre du regard
+# ---------------------------------------------------------------------------
+$Skins = [ordered]@{
+    Satellite = @{ Label = '🛰️ Satellite'; Root = 'SkinSatellite'; Bits = 'Bit'; EyeX = 60; EyeY = 39.5; EyeMax = 1.8
+                   Eyes = @(@('Lens', 56.7, 36.2), @('LensGlint', 57.9, 37.4))
+                   Fill = @('Lens', 'Beacon', 'StatusLed'); Stroke = @(); Beacons = @('Beacon'); Glows = @() }
+    Droid     = @{ Label = '🤖 Droïde de maintenance'; Root = 'SkinDroid'; Bits = 'DBit'; EyeX = 62; EyeY = 49.5; EyeMax = 1.6
+                   Eyes = @(@('DLens', 59, 46.5), @('DGlint', 60, 47.3))
+                   Fill = @('DLens', 'DBeacon'); Stroke = @('DRing'); Beacons = @('DBeacon'); Glows = @('DGlow', 'DJet1', 'DJet2') }
+    Robot     = @{ Label = '🦾 Robot assistant'; Root = 'SkinRobot'; Bits = 'RBit'; EyeX = 60; EyeY = 34.5; EyeMax = 1.3
+                   Eyes = @(@('REyeL', 50.2, 31.2), @('REyeR', 63.2, 31.2), @('RGlintL', 51.6, 32.5), @('RGlintR', 64.6, 32.5))
+                   Fill = @('REyeL', 'REyeR', 'RBeacon'); Stroke = @(); Beacons = @('RBeacon'); Glows = @('RGlow') }
+    Butler    = @{ Label = '🎩 Majordome'; Root = 'SkinButler'; Bits = 'MBit'; EyeX = 60; EyeY = 25.7; EyeMax = 0.9
+                   Eyes = @(@('MEyeL', 52.9, 23.6), @('MEyeR', 62.9, 23.6), @('MGlintL', 53.6, 24.3), @('MGlintR', 63.6, 24.3))
+                   Fill = @('MEyeL', 'MEyeR', 'MPocket'); Stroke = @('MHud1', 'MHud2', 'MHud3'); Beacons = @(); Glows = @('MGlow') }
+}
+
+function Set-Skin([string]$name, [switch]$Quiet) {
+    if (-not $Skins.Contains($name)) { $name = 'Satellite' }
+    foreach ($k in $Skins.Keys) { $ui[$Skins[$k].Root].Visibility = if ($k -eq $name) { 'Visible' } else { 'Collapsed' } }
+    $O.Skin = $name
+    if ($O.Mood) { Set-Mood $O.Mood }
+    if (-not $Quiet) {
+        $hello = switch ($name) {
+            'Satellite' { "Retour en orbite 🛰️" }
+            'Droid'     { "Droïde de maintenance opérationnel. Je répare… surtout ta motivation 🔧" }
+            'Robot'     { "Robot assistant en ligne. > focus_ 🦾" }
+            'Butler'    { "Votre majordome est à votre service. Un café avec votre focus ? ☕🎩" }
+        }
+        Show-Bubble $hello -Force -Seconds 4
+    }
+}
+
 function Set-Mood([string]$mood) {
+    $O.Mood = $mood
     $c = $Moods[$mood]
     $accent = New-Object Windows.Media.SolidColorBrush((New-Color $c[0]))
-    $ui.Lens.Fill = $accent
-    $ui.Beacon.Fill = $accent
-    $ui.StatusLed.Fill = $accent
+    $sk = $Skins[$O.Skin]
+    foreach ($n in $sk.Fill) { $ui[$n].Fill = $accent }
+    foreach ($n in $sk.Stroke) { $ui[$n].Stroke = $accent }
     $ui.Pill.BorderBrush = $accent
     $O.AccentBrush = $accent
     $O.MoodBrush = New-Object Windows.Media.SolidColorBrush((New-Color $c[1]))
@@ -1280,7 +1481,7 @@ function Update-Bits([double]$t) {
         }
     }
     for ($b = 0; $b -lt 6; $b++) {
-        $led = $ui["Bit$b"]
+        $led = $ui["$($Skins[$O.Skin].Bits)$b"]
         if ($mask -band (1 -shl $b)) { $led.Fill = $on; $led.Opacity = $blink } else { $led.Fill = $script:BitOff; $led.Opacity = 1 }
     }
 }
@@ -1300,34 +1501,52 @@ function On-Frame {
     $ui.Bob.Y = 2.5 * [math]::Sin($t * 1.6)
     $ui.Tilt.Angle = 3 * [math]::Sin($t * 0.7)
 
-    # balise : un flash regulier, clignotement rapide quand Orbit attend une reponse
-    if ($O.State -like 'Await*') {
-        $ui.Beacon.Opacity = 0.3 + 0.7 * [math]::Abs([math]::Sin($t * 4))
-        $ui.StatusLed.Opacity = $ui.Beacon.Opacity
-    } else {
-        $ui.Beacon.Opacity = if (($t % 2.0) -lt 0.18) { 1 } else { 0.35 }
-        $ui.StatusLed.Opacity = 1
-    }
+    $sk = $Skins[$O.Skin]
 
-    # la camera suit la souris
+    # balises : un flash regulier, clignotement rapide quand Orbit attend une reponse
+    $beacon = if ($O.State -like 'Await*') { 0.3 + 0.7 * [math]::Abs([math]::Sin($t * 4)) }
+              elseif (($t % 2.0) -lt 0.18) { 1 } else { 0.35 }
+    foreach ($n in $sk.Beacons) { $ui[$n].Opacity = $beacon }
+
+    # les yeux (ou la camera) suivent la souris
     $c = Get-CursorDip
     $scale = $ui.BotScale.ScaleX
-    $cx = $window.Left + $window.Width - 60 * $scale
-    $cy = $window.Top + $window.Height - 82.5 * $scale
+    $cx = $window.Left + $window.Width - (120 - $sk.EyeX) * $scale
+    $cy = $window.Top + $window.Height - (122 - $sk.EyeY) * $scale
     $vx = $c.X - $cx; $vy = $c.Y - $cy
     $len = [math]::Sqrt($vx * $vx + $vy * $vy)
-    if ($len -gt 1) { $vx = $vx / $len * 1.8; $vy = $vy / $len * 1.8 }
-    [Windows.Controls.Canvas]::SetLeft($ui.Lens, 56.7 + $vx)
-    [Windows.Controls.Canvas]::SetTop($ui.Lens, 36.2 + $vy)
-    [Windows.Controls.Canvas]::SetLeft($ui.LensGlint, 57.9 + $vx)
-    [Windows.Controls.Canvas]::SetTop($ui.LensGlint, 37.4 + $vy)
+    if ($len -gt 1) { $vx = $vx / $len * $sk.EyeMax; $vy = $vy / $len * $sk.EyeMax }
+    foreach ($e in $sk.Eyes) {
+        [Windows.Controls.Canvas]::SetLeft($ui[$e[0]], $e[1] + $vx)
+        [Windows.Controls.Canvas]::SetTop($ui[$e[0]], $e[2] + $vy)
+    }
 
-    # feux de navigation (flashs alternes) et reflet du soleil sur les panneaux
-    $ui.NavL.Opacity = if (($t % 1.6) -lt 0.12) { 1 } else { 0.25 }
-    $ui.NavR.Opacity = if ((($t + 0.8) % 1.6) -lt 0.12) { 1 } else { 0.25 }
-    $g = $t % 7
-    $ui.GlintL.X = -40 + [math]::Min(1, $g / 1.4) * 90
-    $ui.GlintR.X = -40 + [math]::Min(1, [math]::Max(0, $g - 0.35) / 1.4) * 90
+    # reacteurs qui vacillent
+    $i = 0
+    foreach ($n in $sk.Glows) { $ui[$n].Opacity = 0.72 + 0.28 * [math]::Sin($t * 11 + $i * 1.7); $i++ }
+
+    switch ($O.Skin) {
+        'Satellite' {
+            # voyant d'etat, feux de navigation (flashs alternes) et reflet du soleil sur les panneaux
+            $ui.StatusLed.Opacity = if ($O.State -like 'Await*') { $beacon } else { 1 }
+            $ui.NavL.Opacity = if (($t % 1.6) -lt 0.12) { 1 } else { 0.25 }
+            $ui.NavR.Opacity = if ((($t + 0.8) % 1.6) -lt 0.12) { 1 } else { 0.25 }
+            $g = $t % 7
+            $ui.GlintL.X = -40 + [math]::Min(1, $g / 1.4) * 90
+            $ui.GlintR.X = -40 + [math]::Min(1, [math]::Max(0, $g - 0.35) / 1.4) * 90
+        }
+        'Robot' {
+            # petit terminal sur la poitrine, curseur clignotant
+            $word = switch -Wildcard ($O.State) { 'Focus' { 'focus' } 'Break' { 'pause' } 'Await*' { 'input?' } default { 'idle' } }
+            if ($O.Paused) { $word = 'paused' }
+            $ui.RTerm.Text = '> ' + $word + $(if (($t % 1) -lt 0.5) { '_' } else { ' ' })
+        }
+        'Butler' {
+            # l'anneau holographique tourne lentement, la vapeur du cafe ondule
+            $ui.MHud.Angle = ($t * 14) % 360
+            $ui.MSteam.Opacity = 0.45 + 0.35 * [math]::Sin($t * 2.3)
+        }
+    }
 
     # afficheur binaire : minutes restantes pendant une session, balayage au repos
     Update-Bits $t
@@ -1533,10 +1752,18 @@ $miTasks  = New-MenuItem "🔔  Rappels de tâches (début / fin de focus)" {
 } -Checkable
 $miQuit   = New-MenuItem "❌  Quitter Orbit" { Quit-Orbit }
 $miSettings = New-MenuItem "⚙️  Réglages…" { Open-Settings }
+$miSkin = New-Object Windows.Controls.MenuItem
+$miSkin.Header = "🎨  Apparence"
+$skinItems = @{}
+foreach ($k in $Skins.Keys) {
+    $it = New-MenuItem $Skins[$k].Label ([scriptblock]::Create("Set-Skin '$k'; Save-Settings")) -Checkable
+    $skinItems[$k] = $it
+    [void]$miSkin.Items.Add($it)
+}
 
 foreach ($i in @($miTodo, $miClip, (New-Object Windows.Controls.Separator),
                  $miFocus, $miBreak, $miPause, $miStop, $miRhythm, $miTasks, (New-Object Windows.Controls.Separator),
-                 $miQuiet, $miWander, $miMini, $miHome, $miHide, $miAuto, (New-Object Windows.Controls.Separator),
+                 $miSkin, $miQuiet, $miWander, $miMini, $miHome, $miHide, $miAuto, (New-Object Windows.Controls.Separator),
                  $miStats, $miSettings, $miQuit)) { [void]$menu.Items.Add($i) }
 
 $menu.Add_Opened({
@@ -1549,6 +1776,7 @@ $menu.Add_Opened({
     $miHome.IsEnabled = $O.Pinned -or $O.Walking
     $miAuto.IsChecked = Test-Path $StartupLink
     $miTasks.IsChecked = $O.TaskReminders
+    foreach ($k in $skinItems.Keys) { $skinItems[$k].IsChecked = ($k -eq $O.Skin) }
     foreach ($name in $rhythmItems.Keys) {
         $r = $Rhythms[$name]
         $rhythmItems[$name].Header = "$($r.Icon)  $name  ($($r.Focus) min focus / $($r.Break) min pause)"
@@ -1640,6 +1868,7 @@ $window.Add_SourceInitialized({
 
 $window.Add_Loaded({
     Invoke-Safe {
+        Set-Skin $O.Skin -Quiet
         Set-Mood 'Idle'
         Update-Pill
         Show-Status
@@ -1657,6 +1886,7 @@ $script:secondTimer.Add_Tick({ Invoke-Safe { On-Second } })
 # placement initial hors ecran le temps de calculer la bonne position
 $window.Left = -10000
 $window.Top = -10000
+Set-Skin $O.Skin -Quiet
 Set-Mood 'Idle'
 
 $app = New-Object Windows.Application

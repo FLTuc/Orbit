@@ -53,6 +53,14 @@
 
       <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="18,0,10,0" Padding="0,0,8,0">
         <StackPanel>
+          <TextBlock Style="{StaticResource Section}" Text="🎨 Apparence d'Orbit"/>
+          <WrapPanel>
+            <RadioButton x:Name="SSkinSatellite" Content="🛰️ Satellite" GroupName="Skin" Margin="0,2,14,2" VerticalContentAlignment="Center"/>
+            <RadioButton x:Name="SSkinDroid" Content="🤖 Droïde" GroupName="Skin" Margin="0,2,14,2" VerticalContentAlignment="Center"/>
+            <RadioButton x:Name="SSkinRobot" Content="🦾 Robot" GroupName="Skin" Margin="0,2,14,2" VerticalContentAlignment="Center"/>
+            <RadioButton x:Name="SSkinButler" Content="🎩 Majordome" GroupName="Skin" Margin="0,2,0,2" VerticalContentAlignment="Center"/>
+          </WrapPanel>
+
           <TextBlock Style="{StaticResource Section}" Text="⏱ Rythme Pomodoro"/>
           <StackPanel Orientation="Horizontal">
             <RadioButton x:Name="SR50" Content="50 / 10" GroupName="R" Margin="0,0,14,0" VerticalContentAlignment="Center"/>
@@ -127,7 +135,7 @@ $settingsWin = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeR
 $sw = @{}
 foreach ($n in 'SHeader','SClose','SDefaults','SCancel','SSave','SError','SR50','SR25','SRPerso','SPersoFocus','SPersoBreak',
                'SIdle','SIdleMin','STasks','SNudge','SJokes','SJokeMin','SMotiv','SApps','SQuiet','SWander','SWanderMin',
-               'SWanderMax','SSounds','SDroid','SAuto') {
+               'SWanderMax','SSounds','SDroid','SAuto','SSkinSatellite','SSkinDroid','SSkinRobot','SSkinButler') {
     $sw[$n] = $settingsWin.FindName($n)
 }
 
@@ -137,7 +145,7 @@ $DefaultSettings.rhythm = '50/10'; $DefaultSettings.customFocus = 40; $DefaultSe
 $DefaultSettings.quiet = $false; $DefaultSettings.wander = $true; $DefaultSettings.wanderMin = 4; $DefaultSettings.wanderMax = 9
 $DefaultSettings.taskReminders = $true; $DefaultSettings.reminderEveryMin = 4; $DefaultSettings.motivationEveryMin = 9
 $DefaultSettings.jokes = $true; $DefaultSettings.jokeEveryMin = 2; $DefaultSettings.appComments = $true
-$DefaultSettings.sounds = $true; $DefaultSettings.droidSounds = $true; $DefaultSettings.idlePause = $true; $DefaultSettings.idleMinutes = 5
+$DefaultSettings.skin = 'Satellite'; $DefaultSettings.sounds = $true; $DefaultSettings.droidSounds = $true; $DefaultSettings.idlePause = $true; $DefaultSettings.idleMinutes = 5
 
 function Fill-SettingsForm($d) {
     $sw.SR50.IsChecked = $d.rhythm -eq '50/10'
@@ -159,6 +167,7 @@ function Fill-SettingsForm($d) {
     $sw.SWanderMax.Text = $d.wanderMax
     $sw.SSounds.IsChecked = $d.sounds
     $sw.SDroid.IsChecked = $d.droidSounds
+    foreach ($k in 'Satellite', 'Droid', 'Robot', 'Butler') { $sw["SSkin$k"].IsChecked = ($d.skin -eq $k) }
     $sw.SError.Visibility = 'Collapsed'
     foreach ($tb in 'SPersoFocus','SPersoBreak','SIdleMin','SNudge','SJokeMin','SMotiv','SWanderMin','SWanderMax') {
         $sw[$tb].ClearValue([Windows.Controls.Control]::BorderBrushProperty)
@@ -208,6 +217,9 @@ function Save-SettingsForm {
         sounds = [bool]$sw.SSounds.IsChecked; droidSounds = [bool]$sw.SDroid.IsChecked
     })
     Apply-Rhythm
+    $skin = 'Satellite'
+    foreach ($k in 'Droid', 'Robot', 'Butler') { if ($sw["SSkin$k"].IsChecked) { $skin = $k } }
+    if ($skin -ne $O.Skin) { Set-Skin $skin -Quiet }
     if (-not $O.Wander) { $O.Walking = $false }
     if ($O.Quiet) { Hide-Bubble }
     Save-Settings
