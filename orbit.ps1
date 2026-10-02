@@ -40,6 +40,7 @@ $Config = @{
     AppComments         = $true  # commentaires selon l'appli sous la souris
     Sounds              = $true
     DroidSounds         = $true  # petits bips de droide a chaque bulle
+    DroidVolume         = 40     # volume des bips, de 0 a 100
     IdlePause           = $true  # met le focus en pause si tu t'absentes
     IdleMinutes         = 5
 }
@@ -140,38 +141,50 @@ public static class OrbitNative {
         if (c != IntPtr.Zero) ShowWindow(c, 0);
     }
 
-    // Petits bips de droide synthetises a la volee (fichier WAV en memoire).
-    // question = true : la derniere note monte, comme une question.
+    // Petits bips doux synthetises a la volee (fichier WAV en memoire) :
+    // sons purs, notes medium-graves qui glissent doucement, attaque et fin progressives, leger echo.
+    // question = true : la derniere note monte un peu, comme une question.
     public static byte[] DroidChirp(int seed, double volume, bool question) {
         Random rnd = new Random(seed);
         const int rate = 22050;
-        System.Collections.Generic.List<short> data = new System.Collections.Generic.List<short>();
-        int notes = rnd.Next(3, 7);
+        System.Collections.Generic.List<double> buf = new System.Collections.Generic.List<double>();
+        int notes = rnd.Next(2, 5);
         double phase = 0;
+        // une petite gamme agreable (pentatonique) pour que les notes s'accordent entre elles
+        double[] scale = { 523.25, 587.33, 659.25, 783.99, 880.00, 1046.50, 1174.66 };
         for (int n = 0; n < notes; n++) {
             bool last = n == notes - 1;
-            int len = rate * rnd.Next(45, 125) / 1000;
-            double f0 = 700 + rnd.NextDouble() * 2400;
-            double f1 = 700 + rnd.NextDouble() * 2400;
-            if (last && question) { f0 = 900 + rnd.NextDouble() * 600; f1 = f0 * (1.8 + rnd.NextDouble() * 0.6); len = rate * 150 / 1000; }
-            bool warble = rnd.NextDouble() < 0.35;
-            double wobbleHz = 22 + rnd.NextDouble() * 20;
+            int len = rate * rnd.Next(70, 140) / 1000;
+            double f0 = scale[rnd.Next(scale.Length)];
+            double f1 = f0 * (0.9 + rnd.NextDouble() * 0.25);
+            if (last && question) { f0 = scale[rnd.Next(2, 5)]; f1 = f0 * 1.33; len = rate * 170 / 1000; }
+            bool vibrato = rnd.NextDouble() < 0.25;
+            double vibHz = 7 + rnd.NextDouble() * 5;
+            int attack = (int)(rate * 0.012), release = (int)(rate * 0.045);
             for (int i = 0; i < len; i++) {
                 double p = (double)i / len;
                 double t = (double)i / rate;
-                double f = f0 * Math.Pow(f1 / f0, p);          // glissando
-                if (warble) f *= 1 + 0.14 * Math.Sin(2 * Math.PI * wobbleHz * t);
+                double f = f0 * Math.Pow(f1 / f0, p * p * (3 - 2 * p));   // glissando adouci
+                if (vibrato) f *= 1 + 0.035 * Math.Sin(2 * Math.PI * vibHz * t);
                 phase += 2 * Math.PI * f / rate;
-                double v = Math.Sin(phase) * 0.8 + Math.Sign(Math.Sin(phase)) * 0.12 + Math.Sin(2 * phase) * 0.1;
-                double env = Math.Min(1, Math.Min(i / (rate * 0.004), (len - i) / (rate * 0.012)));
-                data.Add((short)(v * env * volume * 32767));
+                double v = Math.Sin(phase) * 0.88 + Math.Sin(2 * phase) * 0.12;
+                double env = 1;
+                if (i < attack) env = 0.5 - 0.5 * Math.Cos(Math.PI * i / attack);
+                else if (i > len - release) env = 0.5 - 0.5 * Math.Cos(Math.PI * (len - i) / release);
+                buf.Add(v * env);
             }
-            // petit silence entre certaines notes
-            if (!last && rnd.NextDouble() < 0.45) {
-                int gap = rate * rnd.Next(12, 40) / 1000;
-                for (int i = 0; i < gap; i++) data.Add(0);
+            if (!last) {
+                int gap = rate * rnd.Next(25, 55) / 1000;
+                for (int i = 0; i < gap; i++) buf.Add(0);
             }
         }
+        // leger echo pour arrondir le son
+        int delay = rate * 85 / 1000;
+        for (int i = 0; i < delay + rate / 20; i++) buf.Add(0);
+        double[] outp = buf.ToArray();
+        for (int i = outp.Length - 1; i >= delay; i--) outp[i] += buf[i - delay] * 0.22;
+        System.Collections.Generic.List<short> data = new System.Collections.Generic.List<short>();
+        foreach (double v in outp) data.Add((short)(Math.Max(-1, Math.Min(1, v * volume)) * 32767));
         System.IO.MemoryStream ms = new System.IO.MemoryStream();
         System.IO.BinaryWriter w = new System.IO.BinaryWriter(ms);
         int bytes = data.Count * 2;
@@ -840,6 +853,7 @@ function Get-SettingsSnapshot {
         appComments        = $Config.AppComments
         sounds             = $Config.Sounds
         droidSounds        = $Config.DroidSounds
+        droidVolume        = $Config.DroidVolume
         skin               = $O.Skin
         idlePause          = $Config.IdlePause
         idleMinutes        = $Config.IdleMinutes
@@ -864,6 +878,7 @@ function Apply-SettingsData($d) {
     if (Has 'appComments') { $Config.AppComments = [bool]$d.appComments }
     if (Has 'sounds') { $Config.Sounds = [bool]$d.sounds }
     if (Has 'droidSounds') { $Config.DroidSounds = [bool]$d.droidSounds }
+    if (Has 'droidVolume') { $Config.DroidVolume = [math]::Min(100, [math]::Max(0, [int]$d.droidVolume)) }
     if ($d.skin) { $O.Skin = [string]$d.skin }   # verifie par Set-Skin
     if (Has 'idlePause') { $Config.IdlePause = [bool]$d.idlePause }
     if (Has 'idleMinutes') { $Config.IdleMinutes = [int]$d.idleMinutes }
@@ -1178,15 +1193,21 @@ function Stop-Cycle {
 $script:Chirps = @{ Talk = @(); Ask = @() }
 $script:ChirpPlayer = $null
 $script:LastChirp = [datetime]::MinValue
-if ($Native) {
+# la banque est refaite quand on change le volume dans les reglages
+function Build-Chirps {
+    if (-not $Native) { return }
+    $vol = 0.55 * $Config.DroidVolume / 100
     try {
-        $script:Chirps.Talk = @(1..10 | ForEach-Object { , [OrbitNative]::DroidChirp((Get-Random), 0.32, $false) })
-        $script:Chirps.Ask = @(1..6 | ForEach-Object { , [OrbitNative]::DroidChirp((Get-Random), 0.32, $true) })
+        $script:Chirps.Talk = @(1..10 | ForEach-Object { , [OrbitNative]::DroidChirp((Get-Random), $vol, $false) })
+        $script:Chirps.Ask = @(1..6 | ForEach-Object { , [OrbitNative]::DroidChirp((Get-Random), $vol, $true) })
+        $script:ChirpVolume = $Config.DroidVolume
     } catch { Write-Log "Bips : $($_.Exception.Message)" }
 }
+Build-Chirps
 
 function Play-Chirp([switch]$Question) {
-    if (-not $Config.DroidSounds) { return }
+    if (-not $Config.DroidSounds -or $Config.DroidVolume -le 0) { return }
+    if ($script:ChirpVolume -ne $Config.DroidVolume) { Build-Chirps }
     $bank = if ($Question) { $script:Chirps.Ask } else { $script:Chirps.Talk }
     if (-not $bank.Count) { return }
     # pas plus d'un bip toutes les 1,5 seconde

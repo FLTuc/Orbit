@@ -122,6 +122,12 @@
           <TextBlock Style="{StaticResource Section}" Text="🔊 Sons et démarrage"/>
           <CheckBox x:Name="SSounds" Content="Petit son à la fin des sessions et pour les rappels"/>
           <CheckBox x:Name="SDroid" Content="Bips de droïde à chaque bulle 🤖"/>
+          <StackPanel Orientation="Horizontal" Margin="22,2,0,0">
+            <TextBlock Text="Volume des bips" VerticalAlignment="Center"/>
+            <Slider x:Name="SDroidVol" Minimum="5" Maximum="100" Width="150" Margin="10,0,8,0"
+                    VerticalAlignment="Center" IsSnapToTickEnabled="True" TickFrequency="5"/>
+            <Button x:Name="SDroidTest" Content="▶ Écouter" Padding="8,2" Background="#EEEEF5" BorderThickness="0" Cursor="Hand"/>
+          </StackPanel>
           <CheckBox x:Name="SAuto" Content="Lancer Orbit au démarrage de Windows"/>
           <TextBlock Text=" " Margin="0,6,0,0"/>
         </StackPanel>
@@ -135,7 +141,7 @@ $settingsWin = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeR
 $sw = @{}
 foreach ($n in 'SHeader','SClose','SDefaults','SCancel','SSave','SError','SR50','SR25','SRPerso','SPersoFocus','SPersoBreak',
                'SIdle','SIdleMin','STasks','SNudge','SJokes','SJokeMin','SMotiv','SApps','SQuiet','SWander','SWanderMin',
-               'SWanderMax','SSounds','SDroid','SAuto','SSkinSatellite','SSkinDroid','SSkinRobot','SSkinButler') {
+               'SWanderMax','SSounds','SDroid','SDroidVol','SDroidTest','SAuto','SSkinSatellite','SSkinDroid','SSkinRobot','SSkinButler') {
     $sw[$n] = $settingsWin.FindName($n)
 }
 
@@ -145,7 +151,7 @@ $DefaultSettings.rhythm = '50/10'; $DefaultSettings.customFocus = 40; $DefaultSe
 $DefaultSettings.quiet = $false; $DefaultSettings.wander = $true; $DefaultSettings.wanderMin = 4; $DefaultSettings.wanderMax = 9
 $DefaultSettings.taskReminders = $true; $DefaultSettings.reminderEveryMin = 4; $DefaultSettings.motivationEveryMin = 9
 $DefaultSettings.jokes = $true; $DefaultSettings.jokeEveryMin = 2; $DefaultSettings.appComments = $true
-$DefaultSettings.skin = 'Satellite'; $DefaultSettings.sounds = $true; $DefaultSettings.droidSounds = $true; $DefaultSettings.idlePause = $true; $DefaultSettings.idleMinutes = 5
+$DefaultSettings.skin = 'Satellite'; $DefaultSettings.sounds = $true; $DefaultSettings.droidSounds = $true; $DefaultSettings.droidVolume = 40; $DefaultSettings.idlePause = $true; $DefaultSettings.idleMinutes = 5
 
 function Fill-SettingsForm($d) {
     $sw.SR50.IsChecked = $d.rhythm -eq '50/10'
@@ -167,6 +173,7 @@ function Fill-SettingsForm($d) {
     $sw.SWanderMax.Text = $d.wanderMax
     $sw.SSounds.IsChecked = $d.sounds
     $sw.SDroid.IsChecked = $d.droidSounds
+    $sw.SDroidVol.Value = [math]::Max(5, [double]$d.droidVolume)
     foreach ($k in 'Satellite', 'Droid', 'Robot', 'Butler') { $sw["SSkin$k"].IsChecked = ($d.skin -eq $k) }
     $sw.SError.Visibility = 'Collapsed'
     foreach ($tb in 'SPersoFocus','SPersoBreak','SIdleMin','SNudge','SJokeMin','SMotiv','SWanderMin','SWanderMax') {
@@ -215,6 +222,7 @@ function Save-SettingsForm {
         appComments = [bool]$sw.SApps.IsChecked; quiet = [bool]$sw.SQuiet.IsChecked
         wander = [bool]$sw.SWander.IsChecked; wanderMin = [int]$wmin; wanderMax = [int]$wmax
         sounds = [bool]$sw.SSounds.IsChecked; droidSounds = [bool]$sw.SDroid.IsChecked
+        droidVolume = [int]$sw.SDroidVol.Value
     })
     Apply-Rhythm
     $skin = 'Satellite'
@@ -258,5 +266,15 @@ $sw.SClose.Add_Click({ $settingsWin.Hide() })
 $sw.SCancel.Add_Click({ $settingsWin.Hide() })
 $sw.SDefaults.Add_Click({ Invoke-Safe { Fill-SettingsForm $DefaultSettings } })
 $sw.SSave.Add_Click({ Invoke-Safe { Save-SettingsForm } })
+# ecoute immediate du volume choisi, sans enregistrer
+$sw.SDroidTest.Add_Click({
+    Invoke-Safe {
+        $old = $Config.DroidVolume; $wasOn = $Config.DroidSounds
+        $Config.DroidVolume = [int]$sw.SDroidVol.Value; $Config.DroidSounds = $true
+        $script:LastChirp = [datetime]::MinValue
+        Play-Chirp
+        $Config.DroidVolume = $old; $Config.DroidSounds = $wasOn
+    }
+})
 $settingsWin.Add_Closing({ param($s, $e) if (-not $NB.Quitting) { $e.Cancel = $true; $settingsWin.Hide() } })
 $settingsWin.Add_PreviewKeyDown({ param($s, $e) if ($e.Key -eq 'Escape') { $e.Handled = $true; $settingsWin.Hide() } })
