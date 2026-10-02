@@ -577,8 +577,6 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
         <Rectangle Canvas.Left="42" Canvas.Top="28" Width="36" Height="46" RadiusX="3" RadiusY="3"
                    Stroke="#4A5260" StrokeThickness="1.1"/>
         <Line X1="42.6" Y1="52" X2="77.4" Y2="52" Stroke="#6B7380" StrokeThickness="0.7"/>
-        <TextBlock Canvas.Left="42.6" Canvas.Top="53.3" Width="34.8" TextAlignment="Center" Text="ORBIT·1"
-                   FontFamily="Consolas" FontWeight="Bold" FontSize="4.6" Foreground="#5A400C" Opacity="0.9"/>
 
         <!-- voyant d'etat -->
         <Ellipse x:Name="StatusLed" Canvas.Left="44.7" Canvas.Top="30.3" Width="3" Height="3" Fill="#5FD3FF"/>
@@ -642,7 +640,6 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           <Ellipse x:Name="DBeacon" Canvas.Left="74.20" Canvas.Top="19.70" Width="3.60" Height="3.60" Fill="#5FD3FF"/>
           <Line X1="66" Y1="34" X2="68" Y2="27" Stroke="#7F8A99" StrokeThickness="0.8"/>
           <Rectangle Canvas.Left="66.7" Canvas.Top="25.4" Width="2.6" Height="2" RadiusX="0.4" RadiusY="0.4" Fill="#4D5766"/>
-          <TextBlock Canvas.Left="45.0" Canvas.Top="60.59" Width="30" TextAlignment="Center" Text="ORB-1" FontFamily="Consolas" FontSize="3.8" Foreground="#4A5260" FontWeight="Bold"/>
           <Path Data="M 50,79 L 56,79 L 55,84 L 51,84 Z" Fill="{StaticResource ODark}"/>
           <Path Data="M 64,79 L 70,79 L 69,84 L 65,84 Z" Fill="{StaticResource ODark}"/>
           <Ellipse x:Name="DJet1" Canvas.Left="51.00" Canvas.Top="84.30" Width="4.00" Height="2.40" Fill="#7FD8FF"/>
@@ -668,7 +665,6 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           <Rectangle x:Name="RBit5" Canvas.Left="48.5" Canvas.Top="63" Width="2.8" Height="2.6" RadiusX="0.4" RadiusY="0.4" Fill="#2A3442"/>
           <TextBlock x:Name="RTerm" Canvas.Left="47.0" Canvas.Top="67.07" Width="26" TextAlignment="Center" Text="&gt; focus_" FontFamily="Consolas" FontSize="3.4" Foreground="#5FD3FF" Opacity="0.9"/>
           <Rectangle Canvas.Left="43.5" Canvas.Top="76" Width="33" Height="2.2" Fill="{StaticResource OStripe}"/>
-          <TextBlock Canvas.Left="45.0" Canvas.Top="79.18" Width="30" TextAlignment="Center" Text="ORBIT·1" FontFamily="Consolas" FontSize="3.6" Foreground="#4A5260" FontWeight="Bold"/>
           <Rectangle Canvas.Left="55" Canvas.Top="50" Width="10" Height="7" Fill="{StaticResource ODark}"/>
           <Line X1="55" Y1="52.5" X2="65" Y2="52.5" Stroke="#6E7988" StrokeThickness="0.5"/>
           <Line X1="55" Y1="54.5" X2="65" Y2="54.5" Stroke="#6E7988" StrokeThickness="0.5"/>
