@@ -359,7 +359,6 @@ $TitleLines = @(
     @{ k = 'linkedin';  d = $false; l = @("LinkedIn… quelqu'un est 'ravi d'annoncer' quelque chose 🎉") }
     @{ k = 'gmail';     d = $false; l = @("Les mails, c'est mieux par paquets 📨") }
     @{ k = 'chatgpt';   d = $false; l = @("Tu parles à une autre IA ? Je suis un peu jaloux 🥺") }
-    @{ k = 'claude';    d = $false; l = @("Ah, un cousin ! Passe-lui le bonjour 👋") }
     @{ k = 'wikipedia'; d = $false; l = @("Wikipédia : on commence par la photosynthèse, on finit sur les pharaons 🏺") }
     @{ k = 'stack overflow'; d = $false; l = @("Stack Overflow, le vrai collègue senior 🧑‍💻") }
     @{ k = 'github';    d = $false; l = @("Un petit commit ? 🐙") }
@@ -442,6 +441,9 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
         <LinearGradientBrush x:Key="OCoat" StartPoint="0,0" EndPoint="1,0">
           <GradientStop Color="#2A3A5E" Offset="0"/><GradientStop Color="#1A2540" Offset="0.5"/><GradientStop Color="#0E1526" Offset="1"/>
         </LinearGradientBrush>
+        <RadialGradientBrush x:Key="OBrain" GradientOrigin="0.35,0.3" Center="0.4,0.35" RadiusX="0.75" RadiusY="0.75">
+          <GradientStop Color="#FFD3DA" Offset="0"/><GradientStop Color="#F2A7B4" Offset="0.45"/><GradientStop Color="#CF6B7C" Offset="1"/>
+        </RadialGradientBrush>
         <LinearGradientBrush x:Key="OTray" StartPoint="0,0" EndPoint="0,1">
           <GradientStop Color="#FAFBFC" Offset="0"/><GradientStop Color="#9AA3B0" Offset="1"/>
         </LinearGradientBrush>
@@ -732,6 +734,58 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
           <Path Data="M 68.6,27.5 Q 72,36 70.5,44" Stroke="#C9A227" StrokeThickness="0.4"/>
           <Path Data="M 60,33 Q 56,32 53.5,34.5 Q 56.5,35.5 60,34.2 Q 63.5,35.5 66.5,34.5 Q 64,32 60,33 Z" Fill="#3A4352"/>
         </Canvas>
+
+        <!-- ===== Apparence 5 : cerveau augmente (plaque chromee, circuits, oeil bionique) ===== -->
+        <Canvas x:Name="SkinBrain" Visibility="Collapsed">
+          <Ellipse x:Name="CGlow" Canvas.Left="42.00" Canvas.Top="81.00" Width="36.00" Height="12.00" Fill="{StaticResource OGlow}"/>
+          <Path Data="M 58,62 L 62,62 L 62.6,73 L 57.4,73 Z" Fill="{StaticResource ODark}"/>
+          <Line X1="57.6" Y1="65.5" X2="62.4" Y2="65.5" Stroke="#6E7988" StrokeThickness="0.6"/>
+          <Line X1="57.4" Y1="68.5" X2="62.6" Y2="68.5" Stroke="#6E7988" StrokeThickness="0.6"/>
+          <Rectangle Canvas.Left="43" Canvas.Top="72" Width="34" Height="8" RadiusX="4" RadiusY="4" Fill="{StaticResource OMetalV}" Stroke="#4A5260" StrokeThickness="1"/>
+          <Rectangle x:Name="CRing" Canvas.Left="46" Canvas.Top="77.6" Width="28" Height="1.4" RadiusX="0.7" RadiusY="0.7" Fill="#5FD3FF"/>
+          <Path Data="M 50,80 L 55,80 L 54,83 L 51,83 Z" Fill="#4D5664"/>
+          <Path Data="M 65,80 L 70,80 L 69,83 L 66,83 Z" Fill="#4D5664"/>
+          <Path Data="M 34,50 C 30,38 38,26 50,24 C 56,16 70,16 76,23 C 86,22 92,32 90,42 C 94,50 88,60 80,60 C 74,66 62,66 56,62 C 48,66 36,62 34,50 Z" Fill="{StaticResource OBrain}" Stroke="#A8505F" StrokeThickness="1"/>
+          <Path Data="M 38,48 C 41,44 46,46 48,42 C 50,38 46,34 50,31" Stroke="#B85566" StrokeThickness="0.9" Opacity="0.75"/>
+          <Path Data="M 42,57 C 46,54 50,57 54,54 C 57,52 56,48 60,47" Stroke="#B85566" StrokeThickness="0.9" Opacity="0.75"/>
+          <Path Data="M 52,26 C 54,30 59,29 60,33 C 61,37 57,39 60,42" Stroke="#B85566" StrokeThickness="0.9" Opacity="0.75"/>
+          <Path Data="M 57,21 C 60,24 64,22 66,25" Stroke="#B85566" StrokeThickness="0.8" Opacity="0.7"/>
+          <Path Data="M 36,40 C 39,38 40,34 44,33" Stroke="#B85566" StrokeThickness="0.8" Opacity="0.7"/>
+          <Path Data="M 47,60 C 50,58 53,61 56,59" Stroke="#B85566" StrokeThickness="0.8" Opacity="0.7"/>
+          <Path Data="M 40,36 C 44,30 50,27 56,25" Stroke="White" StrokeThickness="0.7" Opacity="0.35"/>
+          <Path Data="M 66,19.5 C 72,17.5 75,20 76,23 C 86,22 92,32 90,42 C 94,50 88,60 80,60 C 77,63 73,64.5 70,64.5 C 72,56 66,50 68,42 C 70,34 64,26 66,19.5 Z" Fill="{StaticResource OMetal}" Stroke="#4A5260" StrokeThickness="1"/>
+          <Path Data="M 67.8,24 C 67,30 70.5,36 69.6,42 C 68.4,49 73,55 71.6,62" Stroke="#2B323D" StrokeThickness="0.6" Opacity="0.6"/>
+          <Path x:Name="CTrace1" Data="M 72,27 L 78,27 L 81,30 L 86,30" Stroke="#5FD3FF" StrokeThickness="0.7"/>
+          <Path x:Name="CTrace2" Data="M 71,47 L 77,47 L 80,50 L 87,50" Stroke="#5FD3FF" StrokeThickness="0.7"/>
+          <Path x:Name="CTrace3" Data="M 73,55 L 79,55 L 82,52" Stroke="#5FD3FF" StrokeThickness="0.7"/>
+          <Ellipse x:Name="CNode1" Canvas.Left="85.00" Canvas.Top="29.00" Width="2.00" Height="2.00" Fill="#5FD3FF"/>
+          <Ellipse x:Name="CNode2" Canvas.Left="86.00" Canvas.Top="49.00" Width="2.00" Height="2.00" Fill="#5FD3FF"/>
+          <Ellipse x:Name="CNode3" Canvas.Left="81.10" Canvas.Top="51.10" Width="1.80" Height="1.80" Fill="#5FD3FF"/>
+          <Ellipse Canvas.Left="73.20" Canvas.Top="21.70" Width="1.60" Height="1.60" Fill="#7F8A99"/>
+          <Ellipse Canvas.Left="87.70" Canvas.Top="39.20" Width="1.60" Height="1.60" Fill="#7F8A99"/>
+          <Ellipse Canvas.Left="82.20" Canvas.Top="57.70" Width="1.60" Height="1.60" Fill="#7F8A99"/>
+          <Rectangle Canvas.Left="71.5" Canvas.Top="38.5" Width="17.5" Height="5" RadiusX="1" RadiusY="1" Fill="#141B24"/>
+          <Rectangle x:Name="CBit0" Canvas.Left="86.3" Canvas.Top="39.9" Width="2.2" Height="2.2" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
+          <Rectangle x:Name="CBit1" Canvas.Left="83.6" Canvas.Top="39.9" Width="2.2" Height="2.2" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
+          <Rectangle x:Name="CBit2" Canvas.Left="80.9" Canvas.Top="39.9" Width="2.2" Height="2.2" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
+          <Rectangle x:Name="CBit3" Canvas.Left="78.2" Canvas.Top="39.9" Width="2.2" Height="2.2" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
+          <Rectangle x:Name="CBit4" Canvas.Left="75.5" Canvas.Top="39.9" Width="2.2" Height="2.2" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
+          <Rectangle x:Name="CBit5" Canvas.Left="72.8" Canvas.Top="39.9" Width="2.2" Height="2.2" RadiusX="0.3" RadiusY="0.3" Fill="#2A3442"/>
+          <Ellipse Canvas.Left="48.50" Canvas.Top="28.50" Width="3.00" Height="3.00" Fill="#C9D0D9" Stroke="#4A5260" StrokeThickness="0.5"/>
+          <Ellipse Canvas.Left="52.50" Canvas.Top="50.50" Width="3.00" Height="3.00" Fill="#C9D0D9" Stroke="#4A5260" StrokeThickness="0.5"/>
+          <Path Data="M 51.4,29.4 C 58,26 62,30 68,28" Stroke="#7F8A99" StrokeThickness="0.6"/>
+          <Path Data="M 55.4,52.4 C 60,55 64,50 69,52" Stroke="#7F8A99" StrokeThickness="0.6"/>
+          <Ellipse x:Name="CSpark1" Canvas.Left="40.10" Canvas.Top="44.10" Width="1.80" Height="1.80" Fill="#5FD3FF"/>
+          <Ellipse x:Name="CSpark2" Canvas.Left="55.20" Canvas.Top="35.20" Width="1.60" Height="1.60" Fill="#5FD3FF"/>
+          <Ellipse x:Name="CSpark3" Canvas.Left="47.20" Canvas.Top="56.20" Width="1.60" Height="1.60" Fill="#5FD3FF"/>
+          <Ellipse x:Name="CSpark4" Canvas.Left="61.20" Canvas.Top="21.20" Width="1.60" Height="1.60" Fill="#5FD3FF"/>
+          <Ellipse Canvas.Left="37.80" Canvas.Top="35.80" Width="12.40" Height="12.40" Fill="{StaticResource OMetal}" Stroke="#4A5260" StrokeThickness="0.9"/>
+          <Ellipse Canvas.Left="39.60" Canvas.Top="37.60" Width="8.80" Height="8.80" Fill="#0B121C" Stroke="#3A4556" StrokeThickness="0.6"/>
+          <Ellipse x:Name="CEye" Canvas.Left="41.60" Canvas.Top="39.60" Width="4.80" Height="4.80" Fill="#4C8DFF"/>
+          <Ellipse x:Name="CGlint" Canvas.Left="42.40" Canvas.Top="40.30" Width="1.60" Height="1.60" Fill="#E6FFFFFF"/>
+          <Line X1="82" Y1="24" X2="87" Y2="12" Stroke="#7F8A99" StrokeThickness="1"/>
+          <Ellipse x:Name="CBeacon" Canvas.Left="85.50" Canvas.Top="9.40" Width="3.60" Height="3.60" Fill="#5FD3FF"/>
+        </Canvas>
       </Canvas>
 
       <!-- chrono -->
@@ -922,6 +976,10 @@ $Skins = [ordered]@{
     Butler    = @{ Label = '🎩 Majordome'; Root = 'SkinButler'; Bits = 'MBit'; EyeX = 60; EyeY = 25.7; EyeMax = 0.9
                    Eyes = @(@('MEyeL', 52.9, 23.6), @('MEyeR', 62.9, 23.6), @('MGlintL', 53.6, 24.3), @('MGlintR', 63.6, 24.3))
                    Fill = @('MEyeL', 'MEyeR', 'MPocket'); Stroke = @('MHud1', 'MHud2', 'MHud3'); Beacons = @(); Glows = @('MGlow') }
+    Brain     = @{ Label = '🧠 Cerveau augmenté'; Root = 'SkinBrain'; Bits = 'CBit'; EyeX = 44; EyeY = 42; EyeMax = 1.6
+                   Eyes = @(@('CEye', 41.6, 39.6), @('CGlint', 42.4, 40.3))
+                   Fill = @('CEye', 'CBeacon', 'CNode1', 'CNode2', 'CNode3', 'CSpark1', 'CSpark2', 'CSpark3', 'CSpark4', 'CRing')
+                   Stroke = @('CTrace1', 'CTrace2', 'CTrace3'); Beacons = @('CBeacon'); Glows = @('CGlow') }
 }
 
 function Set-Skin([string]$name, [switch]$Quiet) {
@@ -935,6 +993,7 @@ function Set-Skin([string]$name, [switch]$Quiet) {
             'Droid'     { "Droïde de maintenance opérationnel. Je répare… surtout ta motivation 🔧" }
             'Robot'     { "Robot assistant en ligne. > focus_ 🦾" }
             'Butler'    { "Votre majordome est à votre service. Un café avec votre focus ? ☕🎩" }
+            'Brain'     { "Cerveau augmenté connecté. Neurones chargés à 100 % 🧠⚡" }
         }
         Show-Bubble $hello -Force -Seconds 4
     }
@@ -1333,7 +1392,7 @@ function On-TimerEnded {
 
 function Update-Pill {
     $txt = switch ($O.State) {
-        'Idle'       { '▶ ORBIT' }
+        'Idle'       { '▶ FOCUS' }
         'AwaitBreak' { '☕ ?' }
         'AwaitFocus' { '🚀 ?' }
         default {
@@ -1557,6 +1616,15 @@ function On-Frame {
             $word = switch -Wildcard ($O.State) { 'Focus' { 'focus' } 'Break' { 'pause' } 'Await*' { 'input?' } default { 'idle' } }
             if ($O.Paused) { $word = 'paused' }
             $ui.RTerm.Text = '> ' + $word + $(if (($t % 1) -lt 0.5) { '_' } else { ' ' })
+        }
+        'Brain' {
+            # etincelles de synapses qui s'allument a tour de role, circuits qui pulsent
+            for ($k = 1; $k -le 4; $k++) {
+                $ph = ($t * 1.3 + $k * 0.37) % 1.6
+                $ui["CSpark$k"].Opacity = if ($ph -lt 0.18) { 1 } else { 0.15 }
+            }
+            $pulse = 0.55 + 0.45 * [math]::Sin($t * 2.6)
+            foreach ($n in 'CTrace1', 'CTrace2', 'CTrace3', 'CNode1', 'CNode2', 'CNode3') { $ui[$n].Opacity = $pulse }
         }
         'Butler' {
             # l'anneau holographique tourne lentement, la vapeur du cafe ondule

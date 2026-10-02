@@ -17,11 +17,12 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
 
 - **Il te suit** : il se place en bas à droite de l'écran où se trouve ta souris et change d'écran en même temps que toi.
 - **Il se balade** : de temps en temps, il part faire un petit tour sur tes écrans, puis il revient. C'est un vrai petit satellite : panneaux solaires où passe un reflet de soleil, antenne parabolique avec balise, viseur d'étoiles, isolation dorée, feux de navigation rouge et vert, propulseurs. Sa caméra suit ta souris et ses voyants changent de couleur selon le moment (bleu = focus, vert = pause, orange = il attend ta réponse). Clin d'œil geek : la rangée de LED sous la caméra affiche **les minutes restantes en binaire** (au repos, elle fait un balayage), et le chrono s'affiche façon contrôle de mission : `T-24:31`.
-- **4 apparences au choix** (clic droit > 🎨 Apparence, ou dans les réglages) :
+- **5 apparences au choix** (clic droit > 🎨 Apparence, ou dans les réglages) :
   - 🛰️ **Satellite** : le dessin décrit ci-dessus ;
   - 🤖 **Droïde de maintenance** : une sphère qui flotte sur ses réacteurs, avec une visière, un œil-caméra et deux petits bras articulés (l'un tient un tournevis) ;
   - 🦾 **Robot assistant** : un buste de robot avec une visière à deux yeux et un petit terminal sur la poitrine qui affiche son état (`> focus_`, `> pause_`…) ;
-  - 🎩 **Majordome** : un robot en queue-de-pie, avec nœud papillon, monocle, moustache, serviette sur le bras et plateau avec un café fumant, entouré d'un anneau holographique qui tourne.
+  - 🎩 **Majordome** : un robot en queue-de-pie, avec nœud papillon, monocle, moustache, serviette sur le bras et plateau avec un café fumant, entouré d'un anneau holographique qui tourne ;
+  - 🧠 **Cerveau augmenté** : un cerveau à moitié recouvert d'une plaque chromée avec des circuits lumineux qui pulsent, un œil bionique, des électrodes, des étincelles de synapses et une antenne, posé sur un petit module flottant.
   Dans tous les cas, les yeux suivent ta souris, les couleurs suivent le moment (focus, pause, attente) et les LED affichent les minutes restantes en binaire (sur le majordome, ce sont les boutons de sa chemise).
 - **Il reste au-dessus** de toutes les applications, sans te voler le focus. Le chrono s'affiche sous lui.
 - **Cycle Pomodoro avec confirmation**, en 50/10, en 25/5 ou avec ton propre rythme (dans les réglages) :
@@ -61,7 +62,7 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   - pause automatique en cas d'absence, et au bout de combien de minutes ;
   - rappels de tâches, et fréquence des relances quand Orbit attend ta réponse ;
   - blagues de pause (oui/non et fréquence), phrases de motivation, commentaires sur les applis, mode silencieux ;
-  - apparence (satellite, droïde, robot ou majordome) ;
+  - apparence (satellite, droïde, robot, majordome ou cerveau) ;
   - balades (oui/non et fréquence), sons, bips de droïde, lancement au démarrage de Windows.
 
 ## Commandes
