@@ -7,6 +7,9 @@ $TodoFile = Join-Path $DataDir 'todo.json'          # ancienne to-do (reprise au
 $KanbanFile = Join-Path $DataDir 'kanban.json'
 $TodoMd = Join-Path $DataDir 'todo.md'
 $TodoArchive = Join-Path $DataDir 'todo-archive.md'
+$BackupDir = Join-Path $DataDir 'sauvegardes'
+$BackupKeep = 7      # jours de sauvegarde gardes
+$UndoKeep = 5        # copies "avant restauration" gardees
 $ClipDir = Join-Path $DataDir 'clipboard'
 $FavFile = Join-Path $DataDir 'clipboard-favoris.json'
 if (-not (Test-Path $ClipDir)) { New-Item -ItemType Directory -Path $ClipDir | Out-Null }
@@ -35,16 +38,10 @@ $NB = @{
     Favs       = New-Object System.Collections.ArrayList
     DeadlineDay = ''
     Quitting   = $false
-}
-
-# ---------------------------------------------------------------------------
-#  Ecriture "atomique" : on ecrit a cote puis on remplace, pour ne jamais
-#  se retrouver avec un fichier a moitie ecrit
-# ---------------------------------------------------------------------------
-function Write-FileSafe([string]$path, [string]$content) {
-    $tmp = "$path.tmp"
-    [IO.File]::WriteAllText($tmp, $content, (New-Object Text.UTF8Encoding($true)))
-    Move-Item -LiteralPath $tmp -Destination $path -Force
+    TodoDirty  = $true
+    BackupDay  = ''
+    LoadNotice = ''
+    RenderedBoard = ''
 }
 
 function ConvertTo-JsonArray($list) {
@@ -111,35 +108,41 @@ function Get-ColumnCards([string]$colId) { @($NB.Todos | Where-Object { $_.col -
 
 function ConvertTo-Card($t, [string]$board, [string]$col, [double]$order) {
     [pscustomobject]@{
-        id = [string]$t.id; text = [string]$t.text; desc = [string]$t.desc; prio = Limit-Prio $t.prio
+        id = $(if ($t.id) { [string]$t.id } else { [guid]::NewGuid().ToString('N') }); text = [string]$t.text; desc = [string]$t.desc; prio = Limit-Prio $t.prio
         due = To-DayString $t.due; remindAt = To-IsoString $t.remindAt; reminded = [bool]$t.reminded
         done = [bool]$t.done; created = To-IsoString $t.created; doneAt = To-IsoString $t.doneAt
         board = $board; col = $col; order = $order
     }
 }
 
+function Import-KanbanData($data) {
+    $NB.Todos.Clear(); $NB.Boards.Clear()
+    foreach ($b in $data.boards) {
+        $cols = New-Object System.Collections.ArrayList
+        foreach ($c in $b.columns) { [void]$cols.Add([pscustomobject]@{ id = [string]$c.id; name = [string]$c.name; done = [bool]$c.done }) }
+        if ($cols.Count) { [void]$NB.Boards.Add([pscustomobject]@{ id = [string]$b.id; name = [string]$b.name; columns = $cols }) }
+    }
+    $NB.BoardId = [string]$data.current
+    foreach ($t in $data.cards) {
+        $b = Get-Board ([string]$t.board)
+        if (-not $b) { continue }
+        $card = ConvertTo-Card $t $b.id ([string]$t.col) ([double]$t.order)
+        $col = Get-Column $b $card.col
+        if (-not $col) { $col = Get-OpenColumn $b; $card.col = $col.id }
+        $card.done = [bool]$col.done
+        [void]$NB.Todos.Add($card)
+    }
+}
+
 function Load-Todos {
     $NB.Todos.Clear(); $NB.Boards.Clear()
-    try {
-        if (Test-Path $KanbanFile) {
-            $data = ConvertFrom-Json ([IO.File]::ReadAllText($KanbanFile))
-            foreach ($b in $data.boards) {
-                $cols = New-Object System.Collections.ArrayList
-                foreach ($c in $b.columns) { [void]$cols.Add([pscustomobject]@{ id = [string]$c.id; name = [string]$c.name; done = [bool]$c.done }) }
-                if ($cols.Count) { [void]$NB.Boards.Add([pscustomobject]@{ id = [string]$b.id; name = [string]$b.name; columns = $cols }) }
-            }
-            $NB.BoardId = [string]$data.current
-            foreach ($t in $data.cards) {
-                $b = Get-Board ([string]$t.board)
-                if (-not $b) { continue }
-                $card = ConvertTo-Card $t $b.id ([string]$t.col) ([double]$t.order)
-                $col = Get-Column $b $card.col
-                if (-not $col) { $col = Get-OpenColumn $b; $card.col = $col.id }
-                $card.done = [bool]$col.done
-                [void]$NB.Todos.Add($card)
-            }
+    if (Test-Path -LiteralPath $KanbanFile) {
+        try { Import-KanbanData (ConvertFrom-Json ([IO.File]::ReadAllText($KanbanFile))) }
+        catch {
+            Write-Log "Lecture tableaux : $($_.Exception.Message)"
+            Recover-Kanban
         }
-    } catch { Write-Log "Lecture tableaux : $($_.Exception.Message)" }
+    }
     if ($NB.Boards.Count -eq 0) {
         # premier lancement, ou reprise de l'ancienne to-do dans "Mon tableau"
         $b = New-BoardObject 'Mon tableau'
@@ -159,8 +162,127 @@ function Load-Todos {
     [void](Get-CurrentBoard)
 }
 
+# ---------------------------------------------------------------------------
+#  Sauvegardes : chaque jour, avant la premiere modification, une copie de
+#  kanban.json part dans %APPDATA%\Orbit\sauvegardes (7 derniers jours gardes).
+#  Bouton 🕘 des tableaux pour revenir a l'une d'elles.
+# ---------------------------------------------------------------------------
+function Get-BackupFiles {
+    if (-not (Test-Path -LiteralPath $BackupDir)) { return @() }
+    return @(Get-ChildItem -Path $BackupDir -Filter '*.json' -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -like 'kanban-*' -or $_.Name -like 'avant-restauration-*' } |
+        Sort-Object LastWriteTime -Descending)
+}
+
+function Limit-Backups([string]$pattern, [int]$keep) {
+    Get-ChildItem -Path $BackupDir -Filter $pattern -ErrorAction SilentlyContinue | Sort-Object Name -Descending |
+        Select-Object -Skip $keep | Remove-Item -Force -ErrorAction SilentlyContinue
+}
+
+function Backup-Kanban {
+    $day = (Get-Date).ToString('yyyy-MM-dd')
+    if ($NB.BackupDay -eq $day -or -not (Test-Path -LiteralPath $KanbanFile)) { return }
+    try {
+        if (-not (Test-Path -LiteralPath $BackupDir)) { New-Item -ItemType Directory -Path $BackupDir | Out-Null }
+        $dest = Join-Path $BackupDir "kanban-$day.json"
+        if (-not (Test-Path -LiteralPath $dest)) { Copy-Item -LiteralPath $KanbanFile -Destination $dest -Force }
+        $NB.BackupDay = $day
+        Limit-Backups 'kanban-*.json' $BackupKeep
+    } catch { Write-Log "Sauvegarde des tableaux : $($_.Exception.Message)" }
+}
+
+# kanban.json illisible au demarrage : on le met de cote et on repart de la sauvegarde la plus recente
+function Recover-Kanban {
+    $bad = Join-Path $DataDir ("kanban-illisible-{0:yyyy-MM-dd_HHmmss}.json" -f (Get-Date))
+    try { Move-Item -LiteralPath $KanbanFile -Destination $bad -Force } catch { Write-Log "Mise de cote : $($_.Exception.Message)" }
+    foreach ($f in (Get-BackupFiles)) {
+        try {
+            Import-KanbanData (ConvertFrom-Json ([IO.File]::ReadAllText($f.FullName)))
+            if ($NB.Boards.Count) {
+                Copy-Item -LiteralPath $f.FullName -Destination $KanbanFile -Force
+                $NB.LoadNotice = "Ton fichier de tableaux était abîmé 😬 J'ai repris ta sauvegarde « $(Get-BackupLabel $f) »."
+                Write-Log "Tableaux repris de $($f.Name)"
+                return
+            }
+        } catch { Write-Log "Sauvegarde $($f.Name) illisible : $($_.Exception.Message)" }
+    }
+    $NB.Todos.Clear(); $NB.Boards.Clear()
+    $NB.LoadNotice = "Ton fichier de tableaux était abîmé 😬 et je n'ai pas trouvé de sauvegarde. Il est gardé dans $bad."
+}
+
+function Get-BackupLabel($f) {
+    $fr = try { [Globalization.CultureInfo]::GetCultureInfo('fr-FR') } catch { [Globalization.CultureInfo]::InvariantCulture }
+    if ($f.Name -match '^kanban-(\d{4}-\d{2}-\d{2})\.json$') {
+        $d = [datetime]::ParseExact($Matches[1], 'yyyy-MM-dd', $null)
+        $when = if ($d.Date -eq (Get-Date).Date) { "aujourd'hui" } elseif ($d.Date -eq (Get-Date).Date.AddDays(-1)) { 'hier' } else { $d.ToString('dddd dd/MM', $fr) }
+        return "début de journée, $when"
+    }
+    if ($f.Name -match '^avant-restauration-(\d{4}-\d{2}-\d{2}_\d{6})\.json$') {
+        $d = [datetime]::ParseExact($Matches[1], 'yyyy-MM-dd_HHmmss', $null)
+        return "juste avant la restauration du $($d.ToString('dd/MM à HH:mm'))"
+    }
+    return $f.BaseName
+}
+
+function Show-BackupMenu($btn) {
+    $m = New-Object Windows.Controls.ContextMenu
+    $files = Get-BackupFiles
+    if (-not $files.Count) {
+        $it = New-Object Windows.Controls.MenuItem
+        $it.Header = "Pas encore de sauvegarde (une copie est faite chaque jour)"; $it.IsEnabled = $false
+        [void]$m.Items.Add($it)
+    }
+    foreach ($f in $files) {
+        $info = ''
+        try {
+            $d = ConvertFrom-Json ([IO.File]::ReadAllText($f.FullName))
+            $info = " — $(@($d.boards).Count) tableau(x), $(@($d.cards).Count) carte(s)"
+        } catch { $info = ' — illisible' }
+        $it = New-Object Windows.Controls.MenuItem
+        $it.Header = "↩️  $(Get-BackupLabel $f)$info"; $it.Tag = $f.FullName
+        $it.IsEnabled = $info -ne ' — illisible'
+        $it.Add_Click({ param($s, $e) Invoke-Safe { Restore-Kanban ([string]$s.Tag) } })
+        [void]$m.Items.Add($it)
+    }
+    [void]$m.Items.Add((New-Object Windows.Controls.Separator))
+    $open = New-Object Windows.Controls.MenuItem
+    $open.Header = "📂  Ouvrir le dossier des sauvegardes"
+    $open.Add_Click({
+        Invoke-Safe {
+            if (-not (Test-Path -LiteralPath $BackupDir)) { New-Item -ItemType Directory -Path $BackupDir | Out-Null }
+            Start-Process explorer.exe $BackupDir
+        }
+    })
+    [void]$m.Items.Add($open)
+    $m.PlacementTarget = $btn
+    $m.IsOpen = $true
+}
+
+function Restore-Kanban([string]$path) {
+    try {
+        $content = [IO.File]::ReadAllText($path)
+        $data = ConvertFrom-Json $content
+        if (-not @($data.boards).Count) { throw 'aucun tableau dedans' }
+    } catch { [void][Windows.MessageBox]::Show($panel, "Cette sauvegarde est illisible : $($_.Exception.Message)", 'Orbit'); return }
+    $label = Get-BackupLabel (Get-Item -LiteralPath $path)
+    if (-not (Confirm-Action "Remplacer tous tes tableaux par la sauvegarde « $label » ?`n(L'état actuel est gardé : tu pourras revenir en arrière avec 🕘.)")) { return }
+    if ($NB.EditId) { End-EditTodo -NoRender }
+    Save-Todos
+    if (-not (Test-Path -LiteralPath $BackupDir)) { New-Item -ItemType Directory -Path $BackupDir | Out-Null }
+    $undo = Join-Path $BackupDir ("avant-restauration-{0:yyyy-MM-dd_HHmmss}.json" -f (Get-Date))
+    if ($undo -eq $path) { $undo = $undo -replace '\.json$', '-2.json' }
+    Copy-Item -LiteralPath $KanbanFile -Destination $undo -Force
+    Write-FileSafe $KanbanFile $content
+    Limit-Backups 'avant-restauration-*.json' $UndoKeep
+    Load-Todos
+    Save-Todos
+    Render-Todos; Fit-Notebook
+    Show-Bubble "Tableaux restaurés ↩️ ($label)" -Force -Seconds 4
+}
+
 # Sauvegarde a chaque modification (kanban.json + une copie lisible todo.md)
 function Save-Todos {
+    Backup-Kanban
     try {
         $data = [ordered]@{ current = $NB.BoardId; boards = @($NB.Boards); cards = @($NB.Todos) }
         Write-FileSafe $KanbanFile (ConvertTo-Json -InputObject $data -Depth 6)
@@ -189,6 +311,7 @@ function Move-Card([string]$id, [string]$colId, [int]$index = -1, [switch]$Quiet
     if (-not $t -or -not $board) { return }
     $col = Get-Column $board $colId
     $wasDone = $t.done
+    $oldCol = $t.col
     $list = New-Object System.Collections.ArrayList
     foreach ($o in (Get-ColumnCards $colId)) { if ($o.id -ne $id) { [void]$list.Add($o) } }
     if ($index -lt 0 -or $index -gt $list.Count) { $index = $list.Count }
@@ -198,7 +321,7 @@ function Move-Card([string]$id, [string]$colId, [int]$index = -1, [switch]$Quiet
     $t.done = [bool]$col.done
     if ($t.done -and -not $wasDone) { $t.doneAt = (Get-Date).ToString('s') } elseif (-not $t.done) { $t.doneAt = '' }
     Save-Todos
-    Render-Todos
+    Render-Todos -Cols @($oldCol, $col.id)
     if ($t.done -and -not $wasDone -and -not $Quiet) {
         $left = @($NB.Todos | Where-Object { -not $_.done -and $_.board -eq $board.id }).Count
         if ($left -eq 0) { Show-Bubble "Tout le tableau « $($board.name) » est terminé ! 🎉" -Force -Seconds 5 }
@@ -244,7 +367,7 @@ function Add-Todo([string]$text, $prio = $DefaultPrio, [string]$colId = '') {
         order   = (Get-ColumnCards $colId).Count
     })
     Save-Todos
-    Render-Todos
+    Render-Todos -Cols $colId
     $msg = Pick @("Noté ! ✍️", "C'est dans la liste 📝", "Hop, enregistré 💾", "Je m'en souviendrai pour toi 🧠")
     if ($prio -le 2) { $msg += " Priorité $prio, je la mets en haut de la pile 🔥" }
     if ($remindAt) { $msg += " Rappel prévu $(Format-When $remindAt) ⏰" }
@@ -256,7 +379,7 @@ function Set-TodoPrio([string]$id, $prio) {
     if (-not $t) { return }
     $t.prio = Limit-Prio $prio
     Save-Todos
-    Render-Todos
+    Render-Todos -Cols $t.col
 }
 
 function Find-Todo([string]$id) { foreach ($t in $NB.Todos) { if ($t.id -eq $id) { return $t } } }
@@ -275,7 +398,7 @@ function Remove-Todo([string]$id) {
     $t = Find-Todo $id
     if ($t) {
         if ($NB.EditId -eq $id) { $NB.EditId = ''; $NB.SaveTimer.Stop() }
-        $NB.Todos.Remove($t); Save-Todos; Render-Todos
+        $NB.Todos.Remove($t); Save-Todos; Render-Todos -Cols $t.col
     }
 }
 
@@ -288,7 +411,7 @@ function Clear-DoneTodos([string]$colId = '') {
     Add-Content -Path $TodoArchive -Value $md -Encoding UTF8
     foreach ($t in $done) { $NB.Todos.Remove($t) }
     Save-Todos
-    Render-Todos
+    Render-Todos -Cols @($done | ForEach-Object { $_.col } | Select-Object -Unique)
 }
 
 # Tri : a faire d'abord, par priorite (1 en premier) puis par date d'ajout ; terminees a la fin
@@ -375,7 +498,7 @@ function Check-TaskReminders {
         if ([datetime]$t.remindAt -gt $now) { continue }
         $t.reminded = $true
         Save-Todos
-        Render-Todos
+        Render-Todos -Cols $t.col
         Ensure-Visible
         Play-Sound
         $msg = "⏰ Rappel : « $(Short-Text $t.text 80) »"
@@ -581,7 +704,7 @@ function Copy-Clip($c) {
           <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
-              <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <ComboBox x:Name="BoardPick" Width="230" VerticalContentAlignment="Center" FontWeight="SemiBold"
                       ToolTip="Choisir le tableau à afficher"/>
@@ -591,6 +714,8 @@ function Copy-Clip($c) {
                     Background="#EEEEF5" BorderThickness="0" Cursor="Hand" ToolTip="Renommer ce tableau"/>
             <Button x:Name="BoardDel" Grid.Column="3" Content="🗑️" Width="32" Margin="6,0,0,0"
                     Background="#EEEEF5" BorderThickness="0" Cursor="Hand" ToolTip="Supprimer ce tableau"/>
+            <Button x:Name="BoardHistory" Grid.Column="4" Content="🕘" Width="32" Margin="6,0,0,0"
+                    Background="#EEEEF5" BorderThickness="0" Cursor="Hand" ToolTip="Revenir à une sauvegarde (une par jour, 7 jours)"/>
           </Grid>
           <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
             <Grid.ColumnDefinitions>
@@ -650,7 +775,7 @@ function Copy-Clip($c) {
 $panel = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $panelXaml))
 $pn = @{}
 foreach ($n in 'Header','CloseBtn','TabTodo','TabClip','TodoPanel','TodoInput','TodoHint','TodoPrio','TodoAdd','TodoCount',
-               'BoardPick','BoardAdd','BoardRename','BoardDel','KanbanScroll',
+               'BoardPick','BoardAdd','BoardRename','BoardDel','BoardHistory','KanbanScroll',
                'TodoClear','TodoList','ClipPanel','ClipSearch','ClipHint','ClipCount','ClipPause','ClipClear','ClipList') {
     $pn[$n] = $panel.FindName($n)
 }
@@ -679,14 +804,44 @@ function Format-Day([string]$iso) {
 # ---------------------------------------------------------------------------
 $KanbanColW = 244
 
-function Render-Todos {
+function Get-BoardLabel($b) {
+    $n = 0
+    foreach ($t in $NB.Todos) { if ($t.board -eq $b.id -and -not $t.done) { $n++ } }
+    return "🗂️ $($b.name)  ($n)"
+}
+
+# -Cols : ne redessine que ces colonnes (ajout, deplacement, modification d'une carte...).
+# Sans -Cols, ou si le tableau affiche a change, tout est redessine. Fenetre fermee :
+# rien n'est dessine, ce sera fait a la prochaine ouverture.
+function Render-Todos([string[]]$Cols) {
+    if (-not $panel.IsVisible -or $NB.Tab -ne 'Todo') { $NB.TodoDirty = $true; Update-Tabs; return }
     $board = Get-CurrentBoard
+    if ($Cols -and -not $NB.TodoDirty -and $NB.RenderedBoard -eq $board.id) {
+        $want = @($Cols | Where-Object { $_ -and (Get-Column $board $_) } | Select-Object -Unique)
+        $found = 0
+        for ($i = 0; $i -lt $pn.TodoList.Children.Count; $i++) {
+            $el = $pn.TodoList.Children[$i]
+            if ($el.Tag -is [hashtable] -and $want -contains $el.Tag.Col) {
+                $pn.TodoList.Children.RemoveAt($i)
+                $pn.TodoList.Children.Insert($i, (New-KanbanColumn $board (Get-Column $board $el.Tag.Col)))
+                $found++
+            }
+        }
+        if ($found -eq $want.Count) {
+            $NB.Rendering = $true
+            foreach ($it in $pn.BoardPick.Items) { $b = Get-Board ([string]$it.Tag); if ($b) { $it.Content = Get-BoardLabel $b } }
+            $NB.Rendering = $false
+            Update-KanbanFooter $board
+            return
+        }
+    }
+    $NB.TodoDirty = $false
+    $NB.RenderedBoard = $board.id
     $NB.Rendering = $true
     $pn.BoardPick.Items.Clear()
     foreach ($b in $NB.Boards) {
         $it = New-Object Windows.Controls.ComboBoxItem
-        $n = @($NB.Todos | Where-Object { $_.board -eq $b.id -and -not $_.done }).Count
-        $it.Content = "🗂️ $($b.name)  ($n)"; $it.Tag = $b.id
+        $it.Content = Get-BoardLabel $b; $it.Tag = $b.id
         [void]$pn.BoardPick.Items.Add($it)
         if ($b.id -eq $board.id) { $pn.BoardPick.SelectedItem = $it }
     }
@@ -700,7 +855,10 @@ function Render-Todos {
     $add.Background = '#F3F1FF'; $add.BorderBrush = '#C9C3F5'; $add.BorderThickness = '1.5'; $add.Cursor = 'Hand'
     $add.Add_Click({ Invoke-Safe { Add-BoardColumn } })
     [void]$pn.TodoList.Children.Add($add)
+    Update-KanbanFooter $board
+}
 
+function Update-KanbanFooter($board) {
     $cards = @($NB.Todos | Where-Object { $_.board -eq $board.id })
     $done = @($cards | Where-Object { $_.done }).Count
     $pn.TodoCount.Text = "$($cards.Count) carte(s), $done terminée(s) · glisse les cartes d'une colonne à l'autre, clic droit pour plus d'options"
@@ -1074,12 +1232,17 @@ $NB.SaveTimer.Add_Tick({ $NB.SaveTimer.Stop(); Invoke-Safe { Save-Todos } })
 function Queue-SaveTodos { $NB.SaveTimer.Stop(); $NB.SaveTimer.Start() }
 
 function Start-EditTodo([string]$id) {
-    if ($NB.EditId -and $NB.EditId -ne $id) { End-EditTodo -NoRender }
+    $cols = @()
+    if ($NB.EditId -and $NB.EditId -ne $id) {
+        $prev = Find-Todo $NB.EditId
+        if ($prev) { $cols += $prev.col }
+        End-EditTodo -NoRender
+    }
     $t = Find-Todo $id
     if (-not $t) { return }
     $NB.EditId = $id
     $NB.EditOrig = $t.text
-    Render-Todos
+    Render-Todos -Cols ($cols + $t.col)
 }
 
 function End-EditTodo([switch]$NoRender) {
@@ -1093,7 +1256,7 @@ function End-EditTodo([switch]$NoRender) {
     $NB.EditId = ''
     $NB.SaveTimer.Stop()
     Save-Todos
-    if (-not $NoRender) { Render-Todos }
+    if (-not $NoRender) { if ($t) { Render-Todos -Cols $t.col } else { Render-Todos } }
 }
 
 function New-TodoEditor($t) {
@@ -1350,8 +1513,8 @@ function Open-Notebook([string]$tab = 'Todo') {
         $wa = Get-WorkArea ([System.Windows.Forms.Screen]::FromPoint($p))
         $panel.Left = [math]::Max($wa.L, $wa.R - $panel.Width - 8)
         $panel.Top = [math]::Max($wa.T, $wa.B - $panel.Height - 150)
-        $panel.Show()
         $NB.Tab = ''
+        $panel.Show()
     }
     $panel.Activate() | Out-Null
     Select-Tab $tab
@@ -1399,6 +1562,7 @@ $pn.BoardPick.Add_SelectionChanged({
 $pn.BoardAdd.Add_Click({ Invoke-Safe { Add-Board } })
 $pn.BoardRename.Add_Click({ Invoke-Safe { Rename-Board } })
 $pn.BoardDel.Add_Click({ Invoke-Safe { Remove-Board } })
+$pn.BoardHistory.Add_Click({ param($s, $e) Invoke-Safe { Show-BackupMenu $s } })
 
 $pn.ClipSearch.Add_TextChanged({
     $pn.ClipHint.Visibility = if ($pn.ClipSearch.Text) { 'Collapsed' } else { 'Visible' }
@@ -1414,6 +1578,9 @@ $pn.ClipClear.Add_Click({
         if ($r -eq 'Yes') { $NB.Clips.Clear(); $NB.LastClip = ''; Save-Clips; Render-Clips }
     }
 })
+
+# les tableaux modifies pendant que la fenetre etait fermee sont redessines a l'ouverture
+$panel.Add_IsVisibleChanged({ Invoke-Safe { if ($panel.IsVisible -and $NB.TodoDirty -and $NB.Tab -eq 'Todo') { Render-Todos } } })
 
 Load-Todos
 Load-Clips

@@ -68,6 +68,19 @@ function Write-Log([string]$msg) {
     try { Add-Content -Path $LogFile -Value ("{0:yyyy-MM-dd HH:mm:ss}  {1}" -f (Get-Date), $msg) -Encoding UTF8 } catch {}
 }
 
+# Ecriture "atomique" : on ecrit un fichier a cote puis on l'echange d'un coup avec
+# l'ancien. Une coupure de courant ou un plantage pendant l'ecriture laisse donc
+# toujours soit l'ancienne version, soit la nouvelle, jamais un fichier a moitie ecrit.
+function Write-FileSafe([string]$path, [string]$content) {
+    $tmp = "$path.tmp"
+    [IO.File]::WriteAllText($tmp, $content, (New-Object Text.UTF8Encoding($true)))
+    if ([IO.File]::Exists($path)) {
+        try { [IO.File]::Replace($tmp, $path, [NullString]::Value); return }
+        catch { Write-Log "Remplacement de $([IO.Path]::GetFileName($path)) : $($_.Exception.Message)" }
+    }
+    Move-Item -LiteralPath $tmp -Destination $path -Force
+}
+
 # Une seule instance a la fois
 $createdNew = $false
 $mutex = New-Object System.Threading.Mutex($true, 'Local\OrbitFocusBot', [ref]$createdNew)
@@ -80,8 +93,7 @@ Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, Sys
 #  quand meme, il perd juste les commentaires sur les applis)
 # ---------------------------------------------------------------------------
 $Native = $false
-try {
-    Add-Type -Language CSharp -TypeDefinition @'
+$NativeSrc = @'
 using System;
 using System.Text;
 using System.Runtime.InteropServices;
@@ -300,6 +312,40 @@ public static class OrbitNative {
     }
 }
 '@
+
+# Compiler ce code prend 1 a 2 secondes : la version compilee est gardee dans
+# %APPDATA%\Orbit (native-<empreinte>.dll) et rechargee directement aux lancements
+# suivants. L'empreinte change avec le code, donc une mise a jour recompile toute
+# seule. Si le PC interdit de charger ce fichier, on compile en memoire comme avant.
+function Import-NativeCode {
+    $sha = [Security.Cryptography.SHA256]::Create()
+    $bytes = [Text.Encoding]::UTF8.GetBytes($NativeSrc + '|' + [Environment]::Version + '|' + [IntPtr]::Size)
+    $hash = (-join ($sha.ComputeHash($bytes) | ForEach-Object { $_.ToString('x2') })).Substring(0, 16)
+    $dll = Join-Path $DataDir "native-$hash.dll"
+    if (Test-Path -LiteralPath $dll) {
+        try { Add-Type -Path $dll } catch {
+            Write-Log "Cache natif illisible, recompilation : $($_.Exception.Message)"
+            Remove-Item -LiteralPath $dll -Force -ErrorAction SilentlyContinue
+        }
+    }
+    if (-not ('OrbitNative' -as [type])) {
+        try {
+            Add-Type -Language CSharp -TypeDefinition $NativeSrc -OutputAssembly $dll -OutputType Library
+            if (-not ('OrbitNative' -as [type])) { Add-Type -Path $dll }
+        } catch {
+            Write-Log "Cache natif impossible : $($_.Exception.Message)"
+            Remove-Item -LiteralPath $dll -Force -ErrorAction SilentlyContinue
+        }
+    }
+    if (-not ('OrbitNative' -as [type])) { Add-Type -Language CSharp -TypeDefinition $NativeSrc }
+    # menage des anciennes versions
+    Get-ChildItem -Path $DataDir -Filter 'native-*.dll' -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -ne "native-$hash.dll" } |
+        Remove-Item -Force -ErrorAction SilentlyContinue
+}
+
+try {
+    Import-NativeCode
     $Native = $true
     [OrbitNative]::HideConsole()
 } catch {
@@ -562,6 +608,7 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
         <Canvas.RenderTransform>
           <TransformGroup>
             <RotateTransform x:Name="Tilt" Angle="0"/>
+            <RotateTransform x:Name="Lean" Angle="0"/>
             <TranslateTransform x:Name="Bob" Y="0"/>
           </TransformGroup>
         </Canvas.RenderTransform>
@@ -980,6 +1027,9 @@ $O = @{
     NextWalk     = (Get-Date).AddMinutes((Get-Random -Minimum $Config.WanderMinMin -Maximum $Config.WanderMaxMin))
     Time         = 0.0
     LastFrame    = [datetime]::Now
+    LastCursor   = $null
+    CursorMovedAt = [datetime]::Now
+    Busy         = $false
     LastPid      = 0
     LastTitle    = ''
     AppSince     = [datetime]::Now
@@ -1026,8 +1076,8 @@ function Save-Stats {
     try {
         $today = (Get-Date).ToString('yyyy-MM-dd')
         if ($today -ne $O.Today) { $O.Today = $today; $O.FocusToday = 0; $O.FocusMinToday = 0 }
-        @{ date = $O.Today; focus = $O.FocusToday; minutes = $O.FocusMinToday; jokeSeed = $O.JokeSeed; jokePos = $O.JokePos } |
-            ConvertTo-Json | Set-Content -Path $StatsFile -Encoding UTF8
+        $data = @{ date = $O.Today; focus = $O.FocusToday; minutes = $O.FocusMinToday; jokeSeed = $O.JokeSeed; jokePos = $O.JokePos }
+        Write-FileSafe $StatsFile (ConvertTo-Json -InputObject $data)
     } catch { Write-Log "Ecriture stats : $($_.Exception.Message)" }
 }
 
@@ -1095,7 +1145,7 @@ function Apply-SettingsData($d) {
 }
 
 function Save-Settings {
-    try { Get-SettingsSnapshot | ConvertTo-Json | Set-Content -Path $SettingsFile -Encoding UTF8 }
+    try { Write-FileSafe $SettingsFile (ConvertTo-Json -InputObject (Get-SettingsSnapshot)) }
     catch { Write-Log "Ecriture reglages : $($_.Exception.Message)" }
 }
 
@@ -1841,14 +1891,12 @@ function Update-Bits([double]$t) {
 function On-Frame {
     $now = [datetime]::Now
     $dt = ($now - $O.LastFrame).TotalSeconds
-    if ($dt -gt 0.2) { $dt = 0.2 }
+    if ($dt -gt 0.3) { $dt = 0.3 }
     $O.LastFrame = $now
     $O.Time += $dt
     $t = $O.Time
 
-    # derive lente dans l'espace
-    $ui.Bob.Y = 2.5 * [math]::Sin($t * 1.6)
-    $ui.Tilt.Angle = 3 * [math]::Sin($t * 0.7)
+    # (la derive lente dans l'espace est une animation WPF : voir Start-Floating)
 
     $sk = $Skins[$O.Skin]
 
@@ -1859,6 +1907,8 @@ function On-Frame {
 
     # les yeux (ou la camera) suivent la souris
     $c = Get-CursorDip
+    if ($O.LastCursor -and ([math]::Abs($c.X - $O.LastCursor.X) + [math]::Abs($c.Y - $O.LastCursor.Y)) -gt 0.5) { $O.CursorMovedAt = $now }
+    $O.LastCursor = $c
     $scale = $ui.BotScale.ScaleX
     # centre du regard, en tenant compte de l'agrandissement propre a chaque dessin (autour de 60,88)
     $k = if ($sk.Scale) { $sk.Scale } else { 1 }
@@ -1882,8 +1932,8 @@ function On-Frame {
         'Satellite' {
             # voyant d'etat, feux de navigation (flashs alternes) et reflet du soleil sur les panneaux
             $ui.StatusLed.Opacity = if ($O.State -like 'Await*') { $beacon } else { 1 }
-            $ui.NavL.Opacity = if (($t % 1.6) -lt 0.12) { 1 } else { 0.25 }
-            $ui.NavR.Opacity = if ((($t + 0.8) % 1.6) -lt 0.12) { 1 } else { 0.25 }
+            $ui.NavL.Opacity = if (($t % 1.6) -lt 0.16) { 1 } else { 0.25 }
+            $ui.NavR.Opacity = if ((($t + 0.8) % 1.6) -lt 0.16) { 1 } else { 0.25 }
             $g = $t % 7
             $ui.GlintL.X = -40 + [math]::Min(1, $g / 1.4) * 90
             $ui.GlintR.X = -40 + [math]::Min(1, [math]::Max(0, $g - 0.35) / 1.4) * 90
@@ -1899,8 +1949,7 @@ function On-Frame {
             $ui.HSteam.Opacity = 0.45 + 0.35 * [math]::Sin($t * 2.3)
         }
         'Butler' {
-            # l'anneau holographique tourne lentement, la vapeur du cafe ondule
-            $ui.MHud.Angle = ($t * 14) % 360
+            # la vapeur du cafe ondule (l'anneau holographique tourne tout seul : Start-Floating)
             $ui.MSteam.Opacity = 0.45 + 0.35 * [math]::Sin($t * 2.3)
         }
     }
@@ -1922,8 +1971,9 @@ function On-Frame {
     if ($ui.BubbleWrap.Visibility -eq 'Visible' -and $now -ge $O.BubbleUntil) { Hide-Bubble }
 
     # deplacements
-    if ($O.Dragging -or $window.Visibility -ne 'Visible') { return }
-    if ($O.Pinned) { return }
+    $O.Busy = $false
+    if ($O.Dragging -or $window.Visibility -ne 'Visible') { $O.Busy = $O.Dragging; Set-FrameRate; return }
+    if ($O.Pinned) { Set-FrameRate; return }
 
     if (-not $O.Walking -and $O.Wander -and -not $O.Mini -and $now -ge $O.NextWalk -and
         $ui.BubbleButtons.Children.Count -eq 0) {
@@ -1941,25 +1991,67 @@ function On-Frame {
                 $O.Walking = $false
                 $O.NextWalk = $now.AddMinutes((Get-Random -Minimum $Config.WanderMinMin -Maximum $Config.WanderMaxMin))
             }
+            if ($ui.Lean.Angle -ne 0) { $ui.Lean.Angle = 0 }
+            Set-FrameRate
             return
         }
         $step = [math]::Min($d, 140 * $dt)      # balade tranquille
         $window.Left += $wx / $d * $step
         $window.Top += $wy / $d * $step
-        $ui.Tilt.Angle += 6 * $wx / $d   # s'incline dans le sens du deplacement
+        $ui.Lean.Angle = 6 * $wx / $d   # s'incline dans le sens du deplacement
+        $O.Busy = $true
+        Set-FrameRate
         return
     }
+    if ($ui.Lean.Angle -ne 0) { $ui.Lean.Angle = 0 }
 
     $h = $O.Home
-    if (-not $h) { return }
-    $hx = $h.X - $window.Left; $hy = $h.Y - $window.Top
-    $hd = [math]::Sqrt($hx * $hx + $hy * $hy)
-    if ($hd -gt 0.5) {
-        $k = [math]::Min(1, $dt * 4)
-        $mv = [math]::Max($hd * $k, [math]::Min($hd, 300 * $dt))
-        $window.Left += $hx / $hd * $mv
-        $window.Top += $hy / $hd * $mv
+    if ($h) {
+        $hx = $h.X - $window.Left; $hy = $h.Y - $window.Top
+        $hd = [math]::Sqrt($hx * $hx + $hy * $hy)
+        if ($hd -gt 0.5) {
+            $k = [math]::Min(1, $dt * 4)
+            $mv = [math]::Max($hd * $k, [math]::Min($hd, 300 * $dt))
+            $window.Left += $hx / $hd * $mv
+            $window.Top += $hy / $hd * $mv
+            $O.Busy = $true
+        }
     }
+    Set-FrameRate
+}
+
+# ---------------------------------------------------------------------------
+#  Economie de processeur : 25 images/s seulement quand Orbit bouge (balade,
+#  retour a sa place, glisser) ou que la souris bouge (ses yeux la suivent).
+#  Sinon ~7 images/s, et plus rien du tout quand il est cache. Le flottement
+#  et l'anneau du majordome sont des animations WPF, fluides sans PowerShell.
+# ---------------------------------------------------------------------------
+$FrameFastMs = 40
+$FrameCalmMs = 150
+
+function Set-FrameRate {
+    $fast = $O.Busy -or (([datetime]::Now - $O.CursorMovedAt).TotalSeconds -lt 1.5)
+    $ms = if ($fast) { $FrameFastMs } else { $FrameCalmMs }
+    if ($script:frameTimer -and $script:frameTimer.Interval.TotalMilliseconds -ne $ms) {
+        $script:frameTimer.Interval = [timespan]::FromMilliseconds($ms)
+    }
+}
+
+function Start-Floating {
+    $loop = [Windows.Media.Animation.RepeatBehavior]::Forever
+    $ease = New-Object Windows.Media.Animation.SineEase
+    $ease.EasingMode = 'EaseInOut'
+    $bob = New-Object Windows.Media.Animation.DoubleAnimation(-2.5, 2.5, [timespan]::FromSeconds(1.96))
+    $bob.AutoReverse = $true; $bob.RepeatBehavior = $loop; $bob.EasingFunction = $ease
+    $tilt = New-Object Windows.Media.Animation.DoubleAnimation(-3, 3, [timespan]::FromSeconds(4.5))
+    $tilt.AutoReverse = $true; $tilt.RepeatBehavior = $loop; $tilt.EasingFunction = $ease
+    $hud = New-Object Windows.Media.Animation.DoubleAnimation(0, 360, [timespan]::FromSeconds(25.7))
+    $hud.RepeatBehavior = $loop
+    # ~30 images/s suffisent largement pour des mouvements aussi doux
+    foreach ($a in $bob, $tilt, $hud) { [Windows.Media.Animation.Timeline]::SetDesiredFrameRate($a, 30) }
+    $ui.Bob.BeginAnimation([Windows.Media.TranslateTransform]::YProperty, $bob)
+    $ui.Tilt.BeginAnimation([Windows.Media.RotateTransform]::AngleProperty, $tilt)
+    $ui.MHud.BeginAnimation([Windows.Media.RotateTransform]::AngleProperty, $hud)
 }
 
 # ---------------------------------------------------------------------------
@@ -2229,14 +2321,23 @@ $window.Add_Loaded({
     Invoke-Safe {
         Set-Skin $O.Skin -Quiet
         Set-Mood 'Idle'
+        Start-Floating
         Update-Pill
         Show-Status
+        if ($NB.LoadNotice) { Show-Bubble $NB.LoadNotice -Force -Seconds 10; $NB.LoadNotice = '' }
     }
 })
 
 $script:frameTimer = New-Object Windows.Threading.DispatcherTimer
 $script:frameTimer.Interval = [timespan]::FromMilliseconds(40)
 $script:frameTimer.Add_Tick({ Invoke-Safe { On-Frame } })
+# Orbit cache = aucune animation a calculer
+$window.Add_IsVisibleChanged({
+    Invoke-Safe {
+        if ($window.IsVisible) { $O.LastFrame = [datetime]::Now; $script:frameTimer.Start() }
+        elseif (-not $NB.Quitting) { $script:frameTimer.Stop() }
+    }
+})
 
 $script:secondTimer = New-Object Windows.Threading.DispatcherTimer
 $script:secondTimer.Interval = [timespan]::FromSeconds(1)

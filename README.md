@@ -50,6 +50,7 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   - une carte est « terminée » quand elle est dans une colonne marquée ✅ : c'est ce qu'utilisent les rappels de focus d'Orbit (« ✅ C'est fait ! » la range dans Terminé) ;
   - ajout rapide en haut (dans la 1re colonne du tableau affiché) ou en bas de chaque colonne ; tout est enregistré à chaque modification ;
   - ton ancienne to-do est reprise automatiquement dans un premier tableau « Mon tableau ».
+  - **sauvegarde automatique chaque jour** (7 derniers jours gardés dans `%APPDATA%\Orbit\sauvegardes`) : le bouton 🕘 permet de revenir à l'état d'un jour précédent, et une restauration peut elle-même être annulée. Si le fichier des tableaux est abîmé au démarrage, Orbit repart tout seul de la dernière sauvegarde.
 - **L'historique des copier-coller du jour** (clic droit > 📋 Mes copier-coller du jour) :
   - chaque texte ou fichier copié (Ctrl+C) est noté avec l'heure ;
   - tu peux faire une recherche dedans, et **un clic sur un élément le recopie** pour le recoller ;
@@ -123,3 +124,10 @@ Orbit n'installe rien, n'écrit que dans ton profil utilisateur et ne demande au
 Il peut quand même être bloqué si ton service informatique a verrouillé PowerShell (stratégie de groupe qui impose la politique d'exécution, AppLocker/WDAC, ou *Constrained Language Mode*). Dans ce cas, le plus simple est de leur demander : c'est un script lisible de quelques centaines de lignes, sans accès réseau.
 
 Si seule la compilation des fonctions natives est bloquée, Orbit fonctionne quand même, mais sans les commentaires liés à l'application survolée.
+
+### Léger et solide
+
+- **Peu de processeur** : Orbit ne s'anime à pleine vitesse que quand il se déplace ou que ta souris bouge (ses yeux la suivent). Le reste du temps il tourne au ralenti, et il ne calcule plus rien quand il est caché. Son flottement est confié à Windows, qui le dessine sans effort.
+- **Démarrage rapide** : les fonctions natives sont compilées une seule fois puis gardées dans `%APPDATA%\Orbit` (`native-….dll`). Si ton PC refuse de charger ce fichier, Orbit les recompile en mémoire comme avant.
+- **Fichiers protégés** : réglages, statistiques et tableaux sont écrits à côté puis échangés d'un coup. Une coupure pendant l'enregistrement ne laisse jamais un fichier à moitié écrit.
+- **Tableaux fluides** : quand tu ajoutes, déplaces ou modifies une carte, seules les colonnes concernées sont redessinées. Rien n'est dessiné tant que la fenêtre est fermée.
