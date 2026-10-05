@@ -103,11 +103,16 @@
           <TextBlock Style="{StaticResource Section}" Text="😄 Blagues et commentaires"/>
           <CheckBox x:Name="SJokes">
             <StackPanel Orientation="Horizontal">
-              <TextBlock Text="Blagues pendant la pause, environ toutes les" VerticalAlignment="Center"/>
+              <TextBlock Text="Pendant la pause, environ toutes les" VerticalAlignment="Center"/>
               <TextBox x:Name="SJokeMin"/>
-              <TextBlock Text="min" VerticalAlignment="Center"/>
+              <TextBlock Text="min :" VerticalAlignment="Center"/>
             </StackPanel>
           </CheckBox>
+          <ComboBox x:Name="SBreakContent" Margin="22,4,0,0" Width="300" HorizontalAlignment="Left">
+            <ComboBoxItem Tag="Both" Content="😄 + 🧠  Blagues et culture G, en alternance"/>
+            <ComboBoxItem Tag="Jokes" Content="😄  Des blagues"/>
+            <ComboBoxItem Tag="Culture" Content="🧠  De la culture G (anecdotes et quiz)"/>
+          </ComboBox>
           <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
             <TextBlock Text="Une phrase de motivation toutes les" VerticalAlignment="Center"/>
             <TextBox x:Name="SMotiv"/>
@@ -187,7 +192,7 @@ $DefaultSettings = Get-SettingsSnapshot
 $DefaultSettings.rhythm = '50/10'; $DefaultSettings.customFocus = 40; $DefaultSettings.customBreak = 8
 $DefaultSettings.quiet = $false; $DefaultSettings.wander = $true; $DefaultSettings.wanderMin = 4; $DefaultSettings.wanderMax = 9
 $DefaultSettings.taskReminders = $true; $DefaultSettings.morningPlan = $true; $DefaultSettings.reminderEveryMin = 4; $DefaultSettings.motivationEveryMin = 9
-$DefaultSettings.jokes = $true; $DefaultSettings.jokeEveryMin = 2; $DefaultSettings.appComments = $true
+$DefaultSettings.jokes = $true; $DefaultSettings.breakContent = 'Both'; $DefaultSettings.jokeEveryMin = 2; $DefaultSettings.appComments = $true
 $DefaultSettings.skin = 'Satellite'; $DefaultSettings.sounds = $true; $DefaultSettings.droidSounds = $true; $DefaultSettings.droidVolume = 40; $DefaultSettings.bubbleSound = 'Droide'; $DefaultSettings.endSound = 'Carillon'; $DefaultSettings.idlePause = $true; $DefaultSettings.idleMinutes = 5
 
 function Fill-SettingsForm($d) {
@@ -203,6 +208,7 @@ function Fill-SettingsForm($d) {
     $sw.SNudge.Text = $d.reminderEveryMin
     $sw.SJokes.IsChecked = $d.jokes
     $sw.SJokeMin.Text = $d.jokeEveryMin
+    Select-ComboTag $sw.SBreakContent $(if ($d.breakContent) { [string]$d.breakContent } else { 'Both' })
     $sw.SMotiv.Text = $d.motivationEveryMin
     $sw.SApps.IsChecked = $d.appComments
     $sw.SQuiet.IsChecked = $d.quiet
@@ -262,7 +268,7 @@ function Save-SettingsForm {
         rhythm = $rhythm; customFocus = $pf; customBreak = $pb
         idlePause = [bool]$sw.SIdle.IsChecked; idleMinutes = [int]$idle
         taskReminders = [bool]$sw.STasks.IsChecked; reminderEveryMin = [int]$nudge; morningPlan = [bool]$sw.SMorning.IsChecked
-        jokes = [bool]$sw.SJokes.IsChecked; jokeEveryMin = $joke; motivationEveryMin = [int]$motiv
+        jokes = [bool]$sw.SJokes.IsChecked; jokeEveryMin = $joke; breakContent = $(if ($sw.SBreakContent.SelectedItem) { [string]$sw.SBreakContent.SelectedItem.Tag } else { 'Both' }); motivationEveryMin = [int]$motiv
         appComments = [bool]$sw.SApps.IsChecked; quiet = [bool]$sw.SQuiet.IsChecked
         wander = [bool]$sw.SWander.IsChecked; wanderMin = [int]$wmin; wanderMax = [int]$wmax
         sounds = [bool]$sw.SSounds.IsChecked; droidSounds = [bool]$sw.SDroid.IsChecked
@@ -384,7 +390,7 @@ function Initialize-Settings {
     $script:settingsWin = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $settingsXaml))
     $script:sw = @{}
     foreach ($n in 'SHeader','SClose','SDefaults','SCancel','SSave','SError','SR50','SR25','SRPerso','SPersoFocus','SPersoBreak',
-                   'SIdle','SIdleMin','STasks','SMorning','SNudge','SJokes','SJokeMin','SMotiv','SApps','SQuiet','SWander','SWanderMin',
+                   'SIdle','SIdleMin','STasks','SMorning','SNudge','SJokes','SJokeMin','SBreakContent','SMotiv','SApps','SQuiet','SWander','SWanderMin',
                    'SWanderMax','SSounds','SDroid','SDroidVol','SAuto','SBubbleSound','SBubbleTest','SMySounds','SSoundAdd','SSoundDel','SSoundPlay',
                    'SEndSound','SEndFile','SEndTest','SEndFileName','SSkinCustom','SImgPick','SImgName','SSkinSatellite','SSkinDroid','SSkinRobot','SSkinButler','SSkinBrain','SSkinHuman') {
         $sw[$n] = $settingsWin.FindName($n)

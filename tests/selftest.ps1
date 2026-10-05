@@ -19,6 +19,7 @@ Check 'le code natif est garde en cache' (@(Get-ChildItem (Join-Path $appData 'O
 Check 'le carnet n''est pas construit au demarrage (a la demande)' ($null -eq $panel)
 Check 'la fenetre des reglages non plus' ($null -eq $settingsWin)
 Check 'les blagues sont chargees (1000+)' ($Jokes.Count -ge 1000)
+Check 'la culture G est chargee (300+)' ($Facts.Count -ge 300)
 
 Section 'Dessins (construits a la demande)'
 foreach ($k in @($Skins.Keys | Where-Object { $_ -ne 'Custom' })) {
@@ -39,6 +40,28 @@ $Config.CustomImage = $img
 try { Set-Skin 'Custom' -Quiet; Check 'image personnalisee affichee' ($O.Skin -eq 'Custom' -and $ui.CustomImg.Source) } catch { Check 'image personnalisee' $false $_.Exception.Message }
 Set-Skin 'Satellite' -Quiet
 Check 'changer de dessin libere les autres' ($LoadedSkins.Count -eq 1 -and -not $ui.CustomImg)
+
+Section 'Culture G pendant la pause'
+try {
+    Tell-Fact -Force
+    Check 'une anecdote ou un quiz s''affiche' ($ui.BubbleText.Text -match '🧠')
+    $seen = @{}; for ($i = 0; $i -lt 50; $i++) { $seen[(Get-NextFact)] = 1 }
+    Check 'pas de repetition sur 50 tirages' ($seen.Count -eq 50)
+    $Config.BreakContent = 'Culture'; Hide-Bubble; Tell-BreakItem
+    Check 'reglage « culture G » : que de la culture' ($ui.BubbleText.Text -match '🧠')
+    $Config.BreakContent = 'Jokes'; Hide-Bubble; Tell-BreakItem
+    Check 'reglage « blagues » : pas de culture' ($ui.BubbleText.Text -notmatch '🧠')
+    $Config.BreakContent = 'Both'; $kinds = @{}
+    for ($i = 0; $i -lt 4; $i++) { Hide-Bubble; Tell-BreakItem; $kinds[[bool]($ui.BubbleText.Text -match '🧠')] = 1 }
+    Check 'reglage « les deux » : alternance blagues / culture' ($kinds.Count -eq 2)
+    $q = @($Facts | Where-Object { $_ -match '\|' })[0]
+    $O.FactPos = [array]::IndexOf(@($Facts), $q); $script:FactOrder = [int[]](0..($Facts.Count - 1))
+    Hide-Bubble; Tell-Fact -Force
+    Check 'quiz : la question d''abord' ($ui.BubbleText.Text -match 'Quiz' -and $ui.BubbleText.Text -notmatch '👉')
+    $O.Punch.At = (Get-Date).AddSeconds(-1); On-Frame
+    Check 'puis la reponse' ($ui.BubbleText.Text -match '👉')
+    Hide-Bubble
+} catch { Check 'culture G sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
 
 Section 'Sons'
 foreach ($st in 0, 1, 2, 3, 4, 10) {
@@ -141,6 +164,7 @@ try {
     $z.Dispose()
     Check 'zip cree' (Test-Path $zip)
     Check 'il contient le programme' (@($names | Where-Object { $_ -match 'Orbit[\\/]orbit\.ps1$' }).Count -eq 1)
+    Check 'et la culture G' (@($names | Where-Object { $_ -match 'culture[\\/].+\.txt$' }).Count -ge 5)
     Check 'et les tableaux' (@($names | Where-Object { $_ -match 'donnees[\\/]kanban\.json$' }).Count -eq 1)
     Check 'mais pas le code compile de ce PC' (@($names | Where-Object { $_ -match 'native-' }).Count -eq 0)
     Write-Host "  ($([math]::Round((Get-Item $zip).Length / 1KB)) Ko, $($names.Count) fichiers)"

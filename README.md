@@ -117,6 +117,15 @@ Tout est enregistré dans `%APPDATA%\Orbit\` :
 
 Attention : l'historique des copier-coller est stocké en clair dans ton profil. Si tu copies des données sensibles, utilise la case **Pause** ou le bouton **Tout effacer**.
 
+## 🧠 Culture G
+
+Pendant la pause, Orbit peut aussi te donner une **anecdote** (« 🧠 Le saviez-vous ? ») ou un **petit quiz** (la question, puis la réponse quelques secondes plus tard). Plus de **340 entrées** dans 10 thèmes : sciences, histoire, géographie, arts et littérature, nature et animaux, corps humain, langue française et expressions, espace, inventions, et travail/concentration (de quoi mieux profiter de tes pauses).
+
+- **Réglages > Blagues et commentaires** : « Blagues et culture G en alternance » (par défaut), « Des blagues » ou « De la culture G ».
+- Quand tu veux : clic droit sur Orbit (ou sur son icône) > **🧠 Le saviez-vous ?**
+- Comme les blagues : ordre mélangé, mémorisé d'un lancement à l'autre, pas de répétition avant d'avoir tout vu.
+- Pour en ajouter : un fichier `.txt` dans le dossier `culture`, une entrée par ligne. `Question ?|Réponse` pour un quiz, une phrase seule pour une anecdote ; les lignes qui commencent par `#` sont ignorées.
+
 ## Ajouter tes propres blagues
 
 Les blagues sont dans le dossier `jokes\`, une par ligne, dans de simples fichiers texte (UTF-8) :

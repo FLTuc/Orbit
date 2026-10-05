@@ -32,6 +32,6 @@ jobs:
         shell: cmd
         run: powershell -NoProfile -ExecutionPolicy Bypass -STA -File tests\selftest.ps1
 
-      - name: Blagues
+      - name: Blagues et culture G
         shell: cmd
-        run: python tools\check_jokes.py
+        run: python tools\check_jokes.py && python tools\check_jokes.py --dir culture --min 300

@@ -50,6 +50,7 @@ $Config = @{
     IdlePause           = $true  # met le focus en pause si tu t'absentes
     IdleMinutes         = 5
     MorningPlan         = $true  # le matin, propose les 3 cartes les plus urgentes
+    BreakContent        = 'Both' # pendant la pause : Jokes | Culture | Both (en alternance)
     NotesMirror         = ''     # dossier ou copier automatiquement les notes (vide = non)
 }
 # (tous ces reglages se modifient aussi depuis clic droit > Reglages)
@@ -1127,6 +1128,9 @@ $O = @{
     NextJoke     = [datetime]::MaxValue
     JokeSeed     = (Get-Random)
     JokePos      = 0
+    FactSeed     = (Get-Random)
+    FactPos      = 0
+    BreakToggle  = $false
     Punch        = $null
     MyPid        = $PID
 }
@@ -1144,6 +1148,7 @@ try {
         if ($s.rhythm -and $Rhythms.Contains([string]$s.rhythm)) { $O.Rhythm = [string]$s.rhythm }
         if ($null -ne $s.taskReminders) { $O.TaskReminders = [bool]$s.taskReminders }
         if ($null -ne $s.jokeSeed) { $O.JokeSeed = [int]$s.jokeSeed; $O.JokePos = [int]$s.jokePos }
+        if ($null -ne $s.factSeed) { $O.FactSeed = [int]$s.factSeed; $O.FactPos = [int]$s.factPos }
         if ($s.planDay) { $O.PlanDay = [string]$s.planDay }
     }
 } catch { Write-Log "Lecture stats : $($_.Exception.Message)" }
@@ -1152,7 +1157,7 @@ function Save-Stats {
     try {
         $today = (Get-Date).ToString('yyyy-MM-dd')
         if ($today -ne $O.Today) { $O.Today = $today; $O.FocusToday = 0; $O.FocusMinToday = 0 }
-        $data = @{ date = $O.Today; focus = $O.FocusToday; minutes = $O.FocusMinToday; jokeSeed = $O.JokeSeed; jokePos = $O.JokePos; planDay = $O.PlanDay }
+        $data = @{ date = $O.Today; focus = $O.FocusToday; minutes = $O.FocusMinToday; jokeSeed = $O.JokeSeed; jokePos = $O.JokePos; factSeed = $O.FactSeed; factPos = $O.FactPos; planDay = $O.PlanDay }
         Write-FileSafe $StatsFile (ConvertTo-Json -InputObject $data)
     } catch { Write-Log "Ecriture stats : $($_.Exception.Message)" }
 }
@@ -1174,6 +1179,7 @@ function Get-SettingsSnapshot {
         motivationEveryMin = $Config.MotivationEveryMin
         jokes              = $Config.Jokes
         jokeEveryMin       = $Config.JokeEveryMin
+        breakContent       = $Config.BreakContent
         appComments        = $Config.AppComments
         sounds             = $Config.Sounds
         droidSounds        = $Config.DroidSounds
@@ -1208,6 +1214,7 @@ function Apply-SettingsData($d) {
     if (Has 'motivationEveryMin') { $Config.MotivationEveryMin = [int]$d.motivationEveryMin }
     if (Has 'jokes') { $Config.Jokes = [bool]$d.jokes }
     if (Has 'jokeEveryMin') { $Config.JokeEveryMin = [double]$d.jokeEveryMin }
+    if ($d.breakContent -and [string]$d.breakContent -in 'Jokes', 'Culture', 'Both') { $Config.BreakContent = [string]$d.breakContent }
     if (Has 'appComments') { $Config.AppComments = [bool]$d.appComments }
     if (Has 'sounds') { $Config.Sounds = [bool]$d.sounds }
     if (Has 'droidSounds') { $Config.DroidSounds = [bool]$d.droidSounds }
@@ -1527,10 +1534,11 @@ function Start-Break {
 #  Blagues de pause : fichiers jokes\*.txt (une blague par ligne,
 #  "question|reponse" pour garder la chute quelques secondes)
 # ---------------------------------------------------------------------------
-function Load-Jokes {
+# Lit tous les fichiers .txt d'un dossier (une entree par ligne, # = commentaire, sans doublon)
+function Load-TextItems([string]$folder) {
     $list = New-Object System.Collections.Generic.List[string]
     $seen = New-Object 'System.Collections.Generic.HashSet[string]'
-    $dir = Join-Path $PSScriptRoot 'jokes'
+    $dir = Join-Path $PSScriptRoot $folder
     if (Test-Path $dir) {
         foreach ($f in (Get-ChildItem -Path $dir -Filter '*.txt' | Sort-Object Name)) {
             try {
@@ -1539,14 +1547,22 @@ function Load-Jokes {
                     if (-not $l -or $l.StartsWith('#')) { continue }
                     if ($seen.Add($l.ToLowerInvariant())) { $list.Add($l) }
                 }
-            } catch { Write-Log "Blagues ($($f.Name)) : $($_.Exception.Message)" }
+            } catch { Write-Log "$folder ($($f.Name)) : $($_.Exception.Message)" }
         }
     }
+    return , $list
+}
+
+function Load-Jokes {
+    $list = Load-TextItems 'jokes'
     if ($list.Count -eq 0) { foreach ($j in $Lines.BreakJokes) { $list.Add($j) } }
     return , $list
 }
 $Jokes = Load-Jokes
 $script:JokeOrder = $null
+# Culture generale : anecdotes et petits quiz (dossier culture\)
+$Facts = Load-TextItems 'culture'
+$script:FactOrder = $null
 
 # Ordre melange mais memorise d'un lancement a l'autre : pas de repetition
 # tant que toutes les blagues ne sont pas passees
@@ -1565,6 +1581,50 @@ function Get-NextJoke {
     $O.JokePos++
     Save-Stats
     return $j
+}
+
+# Meme principe que les blagues : ordre melange, memorise, sans repetition
+function Get-NextFact {
+    if (-not $Facts.Count) { return $null }
+    if (-not $script:FactOrder -or $O.FactPos -ge $Facts.Count) {
+        if ($O.FactPos -ge $Facts.Count) { $O.FactSeed = Get-Random; $O.FactPos = 0 }
+        $rng = New-Object System.Random($O.FactSeed)
+        $order = [int[]](0..($Facts.Count - 1))
+        for ($i = $order.Length - 1; $i -gt 0; $i--) {
+            $k = $rng.Next($i + 1)
+            $tmp = $order[$i]; $order[$i] = $order[$k]; $order[$k] = $tmp
+        }
+        $script:FactOrder = $order
+    }
+    $f = $Facts[$script:FactOrder[$O.FactPos]]
+    $O.FactPos++
+    Save-Stats
+    return $f
+}
+
+# « Le saviez-vous ? » ou un petit quiz (la reponse arrive 6 s plus tard)
+function Tell-Fact([switch]$Force) {
+    $f = Get-NextFact
+    if (-not $f) { return }
+    $parts = $f.Split('|', 2)
+    if ($parts.Count -eq 2) {
+        $q = "🧠 Quiz : $($parts[0].Trim())"
+        Show-Bubble "$q 🤔" -Seconds 18 -Force:$Force
+        $O.Punch = @{ Shown = "$q 🤔"; Full = "$q`n`n👉 $($parts[1].Trim())"; At = (Get-Date).AddSeconds(6) }
+    } else {
+        Show-Bubble "🧠 Le saviez-vous ?`n$f" -Seconds 14 -Force:$Force
+    }
+}
+
+# Pendant la pause : blague, culture G, ou les deux en alternance (reglage BreakContent)
+function Tell-BreakItem {
+    $mode = [string]$Config.BreakContent
+    $fact = switch ($mode) {
+        'Culture' { $true }
+        'Jokes'   { $false }
+        default   { $O.BreakToggle = -not $O.BreakToggle; [bool]$O.BreakToggle }
+    }
+    if ($fact -and $Facts.Count) { Tell-Fact } else { Tell-Joke }
 }
 
 function Tell-Joke {
@@ -2318,7 +2378,7 @@ function On-Second {
             # une blague toutes les ~2 minutes pendant la pause (sauf dans les 20 dernieres secondes)
             $base = [math]::Max(20, $Config.JokeEveryMin * 60)
             $O.NextJoke = $now.AddSeconds((Get-Random -Minimum ([int]($base * 0.75)) -Maximum ([int]($base * 1.25) + 1)))
-            if ($Config.Jokes -and $left.TotalSeconds -gt 20) { Tell-Joke }
+            if ($Config.Jokes -and $left.TotalSeconds -gt 20) { Tell-BreakItem }
         }
         if ($O.State -eq 'Focus') {
             $total = $Config.FocusMinutes
@@ -2454,6 +2514,7 @@ function Quit-Orbit {
 
 $menu = New-Object Windows.Controls.ContextMenu
 $miNote   = New-MenuItem "📝  Note rapide" { Show-QuickNote }
+$miFact   = New-MenuItem "🧠  Le saviez-vous ? (culture G)" { Ensure-Visible; Tell-Fact -Force }
 $miNotes  = New-MenuItem "📒  Mes notes" { Open-Notebook 'Notes' }
 $miTodo   = New-MenuItem "🗂️  Mes tableaux (Kanban)" { Open-Notebook 'Todo' }
 $miClip   = New-MenuItem "📋  Mes copier-coller du jour" { Open-Notebook 'Clip' }
@@ -2504,7 +2565,7 @@ foreach ($k in $Skins.Keys) {
 foreach ($i in @($miNote, $miNotes, $miTodo, $miClip, $miSearch, (New-Object Windows.Controls.Separator),
                  $miFocus, $miCards, $miPlan, $miBreak, $miPause, $miStop, $miRhythm, $miTasks, (New-Object Windows.Controls.Separator),
                  $miSkin, $miQuiet, $miWander, $miMini, $miHome, $miHide, $miAuto, (New-Object Windows.Controls.Separator),
-                 $miStats, $miMove, $miSettings, $miQuit)) { [void]$menu.Items.Add($i) }
+                 $miFact, $miStats, $miMove, $miSettings, $miQuit)) { [void]$menu.Items.Add($i) }
 
 $menu.Add_Opened({
     $miPause.Header = if ($O.Paused) { "▶  Reprendre le chrono" } else { "⏸  Mettre le chrono en pause" }
@@ -2650,6 +2711,7 @@ try {
     [void]$cms.Items.Add('Rechercher partout…', $null, { Invoke-Safe { Open-Notebook 'Search' } })
     [void]$cms.Items.Add('Cartes du focus…', $null, { Invoke-Safe { Choose-FocusCards } })
     [void]$cms.Items.Add('Plan du jour', $null, { Invoke-Safe { Ensure-Visible; Show-MorningPlan } })
+    [void]$cms.Items.Add('Le saviez-vous ? (culture G)', $null, { Invoke-Safe { Ensure-Visible; Tell-Fact -Force } })
     [void]$cms.Items.Add('-')
     [void]$cms.Items.Add('Réglages…', $null, { Invoke-Safe { Open-Settings } })
     [void]$cms.Items.Add('Épingler l''icône près de l''horloge', $null, {

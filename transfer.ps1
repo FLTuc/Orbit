@@ -36,8 +36,10 @@ function New-OrbitPackageFolder([string]$stage, [string]$programDir = $PSScriptR
     foreach ($f in Get-ChildItem -LiteralPath $programDir -File | Where-Object { $_.Extension -in '.ps1', '.cmd', '.md' }) {
         Copy-Item -LiteralPath $f.FullName -Destination $app -Force
     }
-    $jokes = Join-Path $programDir 'jokes'
-    if (Test-Path -LiteralPath $jokes) { Copy-Item -LiteralPath $jokes -Destination $app -Recurse -Force }
+    foreach ($sub in 'jokes', 'culture') {
+        $src = Join-Path $programDir $sub
+        if (Test-Path -LiteralPath $src) { Copy-Item -LiteralPath $src -Destination $app -Recurse -Force }
+    }
     $data = Join-Path $app 'donnees'
     New-Item -ItemType Directory -Path $data -Force | Out-Null
     $n = Copy-OrbitData $DataDir $data

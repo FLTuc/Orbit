@@ -1,6 +1,7 @@
-"""Vérifie les blagues de jokes/*.txt : compte, doublons et format.
+"""Vérifie les fichiers texte d'Orbit (blagues, culture G) : compte, doublons et format.
 
-Usage : python tools/check_jokes.py [--min 1000]
+Usage : python tools/check_jokes.py [--dir jokes] [--min 1000]
+        python tools/check_jokes.py --dir culture --min 300
 """
 import argparse
 import pathlib
@@ -18,9 +19,10 @@ def norm(text):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--min", type=int, default=1000)
+    parser.add_argument("--dir", default="jokes")
     args = parser.parse_args()
 
-    root = pathlib.Path(__file__).resolve().parent.parent / "jokes"
+    root = pathlib.Path(__file__).resolve().parent.parent / args.dir
     seen = {}
     problems = []
     per_file = {}
@@ -46,7 +48,7 @@ def main():
 
     for name, count in per_file.items():
         print(f"{count:5d}  {name}")
-    print(f"{len(seen):5d}  blagues différentes au total")
+    print(f"{len(seen):5d}  entrées différentes au total ({args.dir})")
     for p in problems:
         print("ERREUR", p)
     if len(seen) < args.min:
