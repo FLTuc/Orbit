@@ -367,7 +367,7 @@ function Set-CardCheck([string]$id, [int]$index, [bool]$done) {
     $n = @($t.checks | Where-Object { $_.done }).Count
     if ($done -and $n -eq $t.checks.Count -and -not $t.done) {
         $script:BubbleCardId = $t.id
-        Show-Bubble "Toutes les sous-tâches de « $(Short-Text $t.text 40) » sont cochées ✅ Tu la ranges dans Terminé ?" -Force -Seconds 6 -Buttons @(
+        Show-Bubble "Toutes les sous-tâches de « $(Short-Text $t.text 40) » sont cochées ✅ Tu la ranges dans Terminé ?" -Force -AutoHide -Seconds 15 -Buttons @(
             # (securite : l'identifiant passe par une variable, jamais dans du code genere)
             @{ Label = '✅ Oui, terminée'; Action = { End-EditTodo -NoRender; Set-TodoDone $script:BubbleCardId $true }; Primary = $true },
             @{ Label = 'Pas encore'; Action = { } })
@@ -987,7 +987,7 @@ function Check-TaskReminders {
         if ($t.due) { $msg += "`n📅 Échéance : $(Format-Due $t.due)" }
         # (securite : l'identifiant passe par une variable, jamais dans du code genere)
         $script:BubbleCardId = $t.id
-        Show-Bubble $msg -Force -Buttons @(
+        Show-Bubble $msg -Force -AutoHide -Seconds 300 -Buttons @(
             @{ Label = "✅ C'est fait"; Action = { Set-TodoDone $script:BubbleCardId $true }; Primary = $true },
             @{ Label = '⏰ Dans 15 min'; Action = { Set-TodoReminder $script:BubbleCardId ((Get-Date).AddMinutes(15)); Render-Todos; Show-Bubble 'Ok, je te le rappelle dans 15 minutes ⏰' -Force -Seconds 3 } },
             @{ Label = '👍 OK'; Action = { } })

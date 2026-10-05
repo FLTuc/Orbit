@@ -173,9 +173,16 @@ try {
     Check 'il se deplace pendant la balade' ($moved -gt 20 -or ([math]::Abs($O.WalkTarget.X - $x0) + [math]::Abs($O.WalkTarget.Y - $y0)) -lt 20)
     # une question restee ouverte (bulle avec boutons) bloque-t-elle les balades ?
     $O.Walking = $false; $O.NextWalk = (Get-Date).AddSeconds(-1)
+    $O.PlanDay = (Get-Date).ToString('yyyy-MM-dd')
     Show-Status
     Step-Frames 1
-    Write-Host "  avec la bulle d'accueil ouverte : balade = $($O.Walking), boutons = $($ui.BubbleButtons.Children.Count)"
+    Check 'pendant la bulle d''accueil, il attend' (-not $O.Walking -and $ui.BubbleButtons.Children.Count -gt 0)
+    Check 'la bulle d''accueil a une duree limitee' ($O.BubbleUntil -lt (Get-Date).AddMinutes(5))
+    $O.BubbleUntil = (Get-Date).AddSeconds(-1)
+    Step-Frames 2
+    Check 'bulle rangee toute seule : la balade repart' ($O.Walking -and $ui.BubbleButtons.Children.Count -eq 0)
+    $O.PlanDay = ''; Show-MorningPlan
+    Check 'le plan du matin aussi a une duree limitee' ($O.BubbleUntil -lt (Get-Date).AddMinutes(5))
     Hide-Bubble; $O.Walking = $false
     $window.Hide()
 } catch { Check 'deplacements sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }

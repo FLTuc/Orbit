@@ -1351,7 +1351,10 @@ function Set-Mood([string]$mood) {
 # ---------------------------------------------------------------------------
 function Show-Bubble {
     param([string]$Text, [object[]]$Buttons = @(), [double]$Seconds = $Config.BubbleSeconds,
-          [switch]$Force, [switch]$Thought)
+          [switch]$Force, [switch]$Thought, [switch]$AutoHide)
+    # Une bulle avec des boutons reste jusqu'a la reponse (et Orbit ne part pas en balade
+    # pendant ce temps). -AutoHide : elle se range quand meme apres $Seconds, pour les
+    # propositions qui n'attendent pas forcement de reponse (accueil, plan du matin...).
 
     if (-not $Force -and $Buttons.Count -eq 0 -and ($O.Quiet -or $O.Mini)) { return }
     if (-not $Force -and $Buttons.Count -eq 0 -and $ui.BubbleButtons.Children.Count -gt 0 -and
@@ -1399,7 +1402,7 @@ function Show-Bubble {
         $ui.BubblePop.BeginAnimation([Windows.Media.ScaleTransform]::ScaleXProperty, $anim)
         $ui.BubblePop.BeginAnimation([Windows.Media.ScaleTransform]::ScaleYProperty, $anim)
     }
-    $O.BubbleUntil = if ($Buttons.Count) { [datetime]::MaxValue } else { (Get-Date).AddSeconds($Seconds) }
+    $O.BubbleUntil = if ($Buttons.Count -and -not $AutoHide) { [datetime]::MaxValue } else { (Get-Date).AddSeconds($Seconds) }
 }
 
 function Hide-Bubble {
@@ -1865,7 +1868,7 @@ function Show-MorningPlan {
     $plan = @(Get-PlanCards 3)
     $hello = if ((Get-Date).Hour -lt 12) { '☀️ Bonjour !' } else { '👋 Re-bonjour !' }
     if (-not $plan.Count) {
-        Show-Bubble "$hello Tes tableaux sont vides : note tes tâches du jour et je t'aiderai à les attaquer dans le bon ordre." -Force -Buttons @(
+        Show-Bubble "$hello Tes tableaux sont vides : note tes tâches du jour et je t'aiderai à les attaquer dans le bon ordre." -Force -AutoHide -Seconds 90 -Buttons @(
             $BtnTodo, @{ Label = '🚀 Focus quand même'; Action = { Start-Focus } }, $BtnLater)
         return
     }
@@ -1880,7 +1883,7 @@ function Show-MorningPlan {
     $rest = @(Get-OpenTodos).Count - $plan.Count
     if ($rest -gt 0) { $text += "`n(+ $rest autre(s) carte(s) dans tes tableaux)" }
     $text += "`n`nOn s'y met ?"
-    Show-Bubble $text -Force -Buttons @(
+    Show-Bubble $text -Force -AutoHide -Seconds 180 -Buttons @(
         @{ Label = '🎯 Go, focus sur ces cartes'; Action = { Accept-MorningPlan }; Primary = $true },
         @{ Label = '✏️ Choisir autre chose'; Action = { Choose-FocusCards -Start -Preselect $O.PlanIds } },
         $BtnTodo,
@@ -1899,7 +1902,7 @@ function Show-Status {
             $hello = Pick $Lines.Hello
             $due = Get-DeadlineSummary
             if ($due) { $hello += "`n`n$due" }
-            Show-Bubble $hello -Buttons (@(Get-StartButtons) + @($BtnPickCards, $BtnTodo, $BtnLater)) -Force
+            Show-Bubble $hello -Buttons (@(Get-StartButtons) + @($BtnPickCards, $BtnTodo, $BtnLater)) -Force -AutoHide -Seconds 60
         }
         'AwaitBreak' { Ask-Break }
         'AwaitFocus' { Ask-Focus }

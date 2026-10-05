@@ -13,7 +13,7 @@ foreach ($a in Get-ScriptAssignments (Join-Path $Root 'orbit.ps1') '^\$Btn(TaskD
 $script:Logs = @(); function Write-Log($m) { $script:Logs += $m }
 function Pick($l) { $l[0] }
 $script:Bubble = $null
-function Show-Bubble { param($Text, $Buttons, [switch]$Force, $Seconds, [switch]$Thought) $script:Bubble = @{ Text = $Text; Buttons = @($Buttons | ForEach-Object { $_.Label }); Actions = @($Buttons | ForEach-Object { $_.Action }) } }
+function Show-Bubble { param($Text, $Buttons, [switch]$Force, $Seconds, [switch]$Thought, [switch]$AutoHide) $script:Bubble = @{ Text = $Text; Buttons = @($Buttons | ForEach-Object { $_.Label }); Actions = @($Buttons | ForEach-Object { $_.Action }) } }
 function Render-Todos {}; function Fit-Notebook {}; function Confirm-Action { $true }; function Set-Mood {}; function Update-Pill {}
 $Lines = @{ FocusStart = @('Focus {0} !'); FocusEnd = @('Fini ({0}).'); BreakEnd = @('Pause finie, focus {0} ?') }
 $Config = @{ FocusMinutes = 50; MotivationEveryMin = 9; ReminderEveryMin = 4 }
