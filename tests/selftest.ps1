@@ -146,6 +146,40 @@ try {
     Write-Host "  ($([math]::Round((Get-Item $zip).Length / 1KB)) Ko, $($names.Count) fichiers)"
 } catch { Check 'export sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
 
+Section 'Deplacements (fenetre vraiment affichee)'
+try {
+    function Step-Frames([int]$n) { for ($f = 0; $f -lt $n; $f++) { $O.LastFrame = (Get-Date).AddMilliseconds(-100); On-Frame } }
+    $window.Show()
+    Check 'Orbit est affiche' ($window.IsVisible)
+    Stop-Cycle; Hide-Bubble
+    $O.Pinned = $false; $O.Mini = $false; $O.Wander = $true; $O.Walking = $false; $O.NextWalk = (Get-Date).AddMinutes(10)
+    On-Second
+    $O.Home = Get-HomePos
+    Write-Host "  place d'Orbit : $([int]$O.Home.X), $([int]$O.Home.Y) - fenetre $([int]$window.Width) x $([int]$window.Height)"
+    $window.Left = $O.Home.X - 400; $window.Top = $O.Home.Y - 300
+    $d0 = [math]::Sqrt(400 * 400 + 300 * 300)
+    Step-Frames 40
+    $d1 = [math]::Sqrt([math]::Pow($O.Home.X - $window.Left, 2) + [math]::Pow($O.Home.Y - $window.Top, 2))
+    Write-Host "  retour a sa place : distance $([int]$d0) -> $([int]$d1)"
+    Check 'il revient tout seul a sa place' ($d1 -lt 5)
+    $O.NextWalk = (Get-Date).AddSeconds(-1)
+    $x0 = $window.Left; $y0 = $window.Top
+    Step-Frames 1
+    Check 'la balade demarre a l''heure prevue' ($O.Walking)
+    Hide-Bubble
+    Step-Frames 15
+    $moved = [math]::Abs($window.Left - $x0) + [math]::Abs($window.Top - $y0)
+    Write-Host "  balade : cible $([int]$O.WalkTarget.X), $([int]$O.WalkTarget.Y) - deplacement $([int]$moved) px en 15 images"
+    Check 'il se deplace pendant la balade' ($moved -gt 20 -or ([math]::Abs($O.WalkTarget.X - $x0) + [math]::Abs($O.WalkTarget.Y - $y0)) -lt 20)
+    # une question restee ouverte (bulle avec boutons) bloque-t-elle les balades ?
+    $O.Walking = $false; $O.NextWalk = (Get-Date).AddSeconds(-1)
+    Show-Status
+    Step-Frames 1
+    Write-Host "  avec la bulle d'accueil ouverte : balade = $($O.Walking), boutons = $($ui.BubbleButtons.Children.Count)"
+    Hide-Bubble; $O.Walking = $false
+    $window.Hide()
+} catch { Check 'deplacements sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
+
 Section 'Stabilite : endurance (30 cycles complets)'
 try {
     Add-Type -Namespace OrbitTest -Name Gui -MemberDefinition '[DllImport("user32.dll")] public static extern uint GetGuiResources(IntPtr h, uint flags);'
