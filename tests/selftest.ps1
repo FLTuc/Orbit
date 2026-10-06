@@ -208,6 +208,47 @@ try {
     $O.PlanDay = ''; Show-MorningPlan
     Check 'le plan du matin aussi a une duree limitee' ($O.BubbleUntil -lt (Get-Date).AddMinutes(5))
     Hide-Bubble; $O.Walking = $false
+
+    # --- la bulle n'est jamais rognee : la fenetre grandit vers le haut, le robot ne bouge pas
+    function Get-BubbleTop { $window.UpdateLayout(); $ui.BubbleWrap.TranslatePoint((New-Object Windows.Point(0, 0)), $ui.Root).Y }
+    $window.Top = $O.Home.Y; $window.Left = $O.Home.X
+    $bottom0 = $window.Top + $window.Height
+    $long = (1..14 | ForEach-Object { "Ligne $_ d'un texte assez long pour tenir sur toute la largeur de la bulle" }) -join "`n"
+    Show-Bubble $long -Force -Buttons @($BtnAgain, $BtnStop, $BtnTodo, $BtnLater, $BtnPickCards, $BtnBreak)
+    $top = Get-BubbleTop
+    Write-Host "  bulle longue : fenetre $([int]$window.Height) px de haut, haut de la bulle a $([int]$top) px"
+    Check 'bulle longue : la fenetre s''agrandit' ($window.Height -gt 340)
+    Check 'bulle longue : rien n''est rogne en haut' ($top -ge 0)
+    Check 'bulle longue : le robot n''a pas bouge' ([math]::Abs(($window.Top + $window.Height) - $bottom0) -lt 1.5)
+    $O.PlanDay = ''; Show-MorningPlan
+    Check 'plan du matin : rien n''est rogne' ((Get-BubbleTop) -ge 0)
+    Hide-Bubble
+    Check 'bulle rangee : la fenetre reprend sa taille, le robot reste en place' ($window.Height -eq 340 -and [math]::Abs(($window.Top + $window.Height) - $bottom0) -lt 1.5)
+    $huge = (1..80 | ForEach-Object { "Ligne $_" }) -join "`n"
+    Show-Bubble $huge -Force
+    $wa = Get-WorkArea ([System.Windows.Forms.Screen]::PrimaryScreen)
+    Check 'texte enorme : la fenetre ne depasse pas l''ecran' ($window.Height -le ($wa.B - $wa.T) + 1 -and $window.Top -ge $wa.T - 1)
+    Hide-Bubble
+
+    # --- chiens de garde
+    $script:frameTimer.Stop()
+    Test-Watchdogs
+    Check 'surveillance : l''animation arretee est relancee' ($script:frameTimer.IsEnabled)
+    $script:frameTimer.Stop()
+    $O.Pinned = $true; $window.Left = -5000; $window.Top = -5000
+    Test-Watchdogs
+    Check 'surveillance : Orbit perdu hors ecran est ramene' ($window.Left -gt -1000 -and -not $O.Pinned)
+
+    # --- une tache qui plante n'empeche pas les autres
+    $saveClip = ${function:Check-Clipboard}
+    function Check-Clipboard { throw 'panne simulee du presse-papiers' }
+    $O.State = 'Focus'; $O.EndsAt = (Get-Date).AddMinutes(20); $O.Paused = $false; $script:StateSig = ''
+    Remove-Item $StateFile -ErrorAction SilentlyContinue
+    On-Second
+    Check 'tache en panne : les autres continuent (etat enregistre)' (Test-Path $StateFile)
+    Check 'et la panne est notee dans le journal, avec son nom' ((Get-Content $LogFile -Raw) -match 'Erreur \(presse-papiers\) : panne simulee')
+    Set-Item function:Check-Clipboard $saveClip
+    Stop-Cycle; On-Second
     $window.Hide()
 } catch { Check 'deplacements sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
 
@@ -274,7 +315,7 @@ try {
 } catch { Check 'volumes sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
 
 Section 'Stabilite : journal d''erreurs'
-$errLines = @(Get-Content $LogFile -ErrorAction SilentlyContinue | Where-Object { $_ -match 'Erreur :|Erreur imprevue' })
+$errLines = @(Get-Content $LogFile -ErrorAction SilentlyContinue | Where-Object { $_ -match 'Erreur( \([^)]*\))? :|Erreur imprevue' -and $_ -notmatch 'panne simulee' })
 foreach ($l in ($errLines | Select-Object -First 10)) { Write-Host "  $l" -ForegroundColor Yellow }
 Check 'aucune erreur imprevue pendant tous ces tests' ($errLines.Count -eq 0) "$($errLines.Count) erreur(s)"
 

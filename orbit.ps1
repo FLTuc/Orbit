@@ -601,8 +601,10 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
       <Border x:Name="Bubble" Grid.Row="0" Padding="14,10,14,10" CornerRadius="20"
               Background="White" BorderBrush="#1E1B3A" BorderThickness="2.5">
         <StackPanel>
-          <TextBlock x:Name="BubbleText" TextWrapping="Wrap" FontFamily="Segoe UI"
-                     FontSize="13.5" Foreground="#1E1B3A" LineHeight="19"/>
+          <ScrollViewer x:Name="BubbleScroll" VerticalScrollBarVisibility="Auto" MaxHeight="420">
+            <TextBlock x:Name="BubbleText" TextWrapping="Wrap" FontFamily="Segoe UI"
+                       FontSize="13.5" Foreground="#1E1B3A" LineHeight="19"/>
+          </ScrollViewer>
           <WrapPanel x:Name="BubbleButtons" HorizontalAlignment="Right"/>
         </StackPanel>
       </Border>
@@ -1443,19 +1445,44 @@ function Show-Bubble {
         $ui.BubblePop.BeginAnimation([Windows.Media.ScaleTransform]::ScaleYProperty, $anim)
     }
     $O.BubbleUntil = if ($Buttons.Count -and -not $AutoHide) { [datetime]::MaxValue } else { (Get-Date).AddSeconds($Seconds) }
+    $ui.BubbleScroll.ScrollToTop()
+    Fit-BubbleWindow
 }
 
 function Hide-Bubble {
     $ui.BubbleWrap.Visibility = 'Collapsed'
     $ui.BubbleButtons.Children.Clear()
     $O.BubbleUntil = [datetime]::MinValue
+    Fit-BubbleWindow
+}
+
+# La fenetre d'Orbit grandit vers le haut quand la bulle est longue (plan du matin,
+# quiz, boutons...) : la bulle n'est plus rognee, et le robot reste exactement a sa place
+# (le bas de la fenetre ne bouge pas). Elle reprend sa taille quand la bulle disparait.
+$BaseWindowHeight = 340
+function Fit-BubbleWindow {
+    $need = $BaseWindowHeight
+    if ($ui.BubbleWrap.Visibility -eq 'Visible') {
+        $ui.BubbleWrap.Measure((New-Object Windows.Size(300, [double]::PositiveInfinity)))
+        $need = [math]::Max($BaseWindowHeight, [math]::Ceiling($ui.BubbleWrap.DesiredSize.Height + $ui.BubbleWrap.Margin.Bottom + 14))
+    }
+    $wa = Get-WorkArea ([System.Windows.Forms.Screen]::FromPoint([System.Drawing.Point]::new([int]($window.Left + $window.Width / 2), [int]($window.Top + $window.Height - 20))))
+    $need = [math]::Min($need, [math]::Max($BaseWindowHeight, $wa.B - $wa.T))
+    $old = $window.Height
+    if ([math]::Abs($need - $old) -lt 1) { return }
+    $bottom = $window.Top + $old
+    $window.Height = $need
+    $window.Top = [math]::Max($wa.T, $bottom - $need)
+    # une balade en cours vise toujours le meme endroit pour le robot (le bas de la fenetre)
+    if ($O.Walking -and $O.WalkTarget) { $O.WalkTarget = [Windows.Point]::new($O.WalkTarget.X, $O.WalkTarget.Y + ($old - $need)) }
+    $O.Home = Get-HomePos
 }
 
 $script:lastErr = ''
 $script:lastErrAt = [datetime]::MinValue
-function Invoke-Safe([scriptblock]$sb) {
+function Invoke-Safe([scriptblock]$sb, [string]$where = '') {
     try { & $sb } catch {
-        $msg = "Erreur : $($_.Exception.Message) @ ligne $($_.InvocationInfo.ScriptLineNumber)"
+        $msg = "Erreur$(if ($where) { " ($where)" }) : $($_.Exception.Message) @ ligne $($_.InvocationInfo.ScriptLineNumber)"
         if ($msg -ne $script:lastErr -or ((Get-Date) - $script:lastErrAt).TotalSeconds -gt 60) {
             Write-Log $msg
             $script:lastErr = $msg
@@ -2153,77 +2180,84 @@ function On-Frame {
 
     # (la derive lente dans l'espace est une animation WPF : voir Start-Floating)
 
-    $sk = $Skins[$O.Skin]
+    # animations (yeux, balises, LED...) : isolees, pour qu'un souci d'affichage
+    # n'empeche jamais Orbit de se deplacer ou de ranger sa bulle
+    Invoke-Safe {
+        $sk = $Skins[$O.Skin]
 
-    # balises : un flash regulier, clignotement rapide quand Orbit attend une reponse
-    $beacon = if ($O.State -like 'Await*') { 0.3 + 0.7 * [math]::Abs([math]::Sin($t * 4)) }
-              elseif (($t % 2.0) -lt 0.18) { 1 } else { 0.35 }
-    foreach ($n in $sk.Beacons) { $ui[$n].Opacity = $beacon }
+        # balises : un flash regulier, clignotement rapide quand Orbit attend une reponse
+        $beacon = if ($O.State -like 'Await*') { 0.3 + 0.7 * [math]::Abs([math]::Sin($t * 4)) }
+                  elseif (($t % 2.0) -lt 0.18) { 1 } else { 0.35 }
+        foreach ($n in $sk.Beacons) { $ui[$n].Opacity = $beacon }
 
-    # les yeux (ou la camera) suivent la souris
-    $c = Get-CursorDip
-    if ($O.LastCursor -and ([math]::Abs($c.X - $O.LastCursor.X) + [math]::Abs($c.Y - $O.LastCursor.Y)) -gt 0.5) { $O.CursorMovedAt = $now }
-    $O.LastCursor = $c
-    $scale = $ui.BotScale.ScaleX
-    # centre du regard, en tenant compte de l'agrandissement propre a chaque dessin (autour de 60,88)
-    $k = if ($sk.Scale) { $sk.Scale } else { 1 }
-    $ex = 60 + ($sk.EyeX - 60) * $k
-    $ey = 88 + ($sk.EyeY - 88) * $k
-    $cx = $window.Left + $window.Width - (120 - $ex) * $scale
-    $cy = $window.Top + $window.Height - (98 - $ey) * $scale
-    $vx = $c.X - $cx; $vy = $c.Y - $cy
-    $len = [math]::Sqrt($vx * $vx + $vy * $vy)
-    if ($len -gt 1) { $vx = $vx / $len * $sk.EyeMax; $vy = $vy / $len * $sk.EyeMax }
-    foreach ($e in $sk.Eyes) {
-        [Windows.Controls.Canvas]::SetLeft($ui[$e[0]], $e[1] + $vx)
-        [Windows.Controls.Canvas]::SetTop($ui[$e[0]], $e[2] + $vy)
-    }
-
-    # reacteurs qui vacillent
-    $i = 0
-    foreach ($n in $sk.Glows) { $ui[$n].Opacity = 0.72 + 0.28 * [math]::Sin($t * 11 + $i * 1.7); $i++ }
-
-    switch ($O.Skin) {
-        'Satellite' {
-            # voyant d'etat, feux de navigation (flashs alternes) et reflet du soleil sur les panneaux
-            $ui.StatusLed.Opacity = if ($O.State -like 'Await*') { $beacon } else { 1 }
-            $ui.NavL.Opacity = if (($t % 1.6) -lt 0.16) { 1 } else { 0.25 }
-            $ui.NavR.Opacity = if ((($t + 0.8) % 1.6) -lt 0.16) { 1 } else { 0.25 }
-            $g = $t % 7
-            $ui.GlintL.X = -40 + [math]::Min(1, $g / 1.4) * 90
-            $ui.GlintR.X = -40 + [math]::Min(1, [math]::Max(0, $g - 0.35) / 1.4) * 90
+        # les yeux (ou la camera) suivent la souris
+        $c = Get-CursorDip
+        if ($O.LastCursor -and ([math]::Abs($c.X - $O.LastCursor.X) + [math]::Abs($c.Y - $O.LastCursor.Y)) -gt 0.5) { $O.CursorMovedAt = $now }
+        $O.LastCursor = $c
+        $scale = $ui.BotScale.ScaleX
+        # centre du regard, en tenant compte de l'agrandissement propre a chaque dessin (autour de 60,88)
+        $k = if ($sk.Scale) { $sk.Scale } else { 1 }
+        $ex = 60 + ($sk.EyeX - 60) * $k
+        $ey = 88 + ($sk.EyeY - 88) * $k
+        $cx = $window.Left + $window.Width - (120 - $ex) * $scale
+        $cy = $window.Top + $window.Height - (98 - $ey) * $scale
+        $vx = $c.X - $cx; $vy = $c.Y - $cy
+        $len = [math]::Sqrt($vx * $vx + $vy * $vy)
+        if ($len -gt 1) { $vx = $vx / $len * $sk.EyeMax; $vy = $vy / $len * $sk.EyeMax }
+        foreach ($e in $sk.Eyes) {
+            [Windows.Controls.Canvas]::SetLeft($ui[$e[0]], $e[1] + $vx)
+            [Windows.Controls.Canvas]::SetTop($ui[$e[0]], $e[2] + $vy)
         }
-        'Brain' {
-            # activite neuronale discrete : de petites etincelles s'allument a tour de role
-            for ($k = 1; $k -le 4; $k++) {
-                $ph = ($t * 0.9 + $k * 0.53) % 2.2
-                $ui["CSpark$k"].Opacity = if ($ph -lt 0.22) { 0.75 } else { 0 }
+
+        # reacteurs qui vacillent
+        $i = 0
+        foreach ($n in $sk.Glows) { $ui[$n].Opacity = 0.72 + 0.28 * [math]::Sin($t * 11 + $i * 1.7); $i++ }
+
+        switch ($O.Skin) {
+            'Satellite' {
+                # voyant d'etat, feux de navigation (flashs alternes) et reflet du soleil sur les panneaux
+                $ui.StatusLed.Opacity = if ($O.State -like 'Await*') { $beacon } else { 1 }
+                $ui.NavL.Opacity = if (($t % 1.6) -lt 0.16) { 1 } else { 0.25 }
+                $ui.NavR.Opacity = if ((($t + 0.8) % 1.6) -lt 0.16) { 1 } else { 0.25 }
+                $g = $t % 7
+                $ui.GlintL.X = -40 + [math]::Min(1, $g / 1.4) * 90
+                $ui.GlintR.X = -40 + [math]::Min(1, [math]::Max(0, $g - 0.35) / 1.4) * 90
+            }
+            'Brain' {
+                # activite neuronale discrete : de petites etincelles s'allument a tour de role
+                for ($k = 1; $k -le 4; $k++) {
+                    $ph = ($t * 0.9 + $k * 0.53) % 2.2
+                    $ui["CSpark$k"].Opacity = if ($ph -lt 0.22) { 0.75 } else { 0 }
+                }
+            }
+            'Human' {
+                $ui.HSteam.Opacity = 0.45 + 0.35 * [math]::Sin($t * 2.3)
+            }
+            'Butler' {
+                # la vapeur du cafe ondule (l'anneau holographique tourne tout seul : Start-Floating)
+                $ui.MSteam.Opacity = 0.45 + 0.35 * [math]::Sin($t * 2.3)
             }
         }
-        'Human' {
-            $ui.HSteam.Opacity = 0.45 + 0.35 * [math]::Sin($t * 2.3)
-        }
-        'Butler' {
-            # la vapeur du cafe ondule (l'anneau holographique tourne tout seul : Start-Floating)
-            $ui.MSteam.Opacity = 0.45 + 0.35 * [math]::Sin($t * 2.3)
-        }
-    }
 
-    # afficheur binaire : minutes restantes pendant une session, balayage au repos
-    Update-Bits $t
+        # afficheur binaire : minutes restantes pendant une session, balayage au repos
+        Update-Bits $t
+    } 'animation'
 
-    # chute de la blague en cours
-    if ($O.Punch -and $now -ge $O.Punch.At) {
-        if ($ui.BubbleWrap.Visibility -eq 'Visible' -and $ui.BubbleText.Text -eq $O.Punch.Shown) {
-            $ui.BubbleText.Text = $O.Punch.Full
-            Play-Chirp
-            $O.BubbleUntil = $now.AddSeconds(9)
+    Invoke-Safe {
+        # chute de la blague en cours
+        if ($O.Punch -and $now -ge $O.Punch.At) {
+            if ($ui.BubbleWrap.Visibility -eq 'Visible' -and $ui.BubbleText.Text -eq $O.Punch.Shown) {
+                $ui.BubbleText.Text = $O.Punch.Full
+                Fit-BubbleWindow
+                Play-Chirp
+                $O.BubbleUntil = $now.AddSeconds(9)
+            }
+            $O.Punch = $null
         }
-        $O.Punch = $null
-    }
 
-    # bulle temporaire
-    if ($ui.BubbleWrap.Visibility -eq 'Visible' -and $now -ge $O.BubbleUntil) { Hide-Bubble }
+        # bulle temporaire
+        if ($ui.BubbleWrap.Visibility -eq 'Visible' -and $now -ge $O.BubbleUntil) { Hide-Bubble }
+    } 'bulle'
 
     # deplacements
     $O.Busy = $false
@@ -2402,60 +2436,125 @@ $script:slowCount = 0
 function On-Second {
     $now = Get-Date
     $script:slowCount++
-    $O.Home = Get-HomePos
+    $n = $script:slowCount
+    # chaque tache est isolee : si l'une echoue (presse-papiers occupe, fichier verrouille...),
+    # les autres continuent, et l'erreur est notee dans le journal avec le nom de la tache
+    Invoke-Safe { $O.Home = Get-HomePos } 'position'
+    if ($env:ORBIT_AUTOPILOT) { Invoke-Safe { Step-Autopilot $now } 'autopilote' }
+    $script:TimerEnded = $false
+    Invoke-Safe { $script:TimerEnded = Step-Timer $now } 'chrono'
+    if ($script:TimerEnded) { Invoke-Safe { Update-Pill } 'chrono'; return }
+    Invoke-Safe { Step-AwaitReminder $now } 'relance'
+    if ($n % 2 -eq 0) { Invoke-Safe { Check-Idle } 'absence' }
+    if ($now -ge $O.NextTrim) { Invoke-Safe { Trim-Memory } 'memoire' }
+    Invoke-Safe { Update-TrayIcon } 'icone'
+    if ($n -eq 20) { Invoke-Safe { [void](Set-TrayPromoted $true -OnlyIfUnset) } 'epinglage' }
+    if ($n % 15 -eq 0) {
+        Invoke-Safe {
+            if ($window.IsVisible -and (Test-MorningPlanDue) -and $ui.BubbleButtons.Children.Count -eq 0 -and
+                (-not $Native -or [OrbitNative]::IdleMs() -lt 60000)) { Show-MorningPlan }
+        } 'plan du matin'
+    }
+    Invoke-Safe {
+        $sig = "$($O.State)|$($O.Paused)|$($O.EndsAt.Ticks)|$($O.SessionMin)"
+        if ($sig -ne $script:StateSig) { $script:StateSig = $sig; Save-State }
+    } 'etat'
+    if ($n % 10 -eq 0) { Invoke-Safe { Check-TaskReminders } 'rappels' }
+    if ($Native -or $n % 2 -eq 0) { Invoke-Safe { Check-Clipboard } 'presse-papiers' }
+    if ($n % 2 -eq 0 -and $window.Visibility -eq 'Visible') { Invoke-Safe { Check-App } 'appli' }
+    if ($n % 5 -eq 0 -and $Native -and $O.Hwnd -ne [IntPtr]::Zero -and $window.Visibility -eq 'Visible') {
+        Invoke-Safe { [OrbitNative]::KeepOnTop($O.Hwnd) } 'premier plan'
+    }
+    if ($n % 5 -eq 0) { Invoke-Safe { Test-Watchdogs } 'surveillance' }
+    Invoke-Safe { Update-Pill } 'affichage'
+}
 
-    if (($O.State -in 'Focus', 'Break') -and -not $O.Paused) {
-        $left = $O.EndsAt - $now
-        if ($left.TotalSeconds -le 0) { On-TimerEnded; return }
-        if ($O.State -eq 'Break' -and $now -ge $O.NextJoke) {
-            # une blague toutes les ~2 minutes pendant la pause (sauf dans les 20 dernieres secondes)
-            $base = [math]::Max(20, $Config.JokeEveryMin * 60)
-            $O.NextJoke = $now.AddSeconds((Get-Random -Minimum ([int]($base * 0.75)) -Maximum ([int]($base * 1.25) + 1)))
-            if ($Config.Jokes -and $left.TotalSeconds -gt 20) { Tell-BreakItem }
+# Chrono focus / pause. Renvoie $true quand la session vient de se terminer.
+function Step-Timer($now) {
+    if (($O.State -notin 'Focus', 'Break') -or $O.Paused) { return $false }
+    $left = $O.EndsAt - $now
+    if ($left.TotalSeconds -le 0) { On-TimerEnded; return $true }
+    if ($O.State -eq 'Break' -and $now -ge $O.NextJoke) {
+        # une blague / culture G toutes les ~2 minutes pendant la pause (sauf dans les 20 dernieres secondes)
+        $base = [math]::Max(20, $Config.JokeEveryMin * 60)
+        $O.NextJoke = $now.AddSeconds((Get-Random -Minimum ([int]($base * 0.75)) -Maximum ([int]($base * 1.25) + 1)))
+        if ($Config.Jokes -and $left.TotalSeconds -gt 20) { Tell-BreakItem }
+    }
+    if ($O.State -eq 'Focus') {
+        $total = $Config.FocusMinutes
+        if (-not $O.HalfSaid -and $total -ge 20 -and $left.TotalMinutes -le $total / 2) {
+            $O.HalfSaid = $true
+            Show-Bubble ((Pick $Lines.HalfWay) -f [math]::Ceiling($left.TotalMinutes))
+        } elseif (-not $O.FiveSaid -and $total -ge 15 -and $left.TotalMinutes -le 5) {
+            $O.FiveSaid = $true
+            Show-Bubble (Pick $Lines.LastMinutes)
+        } elseif ($now -ge $O.NextMotivation) {
+            $O.NextMotivation = $now.AddMinutes($Config.MotivationEveryMin + (Get-Random -Minimum -2 -Maximum 3))
+            $line = $null
+            if ((Get-Random -Maximum 100) -lt 20) { $line = Get-TimeOfDayLine }
+            if (-not $line) { $line = Pick $Lines.Motivation }
+            Show-Bubble $line -Thought
         }
-        if ($O.State -eq 'Focus') {
-            $total = $Config.FocusMinutes
-            if (-not $O.HalfSaid -and $total -ge 20 -and $left.TotalMinutes -le $total / 2) {
-                $O.HalfSaid = $true
-                Show-Bubble ((Pick $Lines.HalfWay) -f [math]::Ceiling($left.TotalMinutes))
-            } elseif (-not $O.FiveSaid -and $total -ge 15 -and $left.TotalMinutes -le 5) {
-                $O.FiveSaid = $true
-                Show-Bubble (Pick $Lines.LastMinutes)
-            } elseif ($now -ge $O.NextMotivation) {
-                $O.NextMotivation = $now.AddMinutes($Config.MotivationEveryMin + (Get-Random -Minimum -2 -Maximum 3))
-                $line = $null
-                if ((Get-Random -Maximum 100) -lt 20) { $line = Get-TimeOfDayLine }
-                if (-not $line) { $line = Pick $Lines.Motivation }
-                Show-Bubble $line -Thought
-            }
+    }
+    return $false
+}
+
+# Orbit attend une reponse : il relance gentiment de temps en temps
+function Step-AwaitReminder($now) {
+    if ($O.State -notlike 'Await*' -or $now -lt $O.NextReminder) { return }
+    $O.NextReminder = $now.AddMinutes($Config.ReminderEveryMin)
+    Ensure-Visible
+    $pool = if ($O.State -eq 'AwaitBreak') { $Lines.AwaitBreak } else { $Lines.AwaitFocus }
+    if ($O.State -eq 'AwaitBreak') { Ask-Break (Pick $pool) }
+    else { Show-Bubble (Pick $pool) -Buttons @($BtnAgain, $BtnStop) -Force }
+}
+
+# Chiens de garde : remettent Orbit d'aplomb si quelque chose a deraille
+function Test-Watchdogs {
+    # l'animation doit tourner quand Orbit est affiche
+    if ($window.IsVisible -and -not $script:frameTimer.IsEnabled -and -not $NB.Quitting) {
+        $O.LastFrame = [datetime]::Now
+        $script:frameTimer.Start()
+        Write-Log "Surveillance : animation relancee"
+    }
+    # un ecran debranche peut laisser Orbit hors de tout ecran : on le ramene
+    if ($window.IsVisible -and -not $O.Dragging) {
+        $onScreen = $false
+        foreach ($scr in [System.Windows.Forms.Screen]::AllScreens) {
+            $wa = Get-WorkArea $scr
+            if ($window.Left + $window.Width -gt $wa.L + 40 -and $window.Left -lt $wa.R - 40 -and
+                $window.Top + $window.Height -gt $wa.T + 40 -and $window.Top -lt $wa.B - 40) { $onScreen = $true; break }
+        }
+        if (-not $onScreen) {
+            $O.Pinned = $false; $O.Walking = $false
+            $h = Get-HomePos
+            $window.Left = $h.X; $window.Top = $h.Y
+            Write-Log "Surveillance : Orbit etait hors de l'ecran, ramene a sa place"
         }
     }
+    # la bulle ne doit jamais rester bloquee « visible » sans texte
+    if ($ui.BubbleWrap.Visibility -eq 'Visible' -and -not $ui.BubbleText.Text -and $ui.BubbleButtons.Children.Count -eq 0) { Hide-Bubble }
+}
 
-    if ($O.State -like 'Await*' -and $now -ge $O.NextReminder) {
-        $O.NextReminder = $now.AddMinutes($Config.ReminderEveryMin)
-        Ensure-Visible
-        $pool = if ($O.State -eq 'AwaitBreak') { $Lines.AwaitBreak } else { $Lines.AwaitFocus }
-        if ($O.State -eq 'AwaitBreak') { Ask-Break (Pick $pool) }
-        else { Show-Bubble (Pick $pool) -Buttons @($BtnAgain, $BtnStop) -Force }
+# Mode « pilote automatique » pour les tests d'endurance (variable ORBIT_AUTOPILOT) :
+# Orbit enchaine tout seul focus et pauses, se balade, ouvre ses fenetres...
+function Step-Autopilot($now) {
+    if ($script:ApNext -and $now -lt $script:ApNext) { return }
+    $script:ApNext = $now.AddSeconds(3)
+    switch ($O.State) {
+        'Idle'       { Start-Focus }
+        'AwaitBreak' { Hide-Bubble; Start-Break }
+        'AwaitFocus' { Hide-Bubble; Start-Focus }
     }
-
-    if ($script:slowCount % 2 -eq 0) { Check-Idle }
-    if ($now -ge $O.NextTrim) { Trim-Memory }
-    Update-TrayIcon
-    if ($script:slowCount -eq 20) { try { [void](Set-TrayPromoted $true -OnlyIfUnset) } catch { Write-Log "Epinglage de l'icone : $($_.Exception.Message)" } }
-    if ($script:slowCount % 15 -eq 0 -and $window.IsVisible -and (Test-MorningPlanDue) -and
-        $ui.BubbleButtons.Children.Count -eq 0 -and (-not $Native -or [OrbitNative]::IdleMs() -lt 60000)) {
-        Show-MorningPlan
+    if (-not $O.Walking) { $O.NextWalk = $now }
+    $k = $script:slowCount
+    if ($k % 9 -eq 0) { Show-QuickNote; $qn.QnText.Text = "autopilote $($now.ToString('HH:mm:ss'))"; Close-QuickNote }
+    if ($k % 11 -eq 0) { Open-Notebook 'Todo'; Close-Notebook }
+    if ($k % 13 -eq 0) { Tell-Fact -Force }
+    if ($k % 30 -eq 0) {
+        $p = [Diagnostics.Process]::GetCurrentProcess()
+        Write-Log ("Autopilote : etat {0}, focus {1}, memoire {2:N0} Mo, poignees {3}" -f $O.State, $O.FocusToday, ($p.PrivateMemorySize64 / 1MB), $p.HandleCount)
     }
-    $sig = "$($O.State)|$($O.Paused)|$($O.EndsAt.Ticks)|$($O.SessionMin)"
-    if ($sig -ne $script:StateSig) { $script:StateSig = $sig; Save-State }
-    if ($script:slowCount % 10 -eq 0) { Check-TaskReminders }
-    if ($Native -or $script:slowCount % 2 -eq 0) { Check-Clipboard }
-    if ($script:slowCount % 2 -eq 0 -and $window.Visibility -eq 'Visible') { Check-App }
-    if ($script:slowCount % 5 -eq 0 -and $Native -and $O.Hwnd -ne [IntPtr]::Zero -and $window.Visibility -eq 'Visible') {
-        [OrbitNative]::KeepOnTop($O.Hwnd)
-    }
-    Update-Pill
 }
 
 # ---------------------------------------------------------------------------
@@ -2513,6 +2612,7 @@ function Set-Mini([bool]$on) {
     $ui.SpeechTail.Margin = if ($on) { '0,-3.5,28,0' } else { '0,-3.5,61,0' }
     $ui.ThoughtTail.Margin = if ($on) { '0,3,26,0' } else { '0,3,59,0' }
     if ($on) { $O.Walking = $false }
+    Fit-BubbleWindow
 }
 
 function Toggle-OrbitVisible {

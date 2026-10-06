@@ -8,7 +8,7 @@ on:
 jobs:
   windows:
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -35,6 +35,10 @@ jobs:
       - name: Lancement reel (sans fenetre de console)
         shell: cmd
         run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\launch.ps1
+
+      - name: Endurance en conditions reelles (Orbit lance pour de vrai, 5 min)
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\soak.ps1 -Minutes 5
 
       - name: Blagues et culture G
         shell: cmd
