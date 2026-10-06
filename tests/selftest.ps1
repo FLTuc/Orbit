@@ -249,7 +249,12 @@ try {
     Hide-Bubble; $O.Walking = $false
 
     # --- la bulle n'est jamais rognee : la fenetre grandit vers le haut, le robot ne bouge pas
-    function Get-BubbleTop { $window.UpdateLayout(); $ui.BubbleWrap.TranslatePoint((New-Object Windows.Point(0, 0)), $ui.Root).Y }
+    function Get-BubbleTop {
+        # sans l'effet "pop" (la bulle grossit en 0,3 s) : on mesure sa vraie place
+        $ui.BubblePop.BeginAnimation([Windows.Media.ScaleTransform]::ScaleXProperty, $null)
+        $ui.BubblePop.BeginAnimation([Windows.Media.ScaleTransform]::ScaleYProperty, $null)
+        $window.UpdateLayout(); $ui.BubbleWrap.TranslatePoint((New-Object Windows.Point(0, 0)), $ui.Root).Y
+    }
     $window.Top = $O.Home.Y; $window.Left = $O.Home.X
     $bottom0 = $window.Top + $window.Height
     $long = (1..14 | ForEach-Object { "Ligne $_ d'un texte assez long pour tenir sur toute la largeur de la bulle" }) -join "`n"
@@ -267,6 +272,8 @@ try {
     Show-Bubble $huge -Force
     $wa = Get-WorkArea ([System.Windows.Forms.Screen]::PrimaryScreen)
     Check 'texte enorme : la fenetre ne depasse pas l''ecran' ($window.Height -le ($wa.B - $wa.T) + 1 -and $window.Top -ge $wa.T - 1)
+    Check 'texte enorme : rien n''est rogne (le texte defile dans la bulle)' ((Get-BubbleTop) -ge -1)
+    Check 'texte enorme : le robot n''a pas bouge' ([math]::Abs(($window.Top + $window.Height) - $bottom0) -lt 1.5)
     Hide-Bubble
 
     # --- chiens de garde

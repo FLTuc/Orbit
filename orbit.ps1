@@ -1569,16 +1569,24 @@ function Fit-BubbleWindow {
     if ($ui.BubbleWrap.Visibility -eq 'Visible') {
         # le nouveau texte et les boutons doivent d'abord etre pris en compte par WPF,
         # sinon la mesure renvoie encore la taille de la bulle precedente
+        $ui.BubbleScroll.MaxHeight = 420
         $window.UpdateLayout()
         $ui.BubbleWrap.Measure((New-Object Windows.Size(300, [double]::PositiveInfinity)))
         # DesiredSize compte deja la marge (la place du robot sous la bulle)
         $need = [math]::Max([double]$BaseWindowHeight, [math]::Ceiling([double]$ui.BubbleWrap.DesiredSize.Height + 14))
     }
     $wa = Get-WorkArea ([System.Windows.Forms.Screen]::FromPoint([System.Drawing.Point]::new([int]($window.Left + $window.Width / 2), [int]($window.Top + $window.Height - 20))))
-    $need = [math]::Min([double]$need, [math]::Max([double]$BaseWindowHeight, [double]($wa.B - $wa.T)))
+    # on grandit vers le haut seulement : le bas de la fenetre (le robot) ne bouge pas,
+    # et le haut ne depasse pas le haut de l'ecran (au-dela, le texte defile dans la bulle)
     $old = $window.Height
-    if ([math]::Abs($need - $old) -lt 1) { return }
     $bottom = $window.Top + $old
+    $room = [math]::Max([double]$BaseWindowHeight, [double]($bottom - $wa.T))
+    if ($need -gt $room) {
+        # pas assez de place au-dessus : la zone de texte raccourcit et defile
+        $ui.BubbleScroll.MaxHeight = [math]::Max(60.0, $ui.BubbleScroll.DesiredSize.Height - ($need - $room))
+        $need = $room
+    }
+    if ([math]::Abs($need - $old) -lt 1) { return }
     $window.Height = $need
     $window.Top = [math]::Max($wa.T, $bottom - $need)
     # une balade en cours vise toujours le meme endroit pour le robot (le bas de la fenetre)
