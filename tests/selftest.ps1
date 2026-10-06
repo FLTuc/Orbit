@@ -63,6 +63,45 @@ try {
     Hide-Bubble
 } catch { Check 'culture G sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
 
+Section 'Texte des bulles (vraies polices de Windows)'
+[void](Test-Glyph 0x41)
+Check 'polices des bulles trouvees (texte, emoji, symboles)' ($script:GlyphMaps.Count -ge 2) "$($script:GlyphMaps.Count) police(s)"
+$texts = New-Object System.Collections.Generic.List[string]
+foreach ($t in $Jokes) { $texts.Add($t) }
+foreach ($t in $Facts) { $texts.Add($t) }
+foreach ($file in 'orbit.ps1', 'notebook.ps1', 'notes.ps1', 'settings.ps1', 'transfer.ps1') {
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $Root $file), [ref]$null, [ref]$null)
+    foreach ($node in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.StringConstantExpressionAst] -or
+                                     $args[0] -is [System.Management.Automation.Language.ExpandableStringExpressionAst] }, $true)) { $texts.Add($node.Value) }
+}
+$missing = @{}
+foreach ($t in $texts) {
+    foreach ($m in [regex]::Matches($t, $script:TextSymbol)) {
+        $cp = [char]::ConvertToUtf32($m.Value, 0)
+        if (-not (Test-Glyph $cp)) { $missing['U+{0:X4} {1}' -f $cp, $m.Value] = 1 }
+    }
+}
+Write-Host "  $($texts.Count) textes verifies"
+Check 'chaque emoji et symbole d''Orbit existe dans les polices (pas de carre vide)' ($missing.Count -eq 0) (@($missing.Keys) -join ', ')
+$odd = @($texts | Where-Object { $_ -match '[‍️⃣�]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])' })
+Check 'aucun emoji compose ni caractere casse dans les textes' ($odd.Count -eq 0) (($odd | Select-Object -First 3) -join ' / ')
+$E = { param($cp) [char]::ConvertFromUtf32($cp) }
+Show-Bubble ('Test ' + (& $E 0x1F9D1) + [char]0x200D + (& $E 0x1F4BB) + ' 8' + [char]0xFE0F + [char]0x20E3 + ' ' + (& $E 0x1F680) + ' ' + [char]0x200E + 'fin') -Force
+Check 'bulle : texte nettoye avant affichage' ($ui.BubbleText.Text -eq ('Test ' + (& $E 0x1F9D1) + ' 8 ' + (& $E 0x1F680) + ' fin')) $ui.BubbleText.Text
+Check 'bulle : police avec repli emoji et symboles' ($ui.BubbleText.FontFamily.Source -match 'Emoji')
+Hide-Bubble
+$encDir = Join-Path $appData 'encodage'
+New-Item -ItemType Directory -Force -Path $encDir | Out-Null
+$sample = "# Café`r`n'déjà vu'`r`n"
+[IO.File]::WriteAllText((Join-Path $encDir 'sans-bom.ps1'), $sample, (New-Object Text.UTF8Encoding($false)))
+[IO.File]::WriteAllBytes((Join-Path $encDir 'ansi.ps1'), [byte[]](0x23, 0x20, 0xE9))
+[IO.File]::WriteAllText((Join-Path $encDir 'ascii.ps1'), "# ok`r`n", (New-Object Text.UTF8Encoding($false)))
+$fixedNow = Repair-ScriptEncoding $encDir
+$b = [IO.File]::ReadAllBytes((Join-Path $encDir 'sans-bom.ps1'))
+Check 'fichier d''Orbit sans BOM : BOM remis, texte identique' ($b[0] -eq 0xEF -and [IO.File]::ReadAllText((Join-Path $encDir 'sans-bom.ps1')) -eq $sample)
+Check 'fichiers ANSI ou purement ASCII : laisses tels quels' (@($fixedNow).Count -eq 1 -and [IO.File]::ReadAllBytes((Join-Path $encDir 'ansi.ps1')).Length -eq 3)
+Check 'les fichiers livres ont tous leur BOM (rien a reparer au lancement)' (@($RepairedScripts).Count -eq 0)
+
 Section 'Sons'
 foreach ($st in 0, 1, 2, 3, 4, 10) {
     $wav = [OrbitNative]::Synth($st, 1, 0.5, $false)
@@ -216,6 +255,9 @@ try {
     $long = (1..14 | ForEach-Object { "Ligne $_ d'un texte assez long pour tenir sur toute la largeur de la bulle" }) -join "`n"
     Show-Bubble $long -Force -Buttons @($BtnAgain, $BtnStop, $BtnTodo, $BtnLater, $BtnPickCards, $BtnBreak)
     $top = Get-BubbleTop
+    $ui.BubbleWrap.Measure((New-Object Windows.Size(300, [double]::PositiveInfinity)))
+    $waDiag = Get-WorkArea ([System.Windows.Forms.Screen]::FromPoint([System.Drawing.Point]::new([int]($window.Left + 160), [int]($window.Top + $window.Height - 20))))
+    Write-Host "  diagnostic : bulle mesuree $([int]$ui.BubbleWrap.DesiredSize.Height) px, zone de travail $([int]$waDiag.T) -> $([int]$waDiag.B)"
     Write-Host "  bulle longue : fenetre $([int]$window.Height) px de haut, haut de la bulle a $([int]$top) px"
     Check 'bulle longue : la fenetre s''agrandit' ($window.Height -gt 340)
     Check 'bulle longue : rien n''est rogne en haut' ($top -ge 0)

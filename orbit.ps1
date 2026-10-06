@@ -45,13 +45,38 @@ function Start-OrbitDetached([string[]]$extra = @()) {
 
 # Lance dans Windows Terminal (raccourci ancien, double-clic sur orbit.ps1...) :
 # on se relance sans fenetre et on se ferme, ce qui ferme aussi l'onglet du terminal
-if ($env:WT_SESSION -and -not $env:ORBIT_HEADLESS -and -not $env:ORBIT_SELFTEST -and $OrbitCanHeadless) {
-    $extra = @()
-    foreach ($k in $PSBoundParameters.Keys) {
-        $v = $PSBoundParameters[$k]
-        if ($v -is [switch]) { if ($v) { $extra += "-$k" } } else { $extra += "-$k"; $extra += [string]$v }
+$OrbitArgs = @()
+foreach ($k in $PSBoundParameters.Keys) {
+    $v = $PSBoundParameters[$k]
+    if ($v -is [switch]) { if ($v) { $OrbitArgs += "-$k" } } else { $OrbitArgs += "-$k"; $OrbitArgs += [string]$v }
+}
+
+# Fichiers d'Orbit re-enregistres sans BOM (copie, editeur de texte...) : PowerShell 5.1
+# les lit alors en ANSI et les accents deviennent des "Ã©" au milieu des bulles.
+# On remet le BOM (le texte lui-meme ne change pas) ; si orbit.ps1 etait concerne, on relance.
+function Repair-ScriptEncoding([string]$dir) {
+    $fixed = @()
+    $strict = New-Object Text.UTF8Encoding($false, $true)
+    foreach ($f in (Get-ChildItem -LiteralPath $dir -Filter '*.ps1' -File -ErrorAction SilentlyContinue)) {
+        try {
+            $b = [IO.File]::ReadAllBytes($f.FullName)
+            if ($b.Length -ge 3 -and $b[0] -eq 0xEF -and $b[1] -eq 0xBB -and $b[2] -eq 0xBF) { continue }
+            $t = $strict.GetString($b)                 # pas de l'UTF-8 valide : vrai ANSI, deja bien lu
+            if ($t.Length -eq $b.Length) { continue }  # que de l'ASCII : rien a corriger
+            [IO.File]::WriteAllText($f.FullName, $t, (New-Object Text.UTF8Encoding($true)))
+            $fixed += $f.Name
+        } catch {}
     }
-    Start-OrbitDetached $extra
+    return , $fixed
+}
+$RepairedScripts = Repair-ScriptEncoding $PSScriptRoot
+if ($RepairedScripts -contains 'orbit.ps1' -and -not $env:ORBIT_SELFTEST) {
+    Start-OrbitDetached $OrbitArgs
+    exit
+}
+
+if ($env:WT_SESSION -and -not $env:ORBIT_HEADLESS -and -not $env:ORBIT_SELFTEST -and $OrbitCanHeadless) {
+    Start-OrbitDetached $OrbitArgs
     exit
 }
 
@@ -92,7 +117,7 @@ $Config = @{
 $Rhythms = [ordered]@{
     '50/10' = @{ Focus = 50; Break = 10; Icon = '🚀' }
     '25/5'  = @{ Focus = 25; Break = 5;  Icon = '⚡' }
-    'Perso' = @{ Focus = 40; Break = 8;  Icon = '🎛️' }   # modifiable dans les reglages
+    'Perso' = @{ Focus = 40; Break = 8;  Icon = '🎛' }   # modifiable dans les reglages
 }
 
 $DataDir = Join-Path $env:APPDATA 'Orbit'
@@ -111,6 +136,85 @@ function Write-Log([string]$msg) {
         }
         Add-Content -Path $LogFile -Value ("{0:yyyy-MM-dd HH:mm:ss}  {1}" -f (Get-Date), $msg) -Encoding UTF8
     } catch {}
+}
+
+if ($RepairedScripts.Count) { Write-Log "Encodage repare (BOM remis) : $($RepairedScripts -join ', ')" }
+
+# ---------------------------------------------------------------------------
+#  Texte affichable dans les bulles : pas de caractere bizarre au milieu des phrases
+# ---------------------------------------------------------------------------
+# Debut d'un texte sur $max caracteres au plus, sans couper un emoji en deux (un emoji
+# hors BMP occupe 2 "char" en .NET : couper entre les deux laisse un caractere casse)
+# ni laisser un modificateur orphelin (selecteur de variante, liant ZWJ, touche numerotee...).
+function Get-TextStart([string]$text, [int]$max) {
+    if ($max -le 0) { return '' }
+    if ($text.Length -le $max) { return $text }
+    $n = $max
+    if ([char]::IsHighSurrogate($text[$n - 1])) { $n-- }
+    while ($n -gt 0 -and ([int]$text[$n - 1] -in 0x200D, 0xFE0E, 0xFE0F, 0x20E3)) { $n-- }
+    return $text.Substring(0, $n)
+}
+
+# Lecture d'un fichier texte de l'utilisateur (blagues, culture G) : UTF-8 avec ou sans BOM,
+# et s'il a ete enregistre en ANSI (ancien Bloc-notes), on le lit en Windows-1252 au lieu
+# d'afficher des losanges a la place des accents.
+function Read-TextLines([string]$path) {
+    $bytes = [IO.File]::ReadAllBytes($path)
+    try { $text = (New-Object Text.UTF8Encoding($false, $true)).GetString($bytes) }
+    catch {
+        $ansi = try { [Text.Encoding]::GetEncoding(1252) } catch { [Text.Encoding]::GetEncoding(28591) }
+        $text = $ansi.GetString($bytes)
+    }
+    return , ($text.TrimStart([char]0xFEFF) -split "`r?`n")
+}
+
+# Polices des bulles : Segoe UI pour le texte, puis les polices d'emoji et de symboles.
+$BubbleFonts = 'Segoe UI', 'Segoe UI Emoji', 'Segoe UI Symbol'
+$script:GlyphMaps = $null
+$script:GlyphOk = @{}
+function Test-Glyph([int]$cp) {
+    if ($null -eq $script:GlyphMaps) {
+        $maps = New-Object System.Collections.ArrayList
+        try {
+            foreach ($name in $BubbleFonts) {
+                foreach ($tf in (New-Object Windows.Media.FontFamily($name)).GetTypefaces()) {
+                    $gt = $null
+                    if ($tf.TryGetGlyphTypeface([ref]$gt)) { [void]$maps.Add($gt.CharacterToGlyphMap); break }
+                }
+            }
+        } catch {}
+        $script:GlyphMaps = $maps
+    }
+    if ($script:GlyphMaps.Count -eq 0) { return $true }   # polices introuvables : on ne filtre pas
+    if (-not $script:GlyphOk.ContainsKey($cp)) {
+        $ok = $false
+        foreach ($m in $script:GlyphMaps) { if ($m.ContainsKey($cp)) { $ok = $true; break } }
+        $script:GlyphOk[$cp] = $ok
+    }
+    return $script:GlyphOk[$cp]
+}
+
+# Nettoie un texte avant de l'afficher. WPF ne sait pas assembler les emoji composes :
+# un selecteur de variante, un liant ZWJ, une teinte de peau ou un drapeau s'affichent
+# sinon comme des carres ou des symboles parasites en plein milieu de la phrase.
+# Les titres de fenetres et le presse-papiers apportent aussi des caracteres invisibles
+# (marques de direction, controles) et parfois des moities d'emoji.
+$script:TextJunk = '[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\u200B\u200E\u200F\u202A-\u202E\u2060\u2066-\u2069\uFE0E\uFE0F\u20E3\uFEFF\uFFFC\uFFFD]'
+$script:TextCompound = '\u200D(?:[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2000-\u2BFF])?|\uD83C[\uDFFB-\uDFFF\uDDE6-\uDDFF]|\uDB40[\uDC20-\uDC7F]'
+$script:TextLone = '[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]'
+$script:TextSymbol = '[\uD83C-\uD83E][\uDC00-\uDFFF]|[\u2190-\u2BFF]'
+function ConvertTo-DisplayText([string]$text) {
+    if (-not $text) { return '' }
+    $t = $text -replace "`r`n?", "`n" -replace "`t", ' '
+    $t = $t -replace $script:TextJunk, '' -replace $script:TextCompound, '' -replace $script:TextLone, ''
+    # symbole ou emoji absent de toutes les polices : un carre vide, on l'enleve
+    if ($t -match $script:TextSymbol) {
+        $t = [regex]::Replace($t, $script:TextSymbol, [Text.RegularExpressions.MatchEvaluator] {
+            param($m)
+            if (Test-Glyph ([char]::ConvertToUtf32($m.Value, 0))) { $m.Value } else { '' }
+        })
+    }
+    return ($t -replace '(?<=\S)[ ]{2,}(?=\S)', ' ').TrimEnd()
 }
 
 # Ecriture "atomique" : on ecrit un fichier a cote puis on l'echange d'un coup avec
@@ -422,7 +526,7 @@ $Lines = @{
     FocusStart = @(
         "C'est parti pour {0} min de focus ! 🚀",
         "Mode concentration : ON. Je surveille les distractions 👀",
-        "Décollage ! On se retrouve dans {0} minutes 🛰️"
+        "Décollage ! On se retrouve dans {0} minutes 🛰"
     )
     Motivation = @(
         "Tu avances bien, continue comme ça 💪",
@@ -432,7 +536,7 @@ $Lines = @{
         "Respire un coup… et on continue 🧘",
         "Chaque minute de focus compte. Celle-ci aussi.",
         "Si c'est difficile, c'est que ça vaut le coup.",
-        "Tu fais du super boulot. Si si, je vois tout d'ici 🛰️",
+        "Tu fais du super boulot. Si si, je vois tout d'ici 🛰",
         "Ferme un onglet inutile, juste pour le plaisir.",
         "Bois un peu d'eau, ton cerveau dit merci 💧",
         "Le futur toi te remercie déjà.",
@@ -453,7 +557,7 @@ $Lines = @{
     BreakStart = @(
         "Pause méritée ! Lève-toi, étire-toi, bois de l'eau 💧",
         "Pause ! Regarde au loin 20 secondes, tes yeux te remercient 👀",
-        "Va prendre l'air, je garde l'écran 🛡️"
+        "Va prendre l'air, je garde l'écran 🛡"
     )
     BreakEnd = @(
         "La pause est finie ! On repart pour {0} minutes ? 🚀",
@@ -466,7 +570,7 @@ $Lines = @{
     )
     AwaitFocus = @(
         "On relance une session quand tu veux 🚀",
-        "Toujours là ? Je suis prêt à repartir 🛰️"
+        "Toujours là ? Je suis prêt à repartir 🛰"
     )
     Stop = @(
         "Ok, on coupe. Bien joué : {0} session(s) de focus aujourd'hui 🏆",
@@ -475,8 +579,8 @@ $Lines = @{
     BreakJokes = @(
         "Pourquoi les astronautes ne se disputent jamais ? Parce qu'ils ont besoin d'espace 🚀",
         "Le comble pour un astronaute ? Être dans la lune 🌙",
-        "Comment les planètes se coiffent-elles ? Avec des comètes ☄️",
-        "Pourquoi les satellites ne mentent jamais ? Parce qu'on les a toujours à l'œil 🛰️",
+        "Comment les planètes se coiffent-elles ? Avec des comètes ☄",
+        "Pourquoi les satellites ne mentent jamais ? Parce qu'on les a toujours à l'œil 🛰",
         "Quel est le comble pour un électricien ? De ne pas être au courant ⚡",
         "Pourquoi les plongeurs plongent-ils en arrière ? Parce que sinon, ils tombent dans le bateau 🤿",
         "Qu'est-ce qui est jaune et qui attend ? Jonathan 🟡",
@@ -487,10 +591,10 @@ $Lines = @{
         "Qu'est-ce qui est vert et qui monte et descend ? Un petit pois dans un ascenseur 🟢",
         "Pourquoi Excel reste toujours calme ? Il a toutes ses cellules sous contrôle 📊",
         "Quel est le café préféré des développeurs ? Le Java ☕",
-        "Comment appelle-t-on un boomerang qui ne revient pas ? Un bout de bois 🪃",
-        "Deux grains de sable arrivent dans le désert : « Waouh, c'est blindé aujourd'hui ! » 🏜️",
+        "Comment appelle-t-on un boomerang qui ne revient pas ? Un bout de bois 🌳",
+        "Deux grains de sable arrivent dans le désert : « Waouh, c'est blindé aujourd'hui ! » 🏜",
         "Pourquoi les vaches ferment les yeux pendant la traite ? Pour faire du lait concentré 🐄",
-        "Que dit une imprimante dans l'eau ? « J'ai papier ! » 🖨️",
+        "Que dit une imprimante dans l'eau ? « J'ai papier ! » 🖨",
         "Monsieur et Madame Térieur ont deux fils. Comment s'appellent-ils ? Alain et Alex 🏠",
         "Qu'est-ce qu'un crocodile qui surveille la pharmacie ? Un Lacoste-garde 🐊",
         "Que dit un oignon quand il se cogne ? « Aïe ! » 🧅",
@@ -500,15 +604,15 @@ $Lines = @{
         "Quel est l'animal le plus heureux ? Le hibou, parce que sa femme est chouette 🦉",
         "Pourquoi les réunions du lundi sont-elles si longues ? Parce que le week-end a laissé des traces 😴",
         "Comment fait-on aboyer un chat ? On lui donne une tasse de lait, et il la boit 🐱",
-        "Que dit le zéro au huit ? « Joli ta ceinture ! » 8️⃣",
-        "Qu'est-ce qui a des dents mais ne mange jamais ? Un peigne 🪮",
+        "Que dit le zéro au huit ? « Joli ta ceinture ! » 😄",
+        "Qu'est-ce qui a des dents mais ne mange jamais ? Un peigne 💇",
         "Pourquoi le Wi-Fi est-il si sociable ? Parce qu'il a beaucoup de connexions 📶"
     )
     Wander = @(
         "Petite balade… 🚶",
         "Je vais voir ce qui se passe par là-bas 🔭",
         "Je me dégourdis les antennes 📡",
-        "Tour d'orbite en cours… 🛰️"
+        "Tour d'orbite en cours… 🛰"
     )
     Poke = @(
         "Hé ! Ça chatouille 😆",
@@ -527,17 +631,17 @@ $AppLines = @{
     'olk'     = @("Inbox zéro, c'est un mythe… mais on y croit 📬", "Répondre à tous ? Réfléchis bien 😅")
     'ms-teams'= @("Tu es en réunion ? Je fais semblant de prendre des notes 📝", "Pense à couper ton micro avant de soupirer 🎤", "Cette réunion aurait pu être un mail ? 🤫")
     'teams'   = @("Tu es en réunion ? Je fais semblant de prendre des notes 📝", "Pense à couper ton micro avant de soupirer 🎤")
-    'excel'   = @("Tant que ça ne finit pas en #REF!, tout va bien 📊", "RECHERCHEV ou RECHERCHEX ? Le débat du siècle.", "Une macro et hop, tu deviens magicien 🪄", "Ctrl+Z est ton ami.")
+    'excel'   = @("Tant que ça ne finit pas en #REF!, tout va bien 📊", "RECHERCHEV ou RECHERCHEX ? Le débat du siècle.", "Une macro et hop, tu deviens magicien ✨", "Ctrl+Z est ton ami.")
     'winword' = @("Times New Roman ? Audacieux.", "Le document_final_v3_VRAIMENT_final.docx, c'est celui-là ? 📄", "Pense à sauvegarder ! Ctrl+S 💾")
-    'powerpnt'= @("Encore une slide et c'est un roman graphique 🎞️", "Moins de texte, plus d'impact ✨", "Les transitions en 'tourbillon', c'est non 🌀")
-    'onenote' = @("Prendre des notes, c'est déjà avancer 🗒️")
+    'powerpnt'= @("Encore une slide et c'est un roman graphique 🎞", "Moins de texte, plus d'impact ✨", "Les transitions en 'tourbillon', c'est non 🌀")
+    'onenote' = @("Prendre des notes, c'est déjà avancer 🗒")
     'code'    = @("Ça compile ? Alors ça marche. (Presque.) 💻", "Un bug ? Explique-le à moi, je suis un excellent canard en caoutchouc 🦆", "Tabs ou espaces ? Je ne dirai rien.")
     'devenv'  = @("Visual Studio charge… on a le temps d'un café ☕", "Un breakpoint et tout s'éclaire 🔍")
     'idea64'  = @("IntelliJ réfléchit… toi aussi 🤔")
     'pycharm64' = @("Ça sent le Python 🐍")
     'notepad' = @("Le Bloc-notes, simple et efficace 📝")
     'notepad++' = @("Notepad++, l'outil des vrais 💪")
-    'explorer'= @("Tu cherches un fichier ? Il est sûrement dans Téléchargements 🗂️", "Rangement de dossiers = procrastination déguisée ? 🤔")
+    'explorer'= @("Tu cherches un fichier ? Il est sûrement dans Téléchargements 🗂", "Rangement de dossiers = procrastination déguisée ? 🤔")
     'windowsterminal' = @("Ah, l'écran noir des vrais pros 😎", "sudo fais-moi-un-café ☕")
     'powershell' = @("PowerShell ! On est entre collègues 😄")
     'pwsh'    = @("PowerShell ! On est entre collègues 😄")
@@ -549,7 +653,7 @@ $AppLines = @{
     'acrord32'= @("Un PDF de 200 pages ? Courage 📚")
     'mstsc'   = @("Un bureau dans le bureau… inception 🌀")
     'calculatorapp' = @("2 + 2 = 4. Je vérifie pour toi 🧮")
-    'saplogon'= @("SAP… bon courage, sincèrement 🫡")
+    'saplogon'= @("SAP… bon courage, sincèrement 💪")
 }
 
 # Mots-cles dans le titre de la fenetre (navigateurs surtout)
@@ -560,14 +664,14 @@ $TitleLines = @(
     @{ k = 'facebook';  d = $true;  l = @("Facebook… on dit qu'on y passe 'juste 2 minutes' 😏") }
     @{ k = 'instagram'; d = $true;  l = @("Insta peut attendre la pause 📸") }
     @{ k = 'tiktok';    d = $true;  l = @("TikTok ? Danger ! Zone de distraction maximale 🚨") }
-    @{ k = 'reddit';    d = $true;  l = @("Reddit : le trou noir des pauses qui n'en sont pas 🕳️") }
+    @{ k = 'reddit';    d = $true;  l = @("Reddit : le trou noir des pauses qui n'en sont pas 🕳") }
     @{ k = 'amazon';    d = $true;  l = @("Ajouter au panier n'est pas un objectif de la journée 🛒") }
     @{ k = 'leboncoin'; d = $true;  l = @("Une bonne affaire sur Leboncoin ? Après le focus 😉") }
     @{ k = 'linkedin';  d = $false; l = @("LinkedIn… quelqu'un est 'ravi d'annoncer' quelque chose 🎉") }
     @{ k = 'gmail';     d = $false; l = @("Les mails, c'est mieux par paquets 📨") }
     @{ k = 'chatgpt';   d = $false; l = @("Tu parles à une autre IA ? Je suis un peu jaloux 🥺") }
     @{ k = 'wikipedia'; d = $false; l = @("Wikipédia : on commence par la photosynthèse, on finit sur les pharaons 🏺") }
-    @{ k = 'stack overflow'; d = $false; l = @("Stack Overflow, le vrai collègue senior 🧑‍💻") }
+    @{ k = 'stack overflow'; d = $false; l = @("Stack Overflow, le vrai collègue senior 💻") }
     @{ k = 'github';    d = $false; l = @("Un petit commit ? 🐙") }
     @{ k = 'jira';      d = $false; l = @("Ticket en cours… ou ticket en souffrance ? 🎫") }
 )
@@ -602,7 +706,7 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
               Background="White" BorderBrush="#1E1B3A" BorderThickness="2.5">
         <StackPanel>
           <ScrollViewer x:Name="BubbleScroll" VerticalScrollBarVisibility="Auto" MaxHeight="420">
-            <TextBlock x:Name="BubbleText" TextWrapping="Wrap" FontFamily="Segoe UI"
+            <TextBlock x:Name="BubbleText" TextWrapping="Wrap" FontFamily="Segoe UI, Segoe UI Emoji, Segoe UI Symbol"
                        FontSize="13.5" Foreground="#1E1B3A" LineHeight="19"/>
           </ScrollViewer>
           <WrapPanel x:Name="BubbleButtons" HorizontalAlignment="Right"/>
@@ -1295,7 +1399,7 @@ $Moods = @{
 #  Eyes : elements qui suivent la souris (position de repos) ; EyeX/EyeY : centre du regard
 # ---------------------------------------------------------------------------
 $Skins = [ordered]@{
-    Satellite = @{ Label = '🛰️ Satellite'; Root = 'SkinSatellite'; Clock = 'SClock'; Bits = 'Bit'; EyeX = 60; EyeY = 39.5; EyeMax = 1.8
+    Satellite = @{ Label = '🛰 Satellite'; Root = 'SkinSatellite'; Clock = 'SClock'; Bits = 'Bit'; EyeX = 60; EyeY = 39.5; EyeMax = 1.8
                    Eyes = @(@('Lens', 56.7, 36.2), @('LensGlint', 57.9, 37.4))
                    Fill = @('Lens', 'Beacon', 'StatusLed'); Stroke = @(); Beacons = @('Beacon'); Glows = @() }
     Droid     = @{ Label = '🤖 Droïde de maintenance'; Root = 'SkinDroid'; Scale = 1.25; Clock = 'DClock'; Bits = 'DBit'; EyeX = 62; EyeY = 49.5; EyeMax = 1.6
@@ -1310,7 +1414,7 @@ $Skins = [ordered]@{
     Human     = @{ Label = '🤵 Majordome humain'; Root = 'SkinHuman'; Scale = 1.1; Clock = 'HClock'; Bits = 'HBit'; EyeX = 60; EyeY = 24.4; EyeMax = 0.9
                    Eyes = @(@('HEyeL', 53.95, 23.35), @('HEyeR', 63.95, 23.35), @('HGlintL', 54.25, 23.65), @('HGlintR', 64.25, 23.65))
                    Fill = @('HPocket'); Stroke = @(); Beacons = @(); Glows = @() }
-    Custom    = @{ Label = '🖼️ Mon image'; Root = 'SkinCustom'; Clock = 'UClock'; Bits = $null; EyeX = 60; EyeY = 40; EyeMax = 0
+    Custom    = @{ Label = '🖼 Mon image'; Root = 'SkinCustom'; Clock = 'UClock'; Bits = $null; EyeX = 60; EyeY = 40; EyeMax = 0
                    Eyes = @(); Fill = @(); Stroke = @(); Beacons = @(); Glows = @() }
     Brain     = @{ Label = '🧠 Cerveau humain'; Root = 'SkinBrain'; Scale = 1.1; Clock = 'CClock'; Bits = 'CBit'; EyeX = 60; EyeY = 40; EyeMax = 0
                    Eyes = @(); Fill = @('CSpark1', 'CSpark2', 'CSpark3', 'CSpark4', 'CRing'); Stroke = @(); Beacons = @(); Glows = @() }
@@ -1364,7 +1468,7 @@ function Set-Skin([string]$name, [switch]$Quiet) {
     Update-Pill
     if (-not $Quiet) {
         $hello = switch ($name) {
-            'Satellite' { "Retour en orbite 🛰️" }
+            'Satellite' { "Retour en orbite 🛰" }
             'Droid'     { "Droïde de maintenance opérationnel. Je répare… surtout ta motivation 🔧" }
             'Robot'     { "Robot assistant en ligne. > focus_ 🦾" }
             'Butler'    { "Votre majordome est à votre service. Un café avec votre focus ? ☕🎩" }
@@ -1404,16 +1508,16 @@ function Show-Bubble {
 
     $wasVisible = $ui.BubbleWrap.Visibility -eq 'Visible'
 
-    $ui.BubbleText.Text = $Text
+    $ui.BubbleText.Text = ConvertTo-DisplayText $Text
     $ui.BubbleButtons.Children.Clear()
     $ui.BubbleButtons.Margin = if ($Buttons.Count) { '0,8,0,0' } else { '0' }
     foreach ($b in $Buttons) {
         $btn = New-Object Windows.Controls.Button
-        $btn.Content = $b.Label
+        $btn.Content = ConvertTo-DisplayText $b.Label
         $btn.Tag = $b.Action
         $btn.Margin = '4,2,0,2'
         $btn.Padding = '10,4,10,4'
-        $btn.FontFamily = 'Segoe UI Semibold'
+        $btn.FontFamily = 'Segoe UI Semibold, Segoe UI Emoji, Segoe UI Symbol'
         $btn.FontSize = 12
         $btn.Cursor = 'Hand'
         $btn.BorderThickness = '1.5'
@@ -1464,10 +1568,11 @@ function Fit-BubbleWindow {
     $need = $BaseWindowHeight
     if ($ui.BubbleWrap.Visibility -eq 'Visible') {
         $ui.BubbleWrap.Measure((New-Object Windows.Size(300, [double]::PositiveInfinity)))
-        $need = [math]::Max($BaseWindowHeight, [math]::Ceiling($ui.BubbleWrap.DesiredSize.Height + $ui.BubbleWrap.Margin.Bottom + 14))
+        # DesiredSize compte deja la marge (la place du robot sous la bulle)
+        $need = [math]::Max([double]$BaseWindowHeight, [math]::Ceiling([double]$ui.BubbleWrap.DesiredSize.Height + 14))
     }
     $wa = Get-WorkArea ([System.Windows.Forms.Screen]::FromPoint([System.Drawing.Point]::new([int]($window.Left + $window.Width / 2), [int]($window.Top + $window.Height - 20))))
-    $need = [math]::Min($need, [math]::Max($BaseWindowHeight, $wa.B - $wa.T))
+    $need = [math]::Min([double]$need, [math]::Max([double]$BaseWindowHeight, [double]($wa.B - $wa.T)))
     $old = $window.Height
     if ([math]::Abs($need - $old) -lt 1) { return }
     $bottom = $window.Top + $old
@@ -1529,7 +1634,7 @@ function Get-StartButtons {
 $BtnAgain      = @{ Label = "🚀 On repart !"; Action = { Start-Focus }; Primary = $true }
 $BtnBreak      = @{ Label = "☕ Je prends ma pause"; Action = { Start-Break }; Primary = $true }
 $BtnStop       = @{ Label = "⏹ On arrête là"; Action = { Stop-Cycle } }
-$BtnTodo       = @{ Label = "🗂️ Mes tableaux"; Action = { Open-Notebook 'Todo' } }
+$BtnTodo       = @{ Label = "🗂 Mes tableaux"; Action = { Open-Notebook 'Todo' } }
 $BtnLater      = @{ Label = "Plus tard"; Action = { Show-Bubble "Ok ! Clique sur moi quand tu veux te lancer 😉" -Force } }
 $BtnPickCards  = @{ Label = "🎯 Choisir mes cartes"; Action = { Choose-FocusCards -Start } }
 
@@ -1571,7 +1676,7 @@ function Start-Focus {
         if ($cards.Count -gt 4) { $msg += "`n   … et $($cards.Count - 4) autre(s)" }
         $secs = 12
     } elseif ($O.TaskReminders) {
-        $msg += "`n`nTes tableaux sont vides : clic droit > 🗂️ Mes tableaux pour noter tes tâches."
+        $msg += "`n`nTes tableaux sont vides : clic droit > 🗂 Mes tableaux pour noter tes tâches."
         $secs = 8
     }
     Show-Bubble $msg -Force -Seconds $secs
@@ -1602,7 +1707,7 @@ function Load-TextItems([string]$folder) {
     if (Test-Path $dir) {
         foreach ($f in (Get-ChildItem -Path $dir -Filter '*.txt' | Sort-Object Name)) {
             try {
-                foreach ($line in [IO.File]::ReadAllLines($f.FullName, [Text.Encoding]::UTF8)) {
+                foreach ($line in (Read-TextLines $f.FullName)) {
                     $l = $line.Trim()
                     if (-not $l -or $l.StartsWith('#')) { continue }
                     if ($seen.Add($l.ToLowerInvariant())) { $list.Add($l) }
@@ -1968,7 +2073,7 @@ function Update-Pill {
     if ($clock) { $clock.Text = $txt }
     if ($script:tray) {
         $tip = "Orbit - $txt - $($O.FocusToday) focus aujourd'hui"
-        if ($tip.Length -gt 63) { $tip = $tip.Substring(0, 63) }
+        $tip = Get-TextStart $tip 63
         $script:tray.Text = $tip
     }
 }
@@ -1986,7 +2091,7 @@ function Show-MorningPlan {
     $O.PlanDay = (Get-Date).ToString('yyyy-MM-dd')
     Save-Stats
     $plan = @(Get-PlanCards 3)
-    $hello = if ((Get-Date).Hour -lt 12) { '☀️ Bonjour !' } else { '👋 Re-bonjour !' }
+    $hello = if ((Get-Date).Hour -lt 12) { '☀ Bonjour !' } else { '👋 Re-bonjour !' }
     if (-not $plan.Count) {
         Show-Bubble "$hello Tes tableaux sont vides : note tes tâches du jour et je t'aiderai à les attaquer dans le bon ordre." -Force -AutoHide -Seconds 90 -Buttons @(
             $BtnTodo, @{ Label = '🚀 Focus quand même'; Action = { Start-Focus } }, $BtnLater)
@@ -2005,9 +2110,9 @@ function Show-MorningPlan {
     $text += "`n`nOn s'y met ?"
     Show-Bubble $text -Force -AutoHide -Seconds 180 -Buttons @(
         @{ Label = '🎯 Go, focus sur ces cartes'; Action = { Accept-MorningPlan }; Primary = $true },
-        @{ Label = '✏️ Choisir autre chose'; Action = { Choose-FocusCards -Start -Preselect $O.PlanIds } },
+        @{ Label = '✏ Choisir autre chose'; Action = { Choose-FocusCards -Start -Preselect $O.PlanIds } },
         $BtnTodo,
-        @{ Label = 'Plus tard'; Action = { Show-Bubble "Ok ! Clic droit > ☀️ Plan du jour pour le revoir." -Force -Seconds 4 } })
+        @{ Label = 'Plus tard'; Action = { Show-Bubble "Ok ! Clic droit > ☀ Plan du jour pour le revoir." -Force -Seconds 4 } })
 }
 
 function Accept-MorningPlan {
@@ -2246,8 +2351,8 @@ function On-Frame {
     Invoke-Safe {
         # chute de la blague en cours
         if ($O.Punch -and $now -ge $O.Punch.At) {
-            if ($ui.BubbleWrap.Visibility -eq 'Visible' -and $ui.BubbleText.Text -eq $O.Punch.Shown) {
-                $ui.BubbleText.Text = $O.Punch.Full
+            if ($ui.BubbleWrap.Visibility -eq 'Visible' -and $ui.BubbleText.Text -eq (ConvertTo-DisplayText $O.Punch.Shown)) {
+                $ui.BubbleText.Text = ConvertTo-DisplayText $O.Punch.Full
                 Fit-BubbleWindow
                 Play-Chirp
                 $O.BubbleUntil = $now.AddSeconds(9)
@@ -2386,7 +2491,7 @@ function Restore-State {
         $O.EndsAt = if ($d.endsAt -is [datetime]) { $d.endsAt.ToLocalTime() } else { [datetime]::Parse([string]$d.endsAt, $null, 'RoundtripKind').ToLocalTime() }
         $O.NextReminder = (Get-Date).AddMinutes($Config.ReminderEveryMin)
         Write-Log "Cycle repris : $state"
-        $intro = if ($Restarted) { "Oups, j'ai eu un petit bug, mais je suis de retour 🛠️" } else { "Je reprends là où on en était 🔄" }
+        $intro = if ($Restarted) { "Oups, j'ai eu un petit bug, mais je suis de retour 🛠" } else { "Je reprends là où on en était 🔄" }
         switch ($state) {
             'Focus' {
                 $O.NextMotivation = (Get-Date).AddMinutes($Config.MotivationEveryMin)
@@ -2624,7 +2729,7 @@ function Hide-Orbit {
     Hide-Bubble
     if (-not $script:HideTipShown) {
         $script:HideTipShown = $true
-        Show-Tray "Orbit est caché 🛰️" "Je reste près de l'horloge : mon icône affiche le chrono. Un clic dessus pour me faire revenir."
+        Show-Tray "Orbit est caché 🛰" "Je reste près de l'horloge : mon icône affiche le chrono. Un clic dessus pour me faire revenir."
     }
 }
 
@@ -2662,14 +2767,14 @@ $menu = New-Object Windows.Controls.ContextMenu
 $miNote   = New-MenuItem "📝  Note rapide" { Show-QuickNote }
 $miFact   = New-MenuItem "🧠  Le saviez-vous ? (culture G)" { Ensure-Visible; Tell-Fact -Force }
 $miNotes  = New-MenuItem "📒  Mes notes" { Open-Notebook 'Notes' }
-$miTodo   = New-MenuItem "🗂️  Mes tableaux (Kanban)" { Open-Notebook 'Todo' }
+$miTodo   = New-MenuItem "🗂  Mes tableaux (Kanban)" { Open-Notebook 'Todo' }
 $miClip   = New-MenuItem "📋  Mes copier-coller du jour" { Open-Notebook 'Clip' }
 $miFocus  = New-MenuItem "🚀  Lancer un focus" { Start-Focus }
 $miBreak  = New-MenuItem "☕  Prendre ma pause" { Start-Break }
 $miPause  = New-MenuItem "⏸  Mettre le chrono en pause" { Toggle-Pause }
 $miStop   = New-MenuItem "⏹  Couper le chrono" { Stop-Cycle }
 $miCards  = New-MenuItem "🎯  Cartes du focus…" { Choose-FocusCards }
-$miPlan   = New-MenuItem "☀️  Plan du jour" { Show-MorningPlan }
+$miPlan   = New-MenuItem "☀  Plan du jour" { Show-MorningPlan }
 $miQuiet  = New-MenuItem "🤫  Mode silencieux (pas de blagues)" { $O.Quiet = -not $O.Quiet; Save-Settings; if ($O.Quiet) { Hide-Bubble } } -Checkable
 $miWander = New-MenuItem "🚶  Balades sur les écrans" { $O.Wander = -not $O.Wander; $O.Walking = $false; Save-Settings } -Checkable
 $miHome   = New-MenuItem "🏠  Revenir en bas à droite" { $O.Pinned = $false; $O.Walking = $false }
@@ -2691,7 +2796,7 @@ $miTasks  = New-MenuItem "🔔  Rappels de tâches (début / fin de focus)" {
     Show-Bubble $(if ($O.TaskReminders) { "Je te rappellerai tes tâches au début et à la fin de chaque focus 🔔" } else { "Ok, plus de rappels de tâches 🔕" }) -Force -Seconds 4
 } -Checkable
 $miQuit   = New-MenuItem "❌  Quitter Orbit" { Quit-Orbit }
-$miSettings = New-MenuItem "⚙️  Réglages…" { Open-Settings }
+$miSettings = New-MenuItem "⚙  Réglages…" { Open-Settings }
 $miSearch = New-MenuItem "🔍  Rechercher partout…" { Open-Notebook 'Search' }
 $miMove   = New-Object Windows.Controls.MenuItem
 $miMove.Header = "📦  Autre PC"
@@ -2706,7 +2811,7 @@ foreach ($k in $Skins.Keys) {
     [void]$miSkin.Items.Add($it)
 }
 [void]$miSkin.Items.Add((New-Object Windows.Controls.Separator))
-[void]$miSkin.Items.Add((New-MenuItem "🖼️  Choisir une autre image…" { if (Choose-CustomImage) { Set-Skin 'Custom'; Save-Settings } }))
+[void]$miSkin.Items.Add((New-MenuItem "🖼  Choisir une autre image…" { if (Choose-CustomImage) { Set-Skin 'Custom'; Save-Settings } }))
 
 foreach ($i in @($miNote, $miNotes, $miTodo, $miClip, $miSearch, (New-Object Windows.Controls.Separator),
                  $miFocus, $miCards, $miPlan, $miBreak, $miPause, $miStop, $miRhythm, $miTasks, (New-Object Windows.Controls.Separator),

@@ -7,8 +7,10 @@ $DataDir = $T
 # --- fonctions reelles d'Orbit + doublures pour l'interface ---
 foreach ($def in Get-ScriptFunctions (Join-Path $Root 'notebook.ps1')) { . ([scriptblock]::Create($def)) }
 $want = 'Write-FileSafe', 'Short-Text', 'Format-Min', 'Start-Focus', 'Ask-Break', 'Complete-FocusTask', 'Complete-FocusMessage',
-        'Ask-Focus', 'Get-AwaitBreakButtons', 'Save-State', 'Restore-State', 'Get-StateMood'
+        'Ask-Focus', 'Get-AwaitBreakButtons', 'Save-State', 'Restore-State', 'Get-StateMood',
+        'Get-TextStart', 'Read-TextLines', 'Test-Glyph', 'ConvertTo-DisplayText'
 foreach ($def in Get-ScriptFunctions (Join-Path $Root 'orbit.ps1') $want) { . ([scriptblock]::Create($def)) }
+foreach ($a in Get-ScriptAssignments (Join-Path $Root 'orbit.ps1') '^\$(script:Text|script:Glyph|BubbleFonts)') { . ([scriptblock]::Create($a)) }
 foreach ($a in Get-ScriptAssignments (Join-Path $Root 'orbit.ps1') '^\$Btn(TaskDone|CardsDone|Break|Stop|Again|PickCards)\s') { . ([scriptblock]::Create($a)) }
 $script:Logs = @(); function Write-Log($m) { $script:Logs += $m }
 function Pick($l) { $l[0] }
@@ -440,6 +442,36 @@ Check 'etat Idle : rien a reprendre' (-not (Test-Path $StateFile))
 [IO.File]::WriteAllText($StateFile, (ConvertTo-Json @{ state = 'Focus'; paused = $false; endsAt = (Get-Date).AddMinutes(5).ToString('o'); remainingSec = 0; sessionMin = 50; savedAt = (Get-Date).AddHours(-6).ToString('o') }))
 $O.State = 'Idle'; [void](Restore-State)
 Check 'etat trop ancien (6 h) : ignore' ($O.State -eq 'Idle')
+
+Section 'Texte des bulles : pas de caractere bizarre'
+$E = { param($cp) [char]::ConvertFromUtf32($cp) }
+$rocket = & $E 0x1F680; $tech = (& $E 0x1F9D1) + [char]0x200D + (& $E 0x1F4BB)
+$s = 'Bravo ' + $rocket + ' fini'
+$cut = Get-TextStart $s 7
+Check 'couper un texte ne casse jamais un emoji en deux' ($cut -eq 'Bravo ' -and -not [char]::IsHighSurrogate($cut[-1]))
+Check 'couper juste apres un emoji le garde entier' ((Get-TextStart $s 8) -eq ('Bravo ' + $rocket))
+$all = for ($n = 1; $n -le 60; $n++) { Short-Text (('x' * 30) + ($rocket * 10)) $n }
+Check 'Short-Text : aucune moitie d''emoji, quelle que soit la longueur' (-not ($all | Where-Object { $_ -match '[\uD800-\uDBFF](?![\uDC00-\uDFFF])' }))
+Check 'pas de liant ZWJ orphelin a la coupe' ((Get-TextStart ('ok ' + $tech) 6) -notmatch '‍$')
+Check 'accents et emoji simples gardes tels quels' ((ConvertTo-DisplayText "Café à l'été $rocket !") -eq "Café à l'été $rocket !")
+Check 'selecteur de variante enleve' ((ConvertTo-DisplayText ('Pause ' + [char]0x2615 + [char]0xFE0F + ' ok')) -eq ('Pause ' + [char]0x2615 + ' ok'))
+Check 'emoji compose (ZWJ) : garde le premier, pas de debris' ((ConvertTo-DisplayText "senior $tech !") -eq ('senior ' + (& $E 0x1F9D1) + ' !'))
+Check 'touche 8 : plus de carre apres le 8' ((ConvertTo-DisplayText ('8' + [char]0xFE0F + [char]0x20E3 + ' fin')) -eq '8 fin')
+Check 'teinte de peau et drapeau enleves' ((ConvertTo-DisplayText ('ok ' + (& $E 0x1F44D) + (& $E 0x1F3FD) + ' ' + (& $E 0x1F1EB) + (& $E 0x1F1F7) + ' go')) -eq ('ok ' + (& $E 0x1F44D) + ' go'))
+Check 'moitie d''emoji et caractere invalide enleves' ((ConvertTo-DisplayText ('a' + [char]0xD83D + 'b' + [char]0xDE00 + 'c' + [char]0xFFFD + 'd')) -eq 'abcd')
+Check 'controles et marques invisibles (titres de fenetres) enleves' ((ConvertTo-DisplayText ([char]0x200E + 'Teams' + [char]0x0007 + [char]0x202C + " - chat`t1")) -eq 'Teams - chat 1')
+Check 'retours a la ligne gardes, CRLF normalise' ((ConvertTo-DisplayText "a`r`nb`n`nc") -eq "a`nb`n`nc")
+Check 'texte vide ou nul : pas d''erreur' ((ConvertTo-DisplayText $null) -eq '' -and (Get-TextStart '' 5) -eq '')
+$f = Join-Path $T 'txt.txt'
+[IO.File]::WriteAllText($f, "# c`r`nCafé|été`r`n", (New-Object Text.UTF8Encoding($true)))
+$l1 = Read-TextLines $f
+[IO.File]::WriteAllText($f, "Café|été`n", (New-Object Text.UTF8Encoding($false)))
+$l2 = Read-TextLines $f
+[IO.File]::WriteAllBytes($f, [byte[]](0x43, 0x61, 0x66, 0xE9, 0x7C, 0xE9, 0x74, 0xE9))   # "Café|été" en ANSI
+$l3 = Read-TextLines $f
+Check 'fichier texte UTF-8 avec BOM' ($l1[1] -eq 'Café|été' -and $l1[0] -eq '# c')
+Check 'fichier texte UTF-8 sans BOM' ($l2[0] -eq 'Café|été')
+Check 'fichier texte en ANSI (ancien Bloc-notes) : accents corrects' ($l3[0] -eq 'Café|été')
 
 Remove-Item -Recurse -Force $T -ErrorAction SilentlyContinue
 Finish

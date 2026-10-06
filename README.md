@@ -138,7 +138,9 @@ Orbit a déjà terminé une to-do list. Les scientifiques étudient encore le ph
 - `question|réponse` : Orbit affiche la question, puis la réponse 4 secondes après ;
 - une ligne sans `|` s'affiche d'un coup ;
 - les lignes qui commencent par `#` sont ignorées ;
-- tu peux créer ton propre fichier, par exemple `jokes\10-mes-blagues.txt`.
+- tu peux créer ton propre fichier, par exemple `jokes\10-mes-blagues.txt` ;
+- l'encodage n'a pas d'importance : un fichier enregistré en ANSI par un ancien Bloc-notes est lu correctement (pas de losange à la place des accents) ;
+- évite les emoji composés (👩‍💻, 👍🏽, drapeaux, 8️⃣) : la bulle ne sait pas les assembler, Orbit n'en garde que le premier morceau.
 
 Pour vérifier qu'il n'y a ni doublon ni erreur de format (facultatif, il faut Python) : `python tools\check_jokes.py`.
 
@@ -170,6 +172,7 @@ Si seule la compilation des fonctions natives est bloquée, Orbit fonctionne qua
 - **Un seul dessin en mémoire** : seul le dessin affiché est construit ; changer d'apparence construit le nouveau et libère l'ancien.
 - **Moins d'écritures disque** : l'historique des copier-coller est enregistré au plus tard 2,5 s après un Ctrl+C (au lieu de chaque fois), `todo.md` au plus tard 10 s après une modification, et tout ce qui attend est écrit à la fermeture. `kanban.json` reste enregistré immédiatement.
 - **Mémoire rendue à Windows** : quand tu ne touches à rien depuis une minute (ou qu'Orbit est caché), il fait le ménage, au plus toutes les 10 minutes. Le journal indique la mémoire avant/après.
+- **Texte des bulles propre** : avant d'afficher une bulle, Orbit enlève ce que la fenêtre ne sait pas dessiner et qui apparaissait en plein milieu des phrases (morceaux d'emoji composés, sélecteurs de variante, marques invisibles des titres de fenêtres, emoji absents des polices de Windows). Les textes raccourcis (cartes, notes, recherche, copier-coller, info-bulle de l'icône) ne coupent plus jamais un emoji en deux. Si les fichiers d'Orbit ont été réenregistrés sans BOM (copie, éditeur de texte), Orbit le remet tout seul au lancement : sinon PowerShell 5.1 affiche « Ã© » à la place des « é ».
 - **Journal limité** : au-delà de 1 Mo, `orbit.log` devient `orbit.old.log` et repart de zéro.
 - **Relance automatique** : une erreur imprévue est notée dans le journal sans faire tomber Orbit ; s'il plante quand même, il se relance tout seul (une fois toutes les 10 minutes au plus). Le cycle en cours (focus, pause, question en attente) est gardé dans `etat.json` : après un plantage ou un redémarrage forcé, Orbit reprend le chrono là où il en était (si c'était il y a moins de 4 h). « Quitter » efface cet état.
 - **Testé sous Windows à chaque modification** : le dossier `tests` vérifie la syntaxe, la logique (tableaux, focus, sauvegardes, reprise), puis charge Orbit en entier (fenêtres, 7 dessins, code natif, sons) sur une machine Windows de GitHub, avec le même PowerShell 5.1 que ton PC. Tu peux aussi les lancer toi-même : `powershell -ExecutionPolicy Bypass -File tests\logic.ps1`.

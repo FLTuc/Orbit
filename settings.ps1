@@ -33,7 +33,7 @@
     <Border.Effect><DropShadowEffect BlurRadius="0" ShadowDepth="4" Direction="-45" Opacity="0.25"/></Border.Effect>
     <DockPanel>
       <Grid x:Name="SHeader" DockPanel.Dock="Top" Background="Transparent" Margin="18,12,10,0">
-        <TextBlock Text="⚙️ Réglages d'Orbit" FontSize="17" FontWeight="Bold" Foreground="#1E1B3A" VerticalAlignment="Center"/>
+        <TextBlock Text="⚙ Réglages d'Orbit" FontSize="17" FontWeight="Bold" Foreground="#1E1B3A" VerticalAlignment="Center"/>
         <Button x:Name="SClose" Content="✕" HorizontalAlignment="Right" Width="30" Height="30"
                 Background="Transparent" BorderThickness="0" FontSize="14" Cursor="Hand" ToolTip="Fermer sans enregistrer"/>
       </Grid>
@@ -55,16 +55,16 @@
         <StackPanel>
           <TextBlock Style="{StaticResource Section}" Text="🎨 Apparence d'Orbit"/>
           <WrapPanel>
-            <RadioButton x:Name="SSkinSatellite" Content="🛰️ Satellite" GroupName="Skin" Margin="0,2,14,2" VerticalContentAlignment="Center"/>
+            <RadioButton x:Name="SSkinSatellite" Content="🛰 Satellite" GroupName="Skin" Margin="0,2,14,2" VerticalContentAlignment="Center"/>
             <RadioButton x:Name="SSkinDroid" Content="🤖 Droïde" GroupName="Skin" Margin="0,2,14,2" VerticalContentAlignment="Center"/>
             <RadioButton x:Name="SSkinRobot" Content="🦾 Robot" GroupName="Skin" Margin="0,2,14,2" VerticalContentAlignment="Center"/>
             <RadioButton x:Name="SSkinButler" Content="🎩 Majordome robot" GroupName="Skin" Margin="0,2,14,2" VerticalContentAlignment="Center"/>
             <RadioButton x:Name="SSkinHuman" Content="🤵 Majordome humain" GroupName="Skin" Margin="0,2,14,2" VerticalContentAlignment="Center"/>
             <RadioButton x:Name="SSkinBrain" Content="🧠 Cerveau" GroupName="Skin" Margin="0,2,14,2" VerticalContentAlignment="Center"/>
-            <RadioButton x:Name="SSkinCustom" Content="🖼️ Mon image" GroupName="Skin" Margin="0,2,0,2" VerticalContentAlignment="Center"/>
+            <RadioButton x:Name="SSkinCustom" Content="🖼 Mon image" GroupName="Skin" Margin="0,2,0,2" VerticalContentAlignment="Center"/>
           </WrapPanel>
           <StackPanel Orientation="Horizontal" Margin="22,4,0,0">
-            <Button x:Name="SImgPick" Content="🖼️ Choisir une image…" Padding="8,2" Background="#EEEEF5" BorderThickness="0" Cursor="Hand"/>
+            <Button x:Name="SImgPick" Content="🖼 Choisir une image…" Padding="8,2" Background="#EEEEF5" BorderThickness="0" Cursor="Hand"/>
             <TextBlock x:Name="SImgName" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="#6B6880" FontSize="11.5"/>
           </StackPanel>
 
@@ -93,7 +93,7 @@
 
           <TextBlock Style="{StaticResource Section}" Text="🔔 Rappels"/>
           <CheckBox x:Name="STasks" Content="Rappeler mes tâches au début et à la fin du focus"/>
-          <CheckBox x:Name="SMorning" Content="☀️ Le matin, me proposer un plan (les 3 cartes les plus urgentes)" Margin="0,4,0,0"/>
+          <CheckBox x:Name="SMorning" Content="☀ Le matin, me proposer un plan (les 3 cartes les plus urgentes)" Margin="0,4,0,0"/>
           <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
             <TextBlock Text="Me relancer toutes les" VerticalAlignment="Center"/>
             <TextBox x:Name="SNudge"/>
@@ -138,8 +138,8 @@
             <ComboBox x:Name="SBubbleSound" Width="150">
               <ComboBoxItem Content="🤖 Droïde doux" Tag="Droide"/>
               <ComboBoxItem Content="🔔 Carillon" Tag="Carillon"/>
-              <ComboBoxItem Content="🪵 Marimba" Tag="Marimba"/>
-              <ComboBoxItem Content="🫧 Pop" Tag="Pop"/>
+              <ComboBoxItem Content="🎵 Marimba" Tag="Marimba"/>
+              <ComboBoxItem Content="🎈 Pop" Tag="Pop"/>
               <ComboBoxItem Content="📟 Bip" Tag="Bip"/>
               <ComboBoxItem Content="📁 Mes sons (au hasard)" Tag="Fichier"/>
               <ComboBoxItem Content="🎲 Aléatoire (tous les sons)" Tag="Aleatoire"/>
@@ -161,7 +161,7 @@
           <StackPanel Orientation="Horizontal" Margin="22,3,0,0">
             <ComboBox x:Name="SEndSound" Width="150">
               <ComboBoxItem Content="🔔 Carillon (3 notes)" Tag="Carillon"/>
-              <ComboBoxItem Content="🪟 Son de Windows" Tag="Windows"/>
+              <ComboBoxItem Content="💻 Son de Windows" Tag="Windows"/>
               <ComboBoxItem Content="📁 Mon fichier son" Tag="Fichier"/>
             </ComboBox>
             <Button x:Name="SEndFile" Content="Choisir…" Padding="8,2" Margin="6,0,0,0" Background="#EEEEF5" BorderThickness="0" Cursor="Hand"/>

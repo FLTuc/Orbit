@@ -215,7 +215,7 @@ function Get-PlanCards([int]$count = 3) {
         $why = @()
         if ($t.due) {
             $days = ([datetime]::ParseExact($t.due, 'yyyy-MM-dd', $null) - $today).Days
-            if ($days -lt 0) { $score += 1000 + [math]::Min(30, -$days) * 10; $why += '⚠️ en retard' }
+            if ($days -lt 0) { $score += 1000 + [math]::Min(30, -$days) * 10; $why += '⚠ en retard' }
             elseif ($days -eq 0) { $score += 800; $why += "📅 à rendre aujourd'hui" }
             elseif ($days -eq 1) { $score += 500; $why += '📅 pour demain' }
             elseif ($days -le 3) { $score += 300; $why += "📅 pour $(Format-Due $t.due)" }
@@ -340,8 +340,8 @@ function Show-UpcomingMenu($target) {
     foreach ($u in $list) {
         $it = New-Object Windows.Controls.MenuItem
         $it.Header = "🔁 $(Short-Text $u.text 40) — $(Format-Due $u.showAt)"
-        [void]$it.Items.Add((New-TaggedItem '⤴️  La faire apparaître maintenant' $u.id { param($s, $e) Invoke-Safe { Show-Upcoming $s.Tag } }))
-        [void]$it.Items.Add((New-TaggedItem '🗑️  Ne plus la répéter' $u.id { param($s, $e) Invoke-Safe { Remove-Upcoming $s.Tag } }))
+        [void]$it.Items.Add((New-TaggedItem '⤴  La faire apparaître maintenant' $u.id { param($s, $e) Invoke-Safe { Show-Upcoming $s.Tag } }))
+        [void]$it.Items.Add((New-TaggedItem '🗑  Ne plus la répéter' $u.id { param($s, $e) Invoke-Safe { Remove-Upcoming $s.Tag } }))
         [void]$m.Items.Add($it)
     }
     $m.PlacementTarget = $target
@@ -527,7 +527,7 @@ function Show-CardPicker([string]$title, [string]$intro, $cards, [string[]]$chec
         if ($NB.Boards.Count -gt 1 -and $t.board -ne $lastBoard) {
             $lastBoard = $t.board
             $h = New-Object Windows.Controls.TextBlock
-            $h.Text = "🗂️ $((Get-Board $t.board).name)"; $h.FontWeight = 'Bold'; $h.Foreground = '#6C5CE7'; $h.Margin = '0,6,0,3'
+            $h.Text = "🗂 $((Get-Board $t.board).name)"; $h.FontWeight = 'Bold'; $h.Foreground = '#6C5CE7'; $h.Margin = '0,6,0,3'
             [void]$list.Children.Add($h)
         }
         $cb = New-Object Windows.Controls.CheckBox
@@ -689,7 +689,7 @@ function Show-BackupMenu($btn) {
             $info = " — $(@($d.boards).Count) tableau(x), $(@($d.cards).Count) carte(s)"
         } catch { $info = ' — illisible' }
         $it = New-Object Windows.Controls.MenuItem
-        $it.Header = "↩️  $(Get-BackupLabel $f)$info"; $it.Tag = $f.FullName
+        $it.Header = "↩  $(Get-BackupLabel $f)$info"; $it.Tag = $f.FullName
         $it.IsEnabled = $info -ne ' — illisible'
         $it.Add_Click({ param($s, $e) Invoke-Safe { Restore-Kanban ([string]$s.Tag) } })
         [void]$m.Items.Add($it)
@@ -727,7 +727,7 @@ function Restore-Kanban([string]$path) {
     Load-Todos
     Save-Todos
     Render-Todos; Fit-Notebook
-    Show-Bubble "Tableaux restaurés ↩️ ($label)" -Force -Seconds 4
+    Show-Bubble "Tableaux restaurés ↩ ($label)" -Force -Seconds 4
 }
 
 # Sauvegarde a chaque modification dans kanban.json. La copie lisible todo.md
@@ -842,7 +842,7 @@ function Add-Todo([string]$text, $prio = $DefaultPrio, [string]$colId = '') {
     $NB.LastAddedId = $NB.Todos[$NB.Todos.Count - 1].id
     Save-Todos
     Render-Todos -Cols $colId
-    $msg = Pick @("Noté ! ✍️", "C'est dans la liste 📝", "Hop, enregistré 💾", "Je m'en souviendrai pour toi 🧠")
+    $msg = Pick @("Noté ! ✍", "C'est dans la liste 📝", "Hop, enregistré 💾", "Je m'en souviendrai pour toi 🧠")
     if ($prio -le 2) { $msg += " Priorité $prio, je la mets en haut de la pile 🔥" }
     if ($remindAt) { $msg += " Rappel prévu $(Format-When $remindAt) ⏰" }
     Show-Bubble $msg -Force -Seconds 3
@@ -961,7 +961,7 @@ function Get-DeadlineSummary {
     if (-not $late.Count -and -not $now.Count) { return '' }
     $parts = @()
     if ($now.Count) { $parts += "📅 À rendre aujourd'hui : " + (($now | Select-Object -First 3 | ForEach-Object { "« $(Short-Text $_.text 35) »" }) -join ', ') }
-    if ($late.Count) { $parts += "⚠️ En retard : " + (($late | Select-Object -First 3 | ForEach-Object { "« $(Short-Text $_.text 35) »" }) -join ', ') }
+    if ($late.Count) { $parts += "⚠ En retard : " + (($late | Select-Object -First 3 | ForEach-Object { "« $(Short-Text $_.text 35) »" }) -join ', ') }
     return $parts -join "`n"
 }
 
@@ -1010,7 +1010,7 @@ function Check-TaskReminders {
 # Texte court pour les bulles
 function Short-Text([string]$text, [int]$max = 60) {
     $text = ($text -replace '\s+', ' ').Trim()
-    if ($text.Length -gt $max) { return $text.Substring(0, $max - 1) + '…' }
+    if ($text.Length -gt $max) { return (Get-TextStart $text ($max - 1)) + '…' }
     return $text
 }
 
@@ -1109,7 +1109,7 @@ function Add-Clip([string]$kind, [string]$text, [string[]]$files) {
         $NB.ClipDay = $today; Load-Clips
     }
 
-    if ($text.Length -gt $NB.MaxClipLen) { $text = $text.Substring(0, $NB.MaxClipLen) + ' […]' }
+    if ($text.Length -gt $NB.MaxClipLen) { $text = (Get-TextStart $text $NB.MaxClipLen) + ' […]' }
     # deja dans l'historique : on le remonte en haut
     foreach ($c in @($NB.Clips)) { if ($c.text -eq $text) { $NB.Clips.Remove($c) } }
     $NB.Clips.Insert(0, [pscustomobject]@{
@@ -1257,7 +1257,8 @@ function Get-Snippet([string]$text, [string]$word, [int]$len = 90) {
     $i = (Get-SearchKey $flat).IndexOf($word)
     if ($i -lt 0 -or $flat.Length -le $len) { return (Short-Text $flat $len) }
     $start = [math]::Max(0, $i - 25)
-    $out = $flat.Substring($start, [math]::Min($len, $flat.Length - $start))
+    if ([char]::IsLowSurrogate($flat[$start])) { $start++ }   # ne pas commencer au milieu d'un emoji
+    $out = Get-TextStart $flat.Substring($start) $len
     if ($start -gt 0) { $out = '…' + $out }
     if ($start + $len -lt $flat.Length) { $out += '…' }
     return $out
@@ -1274,7 +1275,7 @@ function Render-Search {
     $r = Find-Everything $q
     $first = @((Get-SearchKey $q) -split '\s+' | Where-Object { $_ })[0]
     if ($r.Cards.Count) {
-        [void]$pn.SearchList.Children.Add((New-SectionTitle "🗂️ Cartes ($($r.Cards.Count))"))
+        [void]$pn.SearchList.Children.Add((New-SectionTitle "🗂 Cartes ($($r.Cards.Count))"))
         foreach ($t in ($r.Cards | Select-Object -First 60)) {
             $b = Get-Board $t.board
             $col = if ($b) { Get-Column $b $t.col }
@@ -1362,7 +1363,7 @@ function Show-RevealedCard {
     <DockPanel LastChildFill="True">
       <!-- en-tete (on peut deplacer la fenetre en le tirant) -->
       <Grid x:Name="Header" DockPanel.Dock="Top" Background="Transparent" Margin="16,12,10,4">
-        <TextBlock Text="🛰️ Carnet d'Orbit" FontFamily="Comic Sans MS, Segoe UI" FontSize="17"
+        <TextBlock Text="🛰 Carnet d'Orbit" FontFamily="Comic Sans MS, Segoe UI" FontSize="17"
                    FontWeight="Bold" Foreground="#1E1B3A" VerticalAlignment="Center"/>
         <Button x:Name="CloseBtn" Content="✕" HorizontalAlignment="Right" Width="30" Height="30"
                 Background="Transparent" BorderThickness="0" FontSize="14" Cursor="Hand"
@@ -1393,9 +1394,9 @@ function Show-RevealedCard {
                       ToolTip="Choisir le tableau à afficher"/>
             <Button x:Name="BoardAdd" Grid.Column="1" Content="＋ Tableau" Padding="10,4" Margin="6,0,0,0"
                     Background="#6C5CE7" Foreground="White" BorderThickness="0" Cursor="Hand" ToolTip="Créer un nouveau tableau"/>
-            <Button x:Name="BoardRename" Grid.Column="2" Content="✏️" Width="32" Margin="6,0,0,0"
+            <Button x:Name="BoardRename" Grid.Column="2" Content="✏" Width="32" Margin="6,0,0,0"
                     Background="#EEEEF5" BorderThickness="0" Cursor="Hand" ToolTip="Renommer ce tableau"/>
-            <Button x:Name="BoardDel" Grid.Column="3" Content="🗑️" Width="32" Margin="6,0,0,0"
+            <Button x:Name="BoardDel" Grid.Column="3" Content="🗑" Width="32" Margin="6,0,0,0"
                     Background="#EEEEF5" BorderThickness="0" Cursor="Hand" ToolTip="Supprimer ce tableau"/>
             <Button x:Name="BoardHistory" Grid.Column="4" Content="🕘" Width="32" Margin="6,0,0,0"
                     Background="#EEEEF5" BorderThickness="0" Cursor="Hand" ToolTip="Revenir à une sauvegarde (une par jour, 7 jours)"/>
@@ -1440,7 +1441,7 @@ function Show-RevealedCard {
               <CheckBox x:Name="ClipPause" Content="Pause" VerticalAlignment="Center"
                         ToolTip="Ne plus enregistrer les copier-coller pour l'instant"/>
             </StackPanel>
-            <Button x:Name="ClipClear" Content="🗑️ Tout effacer" HorizontalAlignment="Right"
+            <Button x:Name="ClipClear" Content="🗑 Tout effacer" HorizontalAlignment="Right"
                     Padding="10,4" Cursor="Hand" Background="#EEEEF5" BorderThickness="0"/>
           </Grid>
           <TextBlock DockPanel.Dock="Top" Text="Clique sur un élément pour le recopier." FontSize="11.5"
@@ -1492,7 +1493,7 @@ $pn = @{}
 function Update-Tabs {
     if (-not $panel) { return }
     $open = @($NB.Todos | Where-Object { -not $_.done }).Count
-    $pn.TabTodo.Content = "🗂️ Tableaux ($open)"
+    $pn.TabTodo.Content = "🗂 Tableaux ($open)"
     $pn.TabClip.Content = "📋 Copier-coller ($($NB.Clips.Count))"
     $on = '#FFD166'; $off = '#FFFFFF'
     $pn.TabTodo.Background = if ($NB.Tab -eq 'Todo') { $on } else { $off }
@@ -1520,7 +1521,7 @@ $KanbanColW = 244
 function Get-BoardLabel($b) {
     $n = 0
     foreach ($t in $NB.Todos) { if ($t.board -eq $b.id -and -not $t.done) { $n++ } }
-    return "🗂️ $($b.name)  ($n)"
+    return "🗂 $($b.name)  ($n)"
 }
 
 # -Cols : ne redessine que ces colonnes (ajout, deplacement, modification d'une carte...).
@@ -1831,19 +1832,19 @@ function Show-CardMenu($card) {
     if (-not $t) { return }
     $board = Get-Board $t.board
     $m = New-Object Windows.Controls.ContextMenu
-    [void]$m.Items.Add((New-TaggedItem '✏️  Modifier' $t.id { param($s, $e) Invoke-Safe { Start-EditTodo $s.Tag } }))
+    [void]$m.Items.Add((New-TaggedItem '✏  Modifier' $t.id { param($s, $e) Invoke-Safe { Start-EditTodo $s.Tag } }))
     if (-not $t.done) {
         $fl = if ($NB.FocusCards.Contains($t.id)) { '🎯  Retirer du focus' } else { '🎯  Lier à mon focus' }
         [void]$m.Items.Add((New-TaggedItem $fl $t.id { param($s, $e) Invoke-Safe { Toggle-CardFocus $s.Tag } }))
     }
-    $mv = New-Object Windows.Controls.MenuItem; $mv.Header = '➡️  Déplacer vers'
+    $mv = New-Object Windows.Controls.MenuItem; $mv.Header = '➡  Déplacer vers'
     foreach ($c in $board.columns) {
         if ($c.id -eq $t.col) { continue }
         [void]$mv.Items.Add((New-TaggedItem "$(if ($c.done) { '✅ ' })$($c.name)" "$($t.id)|$($c.id)" { param($s, $e) Invoke-Safe { $p = $s.Tag.Split('|'); Move-Card $p[0] $p[1] } }))
     }
     [void]$m.Items.Add($mv)
     if ($NB.Boards.Count -gt 1) {
-        $sb = New-Object Windows.Controls.MenuItem; $sb.Header = '🗂️  Envoyer vers le tableau'
+        $sb = New-Object Windows.Controls.MenuItem; $sb.Header = '🗂  Envoyer vers le tableau'
         foreach ($b in $NB.Boards) {
             if ($b.id -eq $board.id) { continue }
             [void]$sb.Items.Add((New-TaggedItem $b.name "$($t.id)|$((Get-OpenColumn $b).id)" { param($s, $e) Invoke-Safe { $p = $s.Tag.Split('|'); Move-Card $p[0] $p[1] } }))
@@ -1852,7 +1853,7 @@ function Show-CardMenu($card) {
     }
     [void]$m.Items.Add((New-TaggedItem '📋  Enregistrer comme modèle' $t.id { param($s, $e) Invoke-Safe { Save-CardAsTemplate $s.Tag } }))
     [void]$m.Items.Add((New-Object Windows.Controls.Separator))
-    [void]$m.Items.Add((New-TaggedItem '🗑️  Supprimer la carte' $t.id { param($s, $e) Invoke-Safe { Remove-Todo $s.Tag } }))
+    [void]$m.Items.Add((New-TaggedItem '🗑  Supprimer la carte' $t.id { param($s, $e) Invoke-Safe { Remove-Todo $s.Tag } }))
     $m.PlacementTarget = $card
     $m.IsOpen = $true
 }
@@ -1863,7 +1864,7 @@ function Show-ColumnMenu($button) {
     if (-not $col) { return }
     $i = $board.columns.IndexOf($col)
     $m = New-Object Windows.Controls.ContextMenu
-    [void]$m.Items.Add((New-TaggedItem '✏️  Renommer' $col.id { param($s, $e) Invoke-Safe { Rename-BoardColumn $s.Tag } }))
+    [void]$m.Items.Add((New-TaggedItem '✏  Renommer' $col.id { param($s, $e) Invoke-Safe { Rename-BoardColumn $s.Tag } }))
     $l = New-TaggedItem '◀  Déplacer à gauche' $col.id { param($s, $e) Invoke-Safe { Move-BoardColumn $s.Tag -1 } }; $l.IsEnabled = $i -gt 0
     $r = New-TaggedItem '▶  Déplacer à droite' $col.id { param($s, $e) Invoke-Safe { Move-BoardColumn $s.Tag 1 } }; $r.IsEnabled = $i -lt $board.columns.Count - 1
     [void]$m.Items.Add($l); [void]$m.Items.Add($r)
@@ -1875,7 +1876,7 @@ function Show-ColumnMenu($button) {
     $a = New-TaggedItem '🧹  Archiver les cartes de la colonne' $col.id { param($s, $e) Invoke-Safe { Clear-DoneTodos $s.Tag } }
     $a.IsEnabled = @(Get-ColumnCards $col.id).Count -gt 0
     [void]$m.Items.Add($a)
-    $x = New-TaggedItem '🗑️  Supprimer la colonne' $col.id { param($s, $e) Invoke-Safe { Remove-BoardColumn $s.Tag } }
+    $x = New-TaggedItem '🗑  Supprimer la colonne' $col.id { param($s, $e) Invoke-Safe { Remove-BoardColumn $s.Tag } }
     $x.IsEnabled = $board.columns.Count -gt 1
     [void]$m.Items.Add($x)
     [void]$m.Items.Add((New-Object Windows.Controls.Separator))
@@ -1887,7 +1888,7 @@ function Show-ColumnMenu($button) {
             [void]$tp.Items.Add((New-TaggedItem $label "$($tpl.id)|$($col.id)" { param($s, $e) Invoke-Safe { $p = $s.Tag.Split('|'); New-CardFromTemplate $p[0] $p[1] } }))
         }
         [void]$tp.Items.Add((New-Object Windows.Controls.Separator))
-        $del = New-Object Windows.Controls.MenuItem; $del.Header = '🗑️  Supprimer un modèle'
+        $del = New-Object Windows.Controls.MenuItem; $del.Header = '🗑  Supprimer un modèle'
         foreach ($tpl in $NB.Templates) { [void]$del.Items.Add((New-TaggedItem $tpl.name $tpl.id { param($s, $e) Invoke-Safe { Remove-Template $s.Tag } })) }
         [void]$tp.Items.Add($del)
     } else {
@@ -1935,7 +1936,7 @@ function Add-Board {
     $b = New-BoardObject $n
     [void]$NB.Boards.Add($b); $NB.BoardId = $b.id
     Save-Todos; Render-Todos; Fit-Notebook
-    Show-Bubble "Nouveau tableau « $n » prêt 🗂️" -Force -Seconds 3
+    Show-Bubble "Nouveau tableau « $n » prêt 🗂" -Force -Seconds 3
 }
 
 function Rename-Board {
@@ -2266,7 +2267,7 @@ function New-ClipCard($c, [bool]$isFav) {
     else { $card.Background = '#F3F1FF'; $card.BorderBrush = '#DDD8FF' }
     $card.BorderThickness = '1'
     $card.Cursor = 'Hand'; $card.Tag = $c
-    $tip = if ($c.text.Length -gt 800) { $c.text.Substring(0, 800) + '…' } else { $c.text }
+    $tip = if ($c.text.Length -gt 800) { (Get-TextStart $c.text 800) + '…' } else { $c.text }
     $card.ToolTip = $tip
 
     $g = New-Object Windows.Controls.Grid
@@ -2279,7 +2280,7 @@ function New-ClipCard($c, [bool]$isFav) {
     $head.FontSize = 11; $head.Foreground = '#8A87A3'
     $body = New-Object Windows.Controls.TextBlock
     $preview = ($c.text -replace '\s+', ' ').Trim()
-    if ($preview.Length -gt 220) { $preview = $preview.Substring(0, 220) + '…' }
+    if ($preview.Length -gt 220) { $preview = (Get-TextStart $preview 220) + '…' }
     $body.Text = $preview
     $body.TextWrapping = 'Wrap'; $body.MaxHeight = 38; $body.TextTrimming = 'CharacterEllipsis'
     $body.Foreground = '#1E1B3A'

@@ -187,7 +187,7 @@ function Restore-TrashedNote([string]$id) {
     Save-NotesTrash
     Save-Notes
     Render-Notes; Update-Tabs
-    Show-Bubble "♻️ Note « $(Get-NoteTitle $n 40) » récupérée." -Force -Seconds 3
+    Show-Bubble "♻ Note « $(Get-NoteTitle $n 40) » récupérée." -Force -Seconds 3
 }
 
 function Clear-NotesTrash {
@@ -214,7 +214,7 @@ function Convert-NoteToCard([string]$id) {
     $i = 0
     while ($i -lt $lines.Count -and -not $lines[$i].Trim()) { $i++ }
     $title = $lines[$i].Trim()
-    if ($title.Length -gt 150) { $title = $title.Substring(0, 147) + '…' }
+    if ($title.Length -gt 150) { $title = (Get-TextStart $title 147) + '…' }
     $desc = (@($lines | Select-Object -Skip ($i + 1)) -join "`r`n").Trim()
     $NB.LastAddedId = ''
     Add-Todo $title
@@ -223,7 +223,7 @@ function Convert-NoteToCard([string]$id) {
     if ($desc) { $t.desc = $desc; Save-Todos }
     Remove-Note $id -NoTrash
     $b = Get-Board $t.board
-    Show-Bubble "🗂️ Note transformée en carte dans « $($b.name) »." -Force -Seconds 4
+    Show-Bubble "🗂 Note transformée en carte dans « $($b.name) »." -Force -Seconds 4
     Render-Notes
     return $t
 }
@@ -277,7 +277,7 @@ function Restore-Notes([string]$path, [string]$label = '', [switch]$NoConfirm) {
     foreach ($n in $list) { [void]$NB.Notes.Add($n) }
     Save-Notes
     Render-Notes; Update-Tabs
-    Show-Bubble "📝 Notes restaurées ($($list.Count)) ↩️" -Force -Seconds 4
+    Show-Bubble "📝 Notes restaurées ($($list.Count)) ↩" -Force -Seconds 4
     return $true
 }
 
@@ -301,7 +301,7 @@ function Set-NotesMirror([string]$dir) {
     Save-Settings
     if ($dir) {
         Save-Notes
-        Show-Bubble "☁️ Tes notes sont maintenant copiées automatiquement dans :`n$dir`n(Orbit-notes.md à lire, Orbit-notes.json pour restaurer)" -Force -Seconds 7
+        Show-Bubble "☁ Tes notes sont maintenant copiées automatiquement dans :`n$dir`n(Orbit-notes.md à lire, Orbit-notes.json pour restaurer)" -Force -Seconds 7
     } else {
         Show-Bubble "Ok, plus de copie automatique des notes." -Force -Seconds 3
     }
@@ -319,7 +319,7 @@ function Choose-NotesMirror {
 function Show-NotesBackupMenu($btn) {
     $m = New-Object Windows.Controls.ContextMenu
     $title = New-Object Windows.Controls.MenuItem
-    $title.Header = '↩️ Revenir à une sauvegarde'; $title.IsEnabled = $false; $title.FontWeight = 'Bold'
+    $title.Header = '↩ Revenir à une sauvegarde'; $title.IsEnabled = $false; $title.FontWeight = 'Bold'
     [void]$m.Items.Add($title)
     $backs = @(Get-NoteBackupFiles)
     if (-not $backs.Count) {
@@ -335,11 +335,11 @@ function Show-NotesBackupMenu($btn) {
     }
     [void]$m.Items.Add((New-Object Windows.Controls.Separator))
     $trash = New-Object Windows.Controls.MenuItem
-    $trash.Header = "🗑️  Corbeille ($($NB.NotesTrash.Count))"
+    $trash.Header = "🗑  Corbeille ($($NB.NotesTrash.Count))"
     if ($NB.NotesTrash.Count) {
         foreach ($t in ($NB.NotesTrash | Select-Object -First 25)) {
             $when = try { ([datetime]$t.deletedAt).ToString('dd/MM HH:mm') } catch { '' }
-            [void]$trash.Items.Add((New-TaggedItem "♻️  $(Get-NoteTitle $t 45)  (supprimée le $when)" $t.id { param($s, $e) Invoke-Safe { Restore-TrashedNote $s.Tag } }))
+            [void]$trash.Items.Add((New-TaggedItem "♻  $(Get-NoteTitle $t 45)  (supprimée le $when)" $t.id { param($s, $e) Invoke-Safe { Restore-TrashedNote $s.Tag } }))
         }
         [void]$trash.Items.Add((New-Object Windows.Controls.Separator))
         [void]$trash.Items.Add((New-TaggedItem '🧹  Vider la corbeille' $null { param($s, $e) Invoke-Safe { if (Confirm-Action 'Vider la corbeille des notes ? (Elles seront perdues.)') { Clear-NotesTrash } } }))
@@ -351,7 +351,7 @@ function Show-NotesBackupMenu($btn) {
     [void]$m.Items.Add($trash)
     [void]$m.Items.Add((New-Object Windows.Controls.Separator))
     [void]$m.Items.Add((New-TaggedItem '💾  Enregistrer une copie de mes notes…' $null { param($s, $e) Invoke-Safe { [void](Export-NotesCopy) } }))
-    $mir = if ($Config.NotesMirror) { "☁️  Copie automatique : $(Short-Text $Config.NotesMirror 40) (changer…)" } else { '☁️  Copie automatique dans un dossier (OneDrive, clé USB…)…' }
+    $mir = if ($Config.NotesMirror) { "☁  Copie automatique : $(Short-Text $Config.NotesMirror 40) (changer…)" } else { '☁  Copie automatique dans un dossier (OneDrive, clé USB…)…' }
     [void]$m.Items.Add((New-TaggedItem $mir $null { param($s, $e) Invoke-Safe { Choose-NotesMirror } }))
     if ($Config.NotesMirror) { [void]$m.Items.Add((New-TaggedItem '✖  Arrêter la copie automatique' $null { param($s, $e) Invoke-Safe { Set-NotesMirror '' } })) }
     [void]$m.Items.Add((New-TaggedItem '📂  Ouvrir le dossier des sauvegardes' $null {
@@ -381,10 +381,10 @@ function Show-NotesBackupMenu($btn) {
       <Grid DockPanel.Dock="Bottom" Margin="0,8,0,0">
         <TextBlock x:Name="QnHint" Text="Gardée automatiquement" Foreground="#8A7A3A" FontSize="11" VerticalAlignment="Center"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-          <Button x:Name="QnCard" Content="🗂️ En carte" Padding="8,3" Margin="0,0,6,0" Cursor="Hand"
+          <Button x:Name="QnCard" Content="🗂 En carte" Padding="8,3" Margin="0,0,6,0" Cursor="Hand"
                   Background="#FFFDF0" BorderBrush="#D9C66A" ToolTip="Transformer en carte : 1re ligne = titre, le reste = description"/>
           <Button x:Name="QnCopy" Content="📋" Width="30" Margin="0,0,6,0" Cursor="Hand" Background="#FFFDF0" BorderBrush="#D9C66A" ToolTip="Copier le texte"/>
-          <Button x:Name="QnDelete" Content="🗑️" Width="30" Margin="0,0,6,0" Cursor="Hand" Background="#FFFDF0" BorderBrush="#D9C66A" ToolTip="Jeter cette note"/>
+          <Button x:Name="QnDelete" Content="🗑" Width="30" Margin="0,0,6,0" Cursor="Hand" Background="#FFFDF0" BorderBrush="#D9C66A" ToolTip="Jeter cette note"/>
           <Button x:Name="QnSave" Content="✓ OK" Padding="12,3" Cursor="Hand" Background="#1E1B3A" Foreground="White" BorderThickness="0"/>
         </StackPanel>
       </Grid>
@@ -467,8 +467,8 @@ function Render-Notes {
         [void]$pn.NotesList.Children.Add($e)
     }
     $txt = "$($list.Count) note(s) · sauvegarde chaque jour"
-    if ($Config.NotesMirror) { $txt += " · ☁️ copie auto dans $(Split-Path -Leaf $Config.NotesMirror)" }
-    if ($NB.NotesTrash.Count) { $txt += " · 🗑️ $($NB.NotesTrash.Count) dans la corbeille" }
+    if ($Config.NotesMirror) { $txt += " · ☁ copie auto dans $(Split-Path -Leaf $Config.NotesMirror)" }
+    if ($NB.NotesTrash.Count) { $txt += " · 🗑 $($NB.NotesTrash.Count) dans la corbeille" }
     $pn.NotesCount.Text = $txt
 }
 
@@ -492,12 +492,12 @@ function New-NoteCard($n) {
     $btns.Orientation = 'Horizontal'
     [void]$btns.Children.Add((New-NoteButton $(if ($n.pinned) { '📌' } else { '📍' }) $(if ($n.pinned) { 'Désépingler' } else { 'Épingler en haut' }) $n.id {
                 param($s, $e) $e.Handled = $true; Invoke-Safe { $x = Find-Note $s.Tag; if ($x) { Set-NotePinned $s.Tag (-not $x.pinned); Render-Notes } } }))
-    [void]$btns.Children.Add((New-NoteButton '🗂️' 'Transformer en carte (1re ligne = titre)' $n.id { param($s, $e) $e.Handled = $true; Invoke-Safe { [void](Convert-NoteToCard $s.Tag) } }))
+    [void]$btns.Children.Add((New-NoteButton '🗂' 'Transformer en carte (1re ligne = titre)' $n.id { param($s, $e) $e.Handled = $true; Invoke-Safe { [void](Convert-NoteToCard $s.Tag) } }))
     [void]$btns.Children.Add((New-NoteButton '📋' 'Copier le texte' $n.id { param($s, $e) $e.Handled = $true; Invoke-Safe { Copy-NoteText $s.Tag } }))
-    [void]$btns.Children.Add((New-NoteButton '🗑️' 'Mettre à la corbeille' $n.id {
+    [void]$btns.Children.Add((New-NoteButton '🗑' 'Mettre à la corbeille' $n.id {
                 param($s, $e) $e.Handled = $true; Invoke-Safe {
                     Remove-Note $s.Tag; Render-Notes; Update-Tabs
-                    Show-Bubble "🗑️ Note mise à la corbeille. Tu peux la récupérer pendant $NotesTrashDays jours : 🕘 Sauvegardes > Corbeille." -Force -Seconds 5
+                    Show-Bubble "🗑 Note mise à la corbeille. Tu peux la récupérer pendant $NotesTrashDays jours : 🕘 Sauvegardes > Corbeille." -Force -Seconds 5
                 } }))
     [Windows.Controls.DockPanel]::SetDock($btns, 'Right')
     [void]$head.Children.Add($btns)
