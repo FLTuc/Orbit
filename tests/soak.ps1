@@ -42,6 +42,7 @@ Check "Orbit tourne sans interruption pendant $Minutes minutes" $alive
 $stats = try { ConvertFrom-Json ([IO.File]::ReadAllText((Join-Path $appData 'Orbit\stats.json'))) } catch { $null }
 $focus = if ($stats) { [int]$stats.focus } else { 0 }
 Write-Host "  sessions de focus terminees : $focus"
+if ($focus -lt 2 -and (Test-Path $log)) { Get-Content $log -Tail 15 | ForEach-Object { Write-Host "  | $_" } }
 Check 'il a enchaine plusieurs cycles focus / pause tout seul' ($focus -ge 2)
 if ($samples.Count -ge 4) {
     $third = [math]::Max(1, [math]::Floor($samples.Count / 3))

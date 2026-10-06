@@ -2657,6 +2657,9 @@ function Test-Watchdogs {
 function Step-Autopilot($now) {
     if ($script:ApNext -and $now -lt $script:ApNext) { return }
     $script:ApNext = $now.AddSeconds(3)
+    # personne devant la machine de test : la pause automatique en cas d'absence bloquerait tout
+    $Config.IdlePause = $false
+    if ($O.Paused -and $O.State -in 'Focus', 'Break') { Toggle-Pause }
     switch ($O.State) {
         'Idle'       { Start-Focus }
         'AwaitBreak' { Hide-Bubble; Start-Break }
