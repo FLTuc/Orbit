@@ -1567,6 +1567,9 @@ $BaseWindowHeight = 340
 function Fit-BubbleWindow {
     $need = $BaseWindowHeight
     if ($ui.BubbleWrap.Visibility -eq 'Visible') {
+        # le nouveau texte et les boutons doivent d'abord etre pris en compte par WPF,
+        # sinon la mesure renvoie encore la taille de la bulle precedente
+        $window.UpdateLayout()
         $ui.BubbleWrap.Measure((New-Object Windows.Size(300, [double]::PositiveInfinity)))
         # DesiredSize compte deja la marge (la place du robot sous la bulle)
         $need = [math]::Max([double]$BaseWindowHeight, [math]::Ceiling([double]$ui.BubbleWrap.DesiredSize.Height + 14))
@@ -1574,12 +1577,10 @@ function Fit-BubbleWindow {
     $wa = Get-WorkArea ([System.Windows.Forms.Screen]::FromPoint([System.Drawing.Point]::new([int]($window.Left + $window.Width / 2), [int]($window.Top + $window.Height - 20))))
     $need = [math]::Min([double]$need, [math]::Max([double]$BaseWindowHeight, [double]($wa.B - $wa.T)))
     $old = $window.Height
-    $script:FitInfo = "besoin $need, avant $old, zone $($wa.T)->$($wa.B)"
     if ([math]::Abs($need - $old) -lt 1) { return }
     $bottom = $window.Top + $old
     $window.Height = $need
     $window.Top = [math]::Max($wa.T, $bottom - $need)
-    $script:FitInfo += ", apres $($window.Height) (reel $($window.ActualHeight)), haut $($window.Top)"
     # une balade en cours vise toujours le meme endroit pour le robot (le bas de la fenetre)
     if ($O.Walking -and $O.WalkTarget) { $O.WalkTarget = [Windows.Point]::new($O.WalkTarget.X, $O.WalkTarget.Y + ($old - $need)) }
     $O.Home = Get-HomePos
