@@ -61,9 +61,13 @@ Report $elev
 Check "pas d'elevation de droits ni de changement de securite du PC" ($elev.Count -eq 0)
 
 $procs = @(Find-Code '(?i)Start-Process')
-$procBad = @($procs | Where-Object { $_.Text -notmatch "Start-Process (-FilePath )?'?(explorer\.exe|powershell\.exe)" })
+$procBad = @($procs | Where-Object { $_.Text -notmatch "Start-Process (-FilePath )?('?explorer\.exe|\`$OrbitConhost\b|\`$OrbitPowerShell\b)" })
 Report $procBad
 Check "programmes lances : seulement explorer.exe et Orbit ($($procs.Count) endroits)" ($procBad.Count -eq 0)
+$orb = [IO.File]::ReadAllText((Join-Path $Root 'orbit.ps1'))
+Check 'Orbit relance : chemins fixes de Windows (conhost.exe, powershell.exe)' (
+    $orb -match "\`$OrbitConhost = Join-Path \`$env:SystemRoot 'System32\\conhost\.exe'" -and
+    $orb -match "\`$OrbitPowerShell = Join-Path \`$PSHOME 'powershell\.exe'")
 
 $xaml = @(Find-Code 'XamlReader\]::(Load|Parse)')
 $xamlBad = @($xaml | Where-Object { $_.Text -notmatch 'XmlNodeReader \$(xaml|panelXaml|settingsXaml|QuickNoteXaml|doc)\)' })

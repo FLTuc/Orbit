@@ -23,6 +23,39 @@ $ErrorActionPreference = 'Stop'
 $OrbitScript = $PSCommandPath
 
 # ---------------------------------------------------------------------------
+#  Lancement sans fenetre. Sous Windows 11, la console par defaut est Windows
+#  Terminal, qui ignore « -WindowStyle Hidden » : une fenetre powershell.exe
+#  resterait ouverte a cote d'Orbit. conhost.exe --headless (fourni avec
+#  Windows 10 1809 et plus) execute PowerShell sans aucune fenetre.
+# ---------------------------------------------------------------------------
+$OrbitConhost = Join-Path $env:SystemRoot 'System32\conhost.exe'
+$OrbitPowerShell = Join-Path $PSHOME 'powershell.exe'
+$OrbitCanHeadless = (Test-Path -LiteralPath $OrbitConhost) -and [Environment]::OSVersion.Version.Build -ge 17763
+
+# Lance une nouvelle copie d'Orbit, sans fenetre (redemarrage, relance apres un plantage...)
+function Start-OrbitDetached([string[]]$extra = @()) {
+    $psArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-STA', '-WindowStyle', 'Hidden', '-File', "`"$OrbitScript`"") + $extra
+    $env:ORBIT_HEADLESS = '1'   # herite par la nouvelle copie : elle ne se relancera pas elle-meme
+    if ($OrbitCanHeadless) {
+        Start-Process -FilePath $OrbitConhost -WindowStyle Hidden -ArgumentList (@('--headless', "`"$OrbitPowerShell`"") + $psArgs)
+    } else {
+        Start-Process -FilePath $OrbitPowerShell -WindowStyle Hidden -ArgumentList $psArgs
+    }
+}
+
+# Lance dans Windows Terminal (raccourci ancien, double-clic sur orbit.ps1...) :
+# on se relance sans fenetre et on se ferme, ce qui ferme aussi l'onglet du terminal
+if ($env:WT_SESSION -and -not $env:ORBIT_HEADLESS -and -not $env:ORBIT_SELFTEST -and $OrbitCanHeadless) {
+    $extra = @()
+    foreach ($k in $PSBoundParameters.Keys) {
+        $v = $PSBoundParameters[$k]
+        if ($v -is [switch]) { if ($v) { $extra += "-$k" } } else { $extra += "-$k"; $extra += [string]$v }
+    }
+    Start-OrbitDetached $extra
+    exit
+}
+
+# ---------------------------------------------------------------------------
 #  Reglages
 # ---------------------------------------------------------------------------
 $Config = @{
@@ -2447,8 +2480,15 @@ function Set-Autostart([bool]$on, [switch]$Silent) {
     }
     $ws = New-Object -ComObject WScript.Shell
     $lnk = $ws.CreateShortcut($StartupLink)
-    $lnk.TargetPath = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
-    $lnk.Arguments = "-NoProfile -ExecutionPolicy Bypass -STA -WindowStyle Hidden -File `"$OrbitScript`""
+    # via conhost --headless : aucune fenetre, meme avec Windows Terminal comme console par defaut
+    $psArgs = "-NoProfile -ExecutionPolicy Bypass -STA -WindowStyle Hidden -File `"$OrbitScript`""
+    if ($OrbitCanHeadless) {
+        $lnk.TargetPath = $OrbitConhost
+        $lnk.Arguments = "--headless `"$OrbitPowerShell`" $psArgs"
+    } else {
+        $lnk.TargetPath = $OrbitPowerShell
+        $lnk.Arguments = $psArgs
+    }
     $lnk.WorkingDirectory = Split-Path $OrbitScript
     $lnk.WindowStyle = 7
     $lnk.Description = 'Orbit - compagnon de focus'
@@ -2457,6 +2497,12 @@ function Set-Autostart([bool]$on, [switch]$Silent) {
 }
 
 function Toggle-Autostart { Set-Autostart (-not (Test-Path $StartupLink)) }
+
+# Un ancien raccourci de demarrage (lancement direct de powershell.exe) ouvrirait une
+# fenetre Windows Terminal : on le remplace par la version sans fenetre
+if (-not $env:ORBIT_SELFTEST -and (Test-Path $StartupLink)) {
+    try { Set-Autostart $true -Silent } catch { Write-Log "Raccourci de demarrage : $($_.Exception.Message)" }
+}
 
 function Set-Mini([bool]$on) {
     $O.Mini = $on
@@ -2812,8 +2858,7 @@ try {
 }
 
 if ($script:RelaunchAfterExit) {
-    Start-Process -FilePath 'powershell.exe' -WindowStyle Hidden -ArgumentList @(
-        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-STA', '-WindowStyle', 'Hidden', '-File', "`"$OrbitScript`"")
+    Start-OrbitDetached
 }
 
 # Plantage : Orbit se relance tout seul (une fois toutes les 10 minutes au plus,
@@ -2824,8 +2869,7 @@ if ($script:Crashed) {
     if (((Get-Date) - $last).TotalMinutes -ge 10) {
         Set-Content -LiteralPath $stamp -Value (Get-Date -Format s)
         Write-Log "Relance automatique"
-        Start-Process -FilePath 'powershell.exe' -WindowStyle Hidden -ArgumentList @(
-            '-NoProfile', '-ExecutionPolicy', 'Bypass', '-STA', '-WindowStyle', 'Hidden', '-File', "`"$OrbitScript`"", '-Restarted')
+        Start-OrbitDetached @('-Restarted')
     } else {
         Write-Log "Pas de relance : deja relance il y a moins de 10 minutes"
     }

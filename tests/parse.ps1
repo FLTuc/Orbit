@@ -12,4 +12,5 @@ foreach ($f in Get-ChildItem -Path $Root, (Join-Path $Root 'tests') -Filter '*.p
 }
 $cmd = Get-Content -Raw (Join-Path $Root 'Orbit.cmd')
 Check 'Orbit.cmd lance orbit.ps1 en STA, sans profil' ($cmd -match '-STA' -and $cmd -match 'orbit\.ps1' -and $cmd -match '-NoProfile')
+Check 'Orbit.cmd lance sans fenetre (conhost --headless)' ($cmd -match 'conhost\.exe" --headless' -and $cmd -match 'ORBIT_HEADLESS=1')
 Finish
