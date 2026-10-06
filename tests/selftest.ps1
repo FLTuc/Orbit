@@ -253,7 +253,9 @@ try {
     $window.Top = $O.Home.Y; $window.Left = $O.Home.X
     $bottom0 = $window.Top + $window.Height
     $long = (1..14 | ForEach-Object { "Ligne $_ d'un texte assez long pour tenir sur toute la largeur de la bulle" }) -join "`n"
-    Show-Bubble $long -Force -Buttons @($BtnAgain, $BtnStop, $BtnTodo, $BtnLater, $BtnPickCards, $BtnBreak)
+    try { Show-Bubble $long -Force -Buttons @($BtnAgain, $BtnStop, $BtnTodo, $BtnLater, $BtnPickCards, $BtnBreak) }
+    catch { Write-Host "  erreur : $($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
+    Write-Host "  ajustement : $script:FitInfo"
     $top = Get-BubbleTop
     $ui.BubbleWrap.Measure((New-Object Windows.Size(300, [double]::PositiveInfinity)))
     $waDiag = Get-WorkArea ([System.Windows.Forms.Screen]::FromPoint([System.Drawing.Point]::new([int]($window.Left + 160), [int]($window.Top + $window.Height - 20))))
