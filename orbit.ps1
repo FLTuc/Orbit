@@ -1782,7 +1782,7 @@ function Start-Focus {
         $msg += "`n`n🎯 Objectif (P$($t.prio)) : « $(Short-Text $t.text) »"
         if ($t.pomos) { $msg += "  🍅 $($t.pomos + 1)e focus dessus" }
         if ($t.desc) { $msg += "`n   📄 $(Short-Text $t.desc 90)" }
-        if ($auto) { $msg += "`n(Autre chose ? Clique sur 🎯 sur tes cartes, ou clic droit sur moi > 🎯 Cartes du focus.)" }
+        if ($auto) { $msg += "`n(Autre chose ? Clique sur 🎯 sur tes cartes, ou clic droit sur moi > ☰ Plus > 🎯 Cartes du focus.)" }
         $secs = 12
     } elseif ($cards.Count -gt 1) {
         $msg += "`n`n🎯 Au programme de ce focus :"
@@ -2246,7 +2246,7 @@ function Show-MorningPlan {
         @{ Label = '🎯 Go, focus sur ces cartes'; Action = { Accept-MorningPlan }; Primary = $true },
         @{ Label = '✏ Choisir autre chose'; Action = { Choose-FocusCards -Start -Preselect $O.PlanIds } },
         $BtnTodo,
-        @{ Label = 'Plus tard'; Action = { Show-Bubble "Ok ! Clic droit > ☀ Plan du jour pour le revoir." -Force -Seconds 4 } }))
+        @{ Label = 'Plus tard'; Action = { Show-Bubble "Ok ! Clic droit > ☰ Plus > ☀ Plan du jour pour le revoir." -Force -Seconds 4 } }))
 }
 
 function Accept-MorningPlan {
@@ -2994,20 +2994,31 @@ foreach ($k in $Skins.Keys) {
 [void]$miSkin.Items.Add((New-Object Windows.Controls.Separator))
 [void]$miSkin.Items.Add((New-MenuItem "🖼  Choisir une autre image…" { if (Choose-CustomImage) { Set-Skin 'Custom'; Save-Settings } }))
 
-foreach ($i in @($miSos, $miCtx, $miCtxList, (New-Object Windows.Controls.Separator),
-                 $miNote, $miNotes, $miTodo, $miClip, $miSearch, (New-Object Windows.Controls.Separator),
-                 $miFocus, $miCards, $miPlan, $miBreak, $miPause, $miStop, $miRhythm, $miTasks, (New-Object Windows.Controls.Separator),
-                 $miSkin, $miQuiet, $miWander, $miMini, $miHome, $miHide, $miAuto, (New-Object Windows.Controls.Separator),
-                 $miFact, $miStats, $miMove, $miSettings, $miQuit)) { [void]$menu.Items.Add($i) }
+# Le menu tient en un coup d'oeil : le chrono (seulement ce qui sert maintenant), les 3 gestes
+# du quotidien, les 3 endroits ou tout est range ; le reste est dans « ☰ Plus ».
+$miMore = New-Object Windows.Controls.MenuItem
+$miMore.Header = "☰  Plus"
+foreach ($i in @($miCards, $miPlan, $miRhythm, $miTasks, (New-Object Windows.Controls.Separator),
+                 $miSearch, $miClip, $miStats, $miFact, (New-Object Windows.Controls.Separator),
+                 $miSkin, $miQuiet, $miWander, $miMini, $miHide, $miAuto, (New-Object Windows.Controls.Separator),
+                 $miMove)) { [void]$miMore.Items.Add($i) }
+foreach ($i in @($miFocus, $miBreak, $miPause, $miStop, $miHome, (New-Object Windows.Controls.Separator),
+                 $miNote, $miCtx, $miSos, (New-Object Windows.Controls.Separator),
+                 $miTodo, $miNotes, $miCtxList, (New-Object Windows.Controls.Separator),
+                 $miMore, $miSettings, $miQuit)) { [void]$menu.Items.Add($i) }
+function Show-If([bool]$cond) { if ($cond) { 'Visible' } else { 'Collapsed' } }
 
 $menu.Add_Opened({
     $miPause.Header = if ($O.Paused) { "▶  Reprendre le chrono" } else { "⏸  Mettre le chrono en pause" }
-    $miPause.IsEnabled = ($O.State -in 'Focus', 'Break')
-    $miStop.IsEnabled = $O.State -ne 'Idle'
+    # chrono : seulement les commandes utiles a cet instant
+    $miFocus.Visibility = Show-If ($O.State -ne 'Focus')
+    $miBreak.Visibility = Show-If ($O.State -in 'Focus', 'AwaitBreak')
+    $miPause.Visibility = Show-If ($O.State -in 'Focus', 'Break')
+    $miStop.Visibility = Show-If ($O.State -ne 'Idle')
+    $miHome.Visibility = Show-If ($O.Pinned -or $O.Walking)
     $miQuiet.IsChecked = $O.Quiet
     $miWander.IsChecked = $O.Wander
     $miMini.IsChecked = $O.Mini
-    $miHome.IsEnabled = $O.Pinned -or $O.Walking
     $miAuto.IsChecked = Test-Path $StartupLink
     $miTasks.IsChecked = $O.TaskReminders
     $nCtx = @(Get-OpenContexts).Count

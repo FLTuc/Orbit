@@ -303,6 +303,16 @@ try {
     $settingsWin.Hide()
 } catch { Check 'scenario sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
 
+Section 'Menu clic droit : court, le reste dans « Plus »'
+try {
+    $menu.RaiseEvent((New-Object Windows.RoutedEventArgs([Windows.Controls.ContextMenu]::OpenedEvent)))
+    $shown = @($menu.Items | Where-Object { $_ -is [Windows.Controls.MenuItem] -and $_.Visibility -eq 'Visible' })
+    Check "au plus 12 entrees visibles ($($shown.Count))" ($shown.Count -le 12)
+    Check 'les gestes du quotidien en haut' (@($shown | Where-Object { [string]$_.Header -match 'Note rapide|interromps|S\.O\.S|tableaux|Mes notes' }).Count -eq 5)
+    Check '« Plus » contient le reste (apparence, rythme, autre PC, victoires)' (@($miMore.Items | Where-Object { [string]$_.Header -match 'Apparence|Rythme|Autre PC|victoires' }).Count -eq 4)
+    Check 'chrono : seulement ce qui sert maintenant' (($miFocus.Visibility -eq 'Visible') -ne ($O.State -eq 'Focus') -and ($miStop.Visibility -eq 'Visible') -eq ($O.State -ne 'Idle'))
+} catch { Check 'menu sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
+
 Section 'Export vers un autre PC'
 try {
     $zip = Join-Path $appData 'export-test.zip'

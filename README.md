@@ -11,13 +11,13 @@ Un petit satellite qui flotte au-dessus de toutes tes fenêtres, en bas à droit
 
 Pour tester le cycle complet sans attendre, lance `Orbit.cmd -Demo` depuis un terminal (1 min de focus, 30 s de pause).
 
-Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droit > ⏱ Rythme, et Orbit s'en souvient. Pour des durées sur mesure : `Orbit.cmd -FocusMinutes 40 -BreakMinutes 8`.
+Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droit > ☰ Plus > ⏱ Rythme, et Orbit s'en souvient. Pour des durées sur mesure : `Orbit.cmd -FocusMinutes 40 -BreakMinutes 8`.
 
 ## Ce qu'il fait
 
 - **Il te suit** : il se place en bas à droite de l'écran où se trouve ta souris et change d'écran en même temps que toi.
 - **Il se balade** : de temps en temps, il part faire un petit tour sur tes écrans, puis il revient. C'est un vrai petit satellite : panneaux solaires où passe un reflet de soleil, antenne parabolique avec balise, viseur d'étoiles, isolation dorée, feux de navigation rouge et vert, propulseurs. Sa caméra suit ta souris et ses voyants changent de couleur selon le moment (bleu = focus, vert = pause, orange = il attend ta réponse). Clin d'œil geek : la rangée de LED sous la caméra affiche **les minutes restantes en binaire** (au repos, elle fait un balayage), et le chrono s'affiche en grand sur un petit écran intégré au dessin.
-- **6 apparences au choix, ou ta propre image** (clic droit > 🎨 Apparence, ou dans les réglages) :
+- **6 apparences au choix, ou ta propre image** (clic droit > ☰ Plus > 🎨 Apparence, ou dans les réglages) :
   - 🛰️ **Satellite** : le dessin décrit ci-dessus ;
   - 🤖 **Droïde de maintenance** : une sphère qui flotte sur ses réacteurs, avec une visière, un œil-caméra et deux petits bras articulés (l'un tient un tournevis) ;
   - 🦾 **Robot assistant** : un buste de robot avec une visière à deux yeux et un petit terminal sur la poitrine qui affiche son état (`> focus_`, `> pause_`…) ;
@@ -48,7 +48,7 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   - **glisse les cartes** d'une colonne à l'autre, ou pour changer leur ordre ; clic droit sur une carte : déplacer vers une colonne, envoyer vers un autre tableau, supprimer ;
   - chaque carte garde tout ce que faisaient les tâches : **priorité de 1 à 10** (pastille P1…P10, ou « !2 » dans le texte), **description**, **échéance** 📅, **rappel** ⏰ (ou « @14h » dans le texte) ; clic sur une carte pour la modifier, enregistré automatiquement ;
   - une carte est « terminée » quand elle est dans une colonne marquée ✅ : c'est ce qu'utilisent les rappels de focus d'Orbit (« ✅ C'est fait ! » la range dans Terminé) ;
-  - **cartes ↔ focus** : lie **une ou plusieurs cartes** à ton focus avec le bouton 🎯 d'une carte, le clic droit sur une carte, le bouton « 🎯 Choisir mes cartes » d'Orbit ou clic droit sur Orbit > 🎯 Cartes du focus (on peut même y créer une carte). Les cartes liées sont entourées en orange et passent dans « En cours » au début du focus. À la fin de chaque focus, chacune gagne une 🍅 et les minutes travaillées (« 🍅 3 · 2 h 30 » sur la carte) ; Orbit te demande lesquelles sont finies, et les autres restent liées au focus suivant. Une carte peut donc avoir plusieurs focus, et un focus plusieurs cartes. Sans carte liée, Orbit prend la plus prioritaire ;
+  - **cartes ↔ focus** : lie **une ou plusieurs cartes** à ton focus avec le bouton 🎯 d'une carte, le clic droit sur une carte, le bouton « 🎯 Choisir mes cartes » d'Orbit ou clic droit sur Orbit > ☰ Plus > 🎯 Cartes du focus (on peut même y créer une carte). Les cartes liées sont entourées en orange et passent dans « En cours » au début du focus. À la fin de chaque focus, chacune gagne une 🍅 et les minutes travaillées (« 🍅 3 · 2 h 30 » sur la carte) ; Orbit te demande lesquelles sont finies, et les autres restent liées au focus suivant. Une carte peut donc avoir plusieurs focus, et un focus plusieurs cartes. Sans carte liée, Orbit prend la plus prioritaire ;
   - ajout rapide en haut (dans la 1re colonne du tableau affiché) ou en bas de chaque colonne ; tout est enregistré à chaque modification ;
   - ton ancienne to-do est reprise automatiquement dans un premier tableau « Mon tableau » ;
   - **sous-tâches** : dans une carte, une liste à cocher (Entrée pour en ajouter une) ; la carte affiche « ☑ 2/5 », et quand tout est coché Orbit propose de la ranger dans Terminé ;
@@ -66,7 +66,7 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
 - **🚨 Quand tu bloques, et tes victoires** (pensé pour le TDAH, aussi sur le téléphone) :
   - **🚨 S.O.S / ⚡ Unstick Me** : clic droit > 🚨 S.O.S, ou ⚡ sur une carte. Tu écris ce que tu n'arrives pas à commencer (Win+H pour dicter) ; Orbit le découpe en 3 à 5 micro-étapes ridiculement petites (« Ouvre ta messagerie (juste l'ouvrir) »…) et n'en montre **qu'une à la fois**, avec une barre de 2 min 30 qui se vide doucement **sans jamais sonner**. « 🔪 Encore plus petit » ajoute une étape de préparation, ✏ la modifie, ⏭ la passe. À la fin : « 🎉 Tu es lancé(e) » et la victoire est notée. Un fond sonore 🟤 bruit brun est disponible.
   - **📝 Note rapide** : le bouton rond 📝 à côté d'Orbit (réglable) ouvre une petite case : tu écris, Entrée, c'est gardé dans tes notes.
-  - **🏆 Mes victoires du jour** (clic droit sur Orbit) : le journal se remplit tout seul (focus terminés, cartes finies, déblocages, reprises), avec la série de jours d'affilée. Pas de compteur rouge ni de « en retard ».
+  - **🏆 Mes victoires du jour** (clic droit sur Orbit > ☰ Plus) : le journal se remplit tout seul (focus terminés, cartes finies, déblocages, reprises), avec la série de jours d'affilée. Pas de compteur rouge ni de « en retard ».
   - *Le Brain Dump et la DopaList ont été retirés pour simplifier* : au premier lancement, leurs idées deviennent des notes et leurs actions des cartes (les routines deviennent des cartes qui se répètent). Rien n'est perdu.
   - Le découpage est fait **sur le PC**, avec les règles du fichier `unstick\rules.json` (les mêmes sur le téléphone, modifiables) : aucun service d'IA, rien ne sort du PC. Le PC et le téléphone donnent exactement les mêmes étapes (vérifié par les tests).
 - **✋ Je m'interromps (savoir où tu t'es arrêté)** : quand on t'interrompt (collègue, appel, réunion), un clic suffit pour ne pas perdre le fil.
@@ -97,9 +97,9 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
     - la capture d'écran reste sur ce PC, n'est jamais exportée et s'efface dès que tu as repris ;
     - Orbit ne rouvre que des adresses web (http/https), des dossiers et des documents (Excel, Word, PDF…) qui existent, jamais un programme.
 - **☀️ Plan du matin** : à ta première apparition de la journée (à partir de 5 h), Orbit propose les 3 cartes les plus urgentes, tous tableaux confondus (en retard, à rendre aujourd'hui ou demain, rappel du jour, déjà commencées, puis priorité), avec la raison. « Go » les lie au focus et le lance ; « Choisir autre chose » ouvre la liste avec ces 3 cartes déjà cochées. À revoir quand tu veux : clic droit > ☀️ Plan du jour. Se désactive dans les réglages.
-- **🔍 Recherche partout** (onglet 🔍 du carnet, Ctrl+F, ou clic droit > Rechercher partout) : cartes de tous les tableaux (titre, description, sous-tâches), notes, reprises (✋), cartes récurrentes à venir, copier-coller et favoris, archives. Plusieurs mots : ils doivent tous y être ; accents et majuscules ignorés. Clic sur une carte : elle s'ouvre dans son tableau ; clic sur un copier-coller : il est recopié.
-- **📦 Changer de PC** (clic droit > 📦 Autre PC) : « Exporter » crée un seul fichier zip avec Orbit et tes données (réglages, tableaux, modèles, favoris, sons, image, sauvegardes). Sur l'autre PC, décompresse-le et double-clic sur `Orbit\Orbit.cmd` : tout est récupéré au premier lancement (les chemins de l'image et des sons sont adaptés). Si Orbit est déjà installé, « Importer un export… » fait la même chose et redémarre Orbit ; les données présentes sont gardées dans `avant-import-<date>`.
-- **L'historique des copier-coller du jour** (clic droit > 📋 Mes copier-coller du jour) :
+- **🔍 Recherche partout** (onglet 🔍 du carnet, Ctrl+F, ou clic droit > ☰ Plus > Rechercher partout) : cartes de tous les tableaux (titre, description, sous-tâches), notes, reprises (✋), cartes récurrentes à venir, copier-coller et favoris, archives. Plusieurs mots : ils doivent tous y être ; accents et majuscules ignorés. Clic sur une carte : elle s'ouvre dans son tableau ; clic sur un copier-coller : il est recopié.
+- **📦 Changer de PC** (clic droit > ☰ Plus > 📦 Autre PC) : « Exporter » crée un seul fichier zip avec Orbit et tes données (réglages, tableaux, modèles, favoris, sons, image, sauvegardes). Sur l'autre PC, décompresse-le et double-clic sur `Orbit\Orbit.cmd` : tout est récupéré au premier lancement (les chemins de l'image et des sons sont adaptés). Si Orbit est déjà installé, « Importer un export… » fait la même chose et redémarre Orbit ; les données présentes sont gardées dans `avant-import-<date>`.
+- **L'historique des copier-coller du jour** (clic droit > ☰ Plus > 📋 Mes copier-coller du jour) :
   - chaque texte ou fichier copié (Ctrl+C) est noté avec l'heure ;
   - tu peux faire une recherche dedans, et **un clic sur un élément le recopie** pour le recoller ;
   - seule la journée en cours est conservée : l'historique de la veille est effacé automatiquement ;
@@ -128,7 +128,7 @@ Le dossier `pwa\` contient Orbit en version « appli web installable » : elle s
 - **Appui long sur l'icône** : 📝 Note rapide, 🚨 S.O.S, ✋ Je m'interromps, 🚀 Focus.
 
 **PC ↔ téléphone** (☰ Plus > 💻) :
-- *Recevoir* : lit directement le zip créé par Orbit PC (clic droit > 📦 Autre PC > Exporter).
+- *Recevoir* : lit directement le zip créé par Orbit PC (clic droit > ☰ Plus > 📦 Autre PC > Exporter).
 - *Envoyer* : crée un zip qu'Orbit PC ouvre avec « Importer un export… ».
 - Ce sont les mêmes fichiers des deux côtés : tableaux, notes, reprises, victoires.
 
@@ -154,7 +154,7 @@ Ensuite, sur le téléphone : ouvre l'adresse dans Chrome, puis ⋮ > « Install
 |---|---|
 | Clic gauche sur Orbit | Affiche le statut (temps restant, ou la question en attente) |
 | Glisser Orbit | Le pose où tu veux, et il y reste |
-| **Clic droit** | Menu : to-do, copier-coller, lancer un focus, prendre la pause, **rythme 50/10 ou 25/5**, **rappels de tâches**, mettre le chrono en pause, **couper le chrono**, mode silencieux, balades on/off, **réduire**, revenir en bas à droite, **masquer**, lancer au démarrage de Windows, stats, quitter |
+| **Clic droit** | Un menu court : le chrono (seulement ce qui sert à cet instant : lancer un focus, prendre la pause, mettre en pause, couper), 📝 Note rapide, ✋ Je m'interromps, 🚨 S.O.S, 🗂 Mes tableaux, 📒 Mes notes, ↩ Mes reprises, puis **☰ Plus** (cartes du focus, plan du jour, rythme, rappels, recherche, copier-coller, victoires, culture G, apparence, silencieux, balades, réduire, masquer, démarrage de Windows, autre PC), ⚙ Réglages et Quitter. « 🏠 Revenir en bas à droite » apparaît quand tu as déplacé Orbit. |
 | Carnet (tableaux / copier-coller / 🔍) | Entrée pour ajouter une carte, **Ctrl+F pour chercher partout**, Échap pour fermer, glisser le titre pour déplacer |
 | Icône près de l'horloge | Elle affiche le **chrono en direct** (bleu = focus, vert = pause, gris = en pause, orange « ! » = Orbit attend ta réponse, satellite = au repos). **Un clic** : cacher / faire revenir Orbit ; clic droit : menu court (réduire, focus, pause, plan du jour, recherche, épingler l'icône…) |
 
