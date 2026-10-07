@@ -2766,7 +2766,9 @@ function Step-Autopilot($now) {
         'AwaitFocus' { Hide-Bubble; Start-Focus }
     }
     if (-not $O.Walking) { $O.NextWalk = $now }
-    $k = $script:slowCount
+    # compteur propre au pilote (un tour toutes les 3 s) : chaque action revient a coup sur
+    $script:ApTicks++
+    $k = $script:ApTicks
     if ($k % 9 -eq 0) { Show-QuickNote; $qn.QnText.Text = "autopilote $($now.ToString('HH:mm:ss'))"; Close-QuickNote }
     if ($k % 11 -eq 0) { Open-Notebook 'Todo'; Close-Notebook }
     if ($k % 13 -eq 0) { Tell-Fact -Force }
@@ -2778,9 +2780,9 @@ function Step-Autopilot($now) {
         if ($c) { Complete-Context $c.id }
         if ($O.State -eq 'Focus' -and $O.Paused) { Toggle-Pause }
     }
-    if ($k % 30 -eq 0) {
+    if ($k % 10 -eq 0) {
         $p = [Diagnostics.Process]::GetCurrentProcess()
-        Write-Log ("Autopilote : etat {0}, focus {1}, memoire {2:N0} Mo, poignees {3}" -f $O.State, $O.FocusToday, ($p.PrivateMemorySize64 / 1MB), $p.HandleCount)
+        Write-Log ("Autopilote : etat {0}, focus {1}, reprises {4}, memoire {2:N0} Mo, poignees {3}" -f $O.State, $O.FocusToday, ($p.PrivateMemorySize64 / 1MB), $p.HandleCount, @($NB.Contexts).Count)
     }
 }
 

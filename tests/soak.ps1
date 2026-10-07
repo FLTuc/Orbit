@@ -61,6 +61,7 @@ $errs = @($content | Where-Object { $_ -match 'Erreur( \([^)]*\))? :|Erreur impr
 foreach ($l in ($errs | Select-Object -First 10)) { Write-Host "  $l" -ForegroundColor Yellow }
 Check 'aucune erreur dans le journal' ($errs.Count -eq 0) "$($errs.Count) erreur(s)"
 Check 'le pilote automatique a bien tourne' (@($content | Where-Object { $_ -match 'Autopilote' }).Count -ge 2)
+Check 'des interruptions « Je m''interromps » ont ete enregistrees et reprises' (@($content | Where-Object { $_ -match 'Autopilote : .*reprises [1-9]' }).Count -ge 1)
 
 if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
 Remove-Item Env:ORBIT_AUTOPILOT, Env:ORBIT_HEADLESS -ErrorAction SilentlyContinue
