@@ -682,7 +682,7 @@ Check 'couper un texte ne casse jamais un emoji en deux' ($cut -eq 'Bravo ' -and
 Check 'couper juste apres un emoji le garde entier' ((Get-TextStart $s 8) -eq ('Bravo ' + $rocket))
 $all = for ($n = 1; $n -le 60; $n++) { Short-Text (('x' * 30) + ($rocket * 10)) $n }
 Check 'Short-Text : aucune moitie d''emoji, quelle que soit la longueur' (-not ($all | Where-Object { $_ -match '[\uD800-\uDBFF](?![\uDC00-\uDFFF])' }))
-Check 'pas de liant ZWJ orphelin a la coupe' ((Get-TextStart ('ok ' + $tech) 6) -notmatch '‍$')
+Check 'pas de liant ZWJ orphelin a la coupe' ((Get-TextStart ('ok ' + $tech) 6) -notmatch '\u200D$')
 Check 'accents et emoji simples gardes tels quels' ((ConvertTo-DisplayText "Café à l'été $rocket !") -eq "Café à l'été $rocket !")
 Check 'selecteur de variante enleve' ((ConvertTo-DisplayText ('Pause ' + [char]0x2615 + [char]0xFE0F + ' ok')) -eq ('Pause ' + [char]0x2615 + ' ok'))
 Check 'emoji compose (ZWJ) : garde le premier, pas de debris' ((ConvertTo-DisplayText "senior $tech !") -eq ('senior ' + (& $E 0x1F9D1) + ' !'))

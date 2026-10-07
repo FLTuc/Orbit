@@ -29,7 +29,7 @@ $Anchor = @{
 # ---------------------------------------------------------------------------
 # texte stocke : sans caracteres de controle, longueur bornee
 function Get-AnchorText($v, [int]$max = 300) {
-    $s = ([string]$v) -replace "`r`n?", "`n" -replace '[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F﻿�]', ''
+    $s = ([string]$v) -replace "`r`n?", "`n" -replace '[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\uFEFF\uFFFD]', ''
     $s = $s -replace $script:TextLone, ''
     if ($s.Length -gt $max) { $s = (Get-TextStart $s ($max - 1)) + '…' }
     return $s

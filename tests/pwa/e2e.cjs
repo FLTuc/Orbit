@@ -221,7 +221,7 @@ function pcZip(entries) {
     fs.writeFileSync(zip, pcZip({
       'Orbit/orbit.ps1': '# programme',
       'Orbit/donnees/orbit-export.json': '{}',
-      'Orbit/donnees/kanban.json': '﻿' + JSON.stringify({ current: 'b1', boards: [{ id: 'b1', name: 'Projet PC', columns: [{ id: 'c1', name: 'À faire', done: false }, { id: 'c2', name: 'Terminé', done: true }] }], cards: [{ id: 'k1', text: 'Carte venue du PC', prio: 3, board: 'b1', col: 'c1' }], focus: [] }),
+      'Orbit/donnees/kanban.json': '\uFEFF' + JSON.stringify({ current: 'b1', boards: [{ id: 'b1', name: 'Projet PC', columns: [{ id: 'c1', name: 'À faire', done: false }, { id: 'c2', name: 'Terminé', done: true }] }], cards: [{ id: 'k1', text: 'Carte venue du PC', prio: 3, board: 'b1', col: 'c1' }], focus: [] }),
       'Orbit/donnees/notes.json': JSON.stringify([{ id: 'n1', text: 'Note du PC', updated: '2026-10-01T10:00:00' }]),
     }));
     await page.setInputFiles('#importZip', zip);

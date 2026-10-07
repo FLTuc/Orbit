@@ -31,6 +31,10 @@ const hfn = (code['js/app.js'].match(/function h\(tag, props, \.\.\.kids\) \{[\s
 check('outil h() : jamais d\'attribut « on… » en texte, liens seulement vers nos fichiers (blob:)', /k\.startsWith\('on'\)\) \{ if \(typeof v === 'function'\)/.test(hfn) && /k === 'href' \|\| k === 'src'\) && !String\(v\)\.startsWith\('blob:'\)/.test(hfn));
 check('pas de cookie, rien d\'autre que le stockage du telephone', find(/document\.cookie|indexedDB\.deleteDatabase/).length === 0);
 
+const invisible = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u200B-\u200F\u202A-\u202E\u2060\u2066-\u2069\uFE0E\uFE0F\uFEFF\uFFFD]/;
+const inv = js.concat(['index.html', 'css/app.css']).filter((f) => invisible.test(read(f)));
+check('aucun caractere invisible cache dans le code (ils sont ecrits \\uXXXX)', inv.length === 0, inv.join(', '));
+
 console.log('\n== Page et appli installable');
 const html = read('index.html');
 const csp = (html.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/) || [])[1] || '';

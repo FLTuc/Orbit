@@ -24,7 +24,7 @@ export function cleanText(v, max = LIMITS.text) {
   if (v === null || v === undefined) return '';
   let s = String(v)
     .replace(/\r\n?/g, '\n')
-    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F​‎‏‪-‮⁦-⁩﻿�]/g, '')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u200B\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF\uFFFD]/g, '')
     .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '');
   if (s.length > max) s = shortText(s, max);
   return s;
@@ -35,7 +35,7 @@ export function shortText(v, max = 60) {
   const s = String(v ?? '').replace(/\s+/g, ' ').trim();
   const chars = Array.from(s);
   if (chars.length <= max) return s;
-  return chars.slice(0, Math.max(0, max - 1)).join('').replace(/[‍︎️⃣]+$/, '') + '…';
+  return chars.slice(0, Math.max(0, max - 1)).join('').replace(/[\u200D\uFE0E\uFE0F\u20E3]+$/, '') + '…';
 }
 
 export function limitPrio(p) {
@@ -623,7 +623,7 @@ export function fromDesktopFiles(s, files) {
   const out = JSON.parse(JSON.stringify(s));
   const read = (name) => {
     if (!(name in files)) return undefined;
-    const txt = String(files[name]).replace(/^﻿/, '');
+    const txt = String(files[name]).replace(/^\uFEFF/, '');
     return JSON.parse(txt);
   };
   const k = read('kanban.json');

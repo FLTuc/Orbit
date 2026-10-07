@@ -24,7 +24,7 @@ check('@14h deja passe : demain', S.parseShortcuts('x @9h', new Date(2026, 0, 5,
 check('raccourcis invalides laisses tels quels', S.parseShortcuts('RDV @25h !11').text === 'RDV @25h !11');
 check('recherche : accents et majuscules ignores', S.searchKey('ÉCOLE Été Ça Œuvre') === 'ecole ete ca oeuvre');
 check('coupe sans casser un emoji', !/[\uD800-\uDBFF]$/.test(S.shortText('a'.repeat(10) + '🚀'.repeat(10), 12).replace('…', '')));
-check('texte nettoye (controles, moities d\'emoji)', S.cleanText('a\u0007b\uD83Dc​d') === 'abcd');
+check('texte nettoye (controles, moities d\'emoji)', S.cleanText('a\u0007b\uD83Dc\u200Bd') === 'abcd');
 check('formatAgo', S.formatAgo(S.isoLocal(new Date(Date.now() - 25 * 60000))) === 'il y a 25 min');
 check('permutation : chaque element une seule fois', (() => { const p = S.permutation(1000, 42); return new Set(p).size === 1000; })());
 const stats = { jokeSeed: 0, jokePos: 0 };
@@ -147,7 +147,7 @@ function deflateZip(entries) {
   end.writeUInt32LE(cd.length, 12); end.writeUInt32LE(off, 16);
   return new Uint8Array(Buffer.concat([...parts, cd, end]));
 }
-const pcKanban = '﻿' + JSON.stringify({ current: 'b1', boards: [{ id: 'b1', name: 'Projet', columns: [{ id: 'c1', name: 'À faire', done: false }, { id: 'c2', name: 'Terminé', done: true }] }],
+const pcKanban = '\uFEFF' + JSON.stringify({ current: 'b1', boards: [{ id: 'b1', name: 'Projet', columns: [{ id: 'c1', name: 'À faire', done: false }, { id: 'c2', name: 'Terminé', done: true }] }],
   cards: [{ id: 'k1', text: 'Budget T3', prio: 3, board: 'b1', col: 'c1', checks: [{ text: 'totaux', done: true }], repeat: 'weekly' }], focus: ['k1'], upcoming: [], templates: [{ name: 'Modèle', text: 'x', prio: 4 }] });
 const pcZip = deflateZip({ 'Orbit/orbit.ps1': '# programme', 'Orbit/donnees/kanban.json': pcKanban, 'Orbit/donnees/settings.json': '{}', 'Orbit/donnees/orbit-export.json': '{}' });
 const pcFiles = await readZip(pcZip, ['kanban.json', 'notes.json', 'reprises.json', 'lifeanchor.json']);

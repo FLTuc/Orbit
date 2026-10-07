@@ -83,7 +83,7 @@ foreach ($t in $texts) {
 }
 Write-Host "  $($texts.Count) textes verifies"
 Check 'chaque emoji et symbole d''Orbit existe dans les polices (pas de carre vide)' ($missing.Count -eq 0) (@($missing.Keys) -join ', ')
-$odd = @($texts | Where-Object { $_ -match '[‍️⃣�]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])' })
+$odd = @($texts | Where-Object { $_ -match '[\u200D\uFE0F\u20E3\uFFFD]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])' })
 Check 'aucun emoji compose ni caractere casse dans les textes' ($odd.Count -eq 0) (($odd | Select-Object -First 3) -join ' / ')
 $E = { param($cp) [char]::ConvertFromUtf32($cp) }
 Show-Bubble ('Test ' + (& $E 0x1F9D1) + [char]0x200D + (& $E 0x1F4BB) + ' 8' + [char]0xFE0F + [char]0x20E3 + ' ' + (& $E 0x1F680) + ' ' + [char]0x200E + 'fin') -Force
