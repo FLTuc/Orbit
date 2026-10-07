@@ -368,6 +368,7 @@ Check 'nom d''application et poignee nettoyes' ($e1.windows[0].app -eq 'msedgeca
 $script:Opened = @()
 Resume-Context $e1.id
 Check 'reprendre : aucun programme lance (calc.exe, outil.exe sur un partage)' ($script:Opened.Count -eq 0)
+Check 'partage reseau injoignable : refuse sans erreur' (-not (Test-SafeOpenPath '\\serveur-inexistant\partage\doc.xlsx') -and -not (Test-SafeOpenPath '\\serveur-inexistant\partage' -Folder))
 # import d'un export : chemins et fenetres de l'autre PC retires
 $imp = Join-Path $T 'reprises-import.json'
 [IO.File]::WriteAllText($imp, '[{"id":"a1","windows":[{"app":"excel","title":"Budget","path":"\\\\pc-inconnu\\partage\\budget.xlsx","hwnd":123,"pid":45,"url":"https://ok.fr"}]}]')

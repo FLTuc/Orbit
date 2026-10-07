@@ -81,8 +81,12 @@ function Get-SafeUrl($u) {
 function Test-SafeOpenPath([string]$p, [switch]$Folder) {
     if (-not $p -or $p.Length -gt 400 -or $p -match '["<>|*?]' -or $p.IndexOfAny([IO.Path]::GetInvalidPathChars()) -ge 0) { return $false }
     if (-not [IO.Path]::IsPathRooted($p)) { return $false }
-    if ($Folder) { return (Test-Path -LiteralPath $p -PathType Container) }
-    return ($CtxOpenExt -contains [IO.Path]::GetExtension($p).ToLowerInvariant()) -and (Test-Path -LiteralPath $p -PathType Leaf)
+    # (un partage reseau injoignable fait echouer Test-Path : on refuse, sans erreur)
+    try {
+        if ($Folder) { return [bool](Test-Path -LiteralPath $p -PathType Container -ErrorAction Stop) }
+        if ($CtxOpenExt -notcontains [IO.Path]::GetExtension($p).ToLowerInvariant()) { return $false }
+        return [bool](Test-Path -LiteralPath $p -PathType Leaf -ErrorAction Stop)
+    } catch { return $false }
 }
 
 function Format-Ago([string]$iso) {
