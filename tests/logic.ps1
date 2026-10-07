@@ -265,7 +265,7 @@ Check 'et le fichier abime est garde a part' (@(Get-ChildItem $T -Filter 'notes-
 
 Section 'Je m''interromps : capture, reprise, rappels'
 foreach ($def in Get-ScriptFunctions (Join-Path $Root 'context.ps1')) { . ([scriptblock]::Create($def)) }
-foreach ($a6 in Get-ScriptAssignments (Join-Path $Root 'context.ps1') '^\$(Ctx|NB\.Ctx|NB\.Contexts)') { . ([scriptblock]::Create($a6)) }
+foreach ($a6 in Get-ScriptAssignments (Join-Path $Root 'context.ps1') '^\$(Ctx|NB\.Ctx|NB\.Contexts|script:Ctx)') { . ([scriptblock]::Create($a6)) }
 $Native = $false
 $Config.ContextRemind = $true; $Config.ContextRemindMin = 30; $Config.ContextWindows = 3; $Config.ContextScreenshot = $false
 function Ensure-Visible {}
@@ -308,7 +308,12 @@ Check 'adresse completee a la capture' ($c.windows[0].url -eq 'https://sharepoin
 Load-Contexts
 $c = Find-Context $c.id
 Check 'relue du disque a l''identique' ($c -and $c.next -match 'F12' -and $c.windows.Count -eq 2 -and $c.windows[1].path -eq $docx)
-Check 'la plus recente est proposee au retour' ((Get-LatestOpenContext -Hours 12).id -eq $c.id)
+Check 'la plus recente est proposee au retour' ((Get-LatestOpenContext -Hours 12).id -eq $c.id -and (Get-ContextToOffer 30).id -eq $c.id)
+Show-ResumeBubble $c
+Check 'bulle « Où j''en étais ? » : boutons Reprendre, Plus tard, En carte, Déjà fait' ((@($script:Bubble.Buttons) -join '|') -match 'Reprendre.*Plus tard.*En carte.*Déjà fait')
+Check 'deja proposee : pas reproposee a chaque retour (30 min)' ($null -eq (Get-ContextToOffer 30))
+$script:CtxOfferedAt[$c.id] = (Get-Date).AddMinutes(-40)
+Check 'mais de nouveau apres 30 min' ((Get-ContextToOffer 30).id -eq $c.id)
 Check 'texte de la bulle « Où j''en étais ? »' ((Get-ResumeText $c) -match 'Budget partage' -and (Get-ResumeText $c) -match 'Prochaine étape : corriger' -and (Get-ResumeText $c) -match '\+ 1 autre')
 Check 'pas de rappel avant l''heure' ($null -eq (Get-DueContext (Get-Date)))
 Check 'rappel a l''heure prevue' ((Get-DueContext (Get-Date).AddMinutes(31)).id -eq $c.id)
@@ -322,7 +327,8 @@ Check 'la recherche trouve les reprises (adresse, note)' (@((Find-Everything 'sh
 $O.State = 'Focus'; $O.Paused = $true; $O.Remaining = [timespan]::FromMinutes(12)
 $script:Opened = @()
 Resume-Context $c.id
-Check 'reprendre : adresse et document rouverts (fenetre fermee)' ($script:Opened.Count -eq 2 -and ($script:Opened | Where-Object { $_[1] -eq 'https://sharepoint.com/sites/budget' }) -and ($script:Opened | Where-Object { $_[1] -match 'Budget T3\.xlsx' }))
+Check 'reprendre : adresse et document rouverts (fenetre fermee)' ($script:Opened.Count -eq 2 -and ($script:Opened | Where-Object { $_[1] -eq '"https://sharepoint.com/sites/budget"' }) -and ($script:Opened | Where-Object { $_[1] -match 'Budget T3\.xlsx' }))
+Check 'reprendre : adresse et chemin toujours entre guillemets (une virgule ne coupe rien)' (-not ($script:Opened | Where-Object { $_[1] -notmatch '^".+"$' }))
 Check 'reprendre : uniquement via explorer.exe' (-not ($script:Opened | Where-Object { $_[0] -ne 'explorer.exe' }))
 Check 'reprendre : le focus en pause repart' (-not $O.Paused -and [math]::Abs(($O.EndsAt - (Get-Date).AddMinutes(12)).TotalSeconds) -lt 5)
 Check 'reprendre : la prochaine etape est rappelee' ($script:Bubble.Text -match 'Prochaine étape : corriger la cellule F12')
@@ -377,6 +383,39 @@ Protect-ImportedContexts $imp
 $ij = ConvertFrom-Json ([IO.File]::ReadAllText($imp))
 Check 'import : chemin reseau et fenetre de l''autre PC retires, adresse web gardee' ($ij[0].windows[0].path -eq '' -and $ij[0].windows[0].hwnd -eq 0 -and $ij[0].windows[0].url -eq 'https://ok.fr')
 $O.State = 'Idle'; $O.Paused = $false
+
+Section 'Robustesse : donnees au hasard (fuzzing)'
+$rnd = New-Object Random 4242
+$alphabet = @('a', 'Z', '0', ' ', '/', '\', ':', '.', '"', "'", '<', '>', '|', '&', ';', '%', '#', '?', '=', ',', '`', '$', '(', ')', '{', '}',
+              'é', '…', [char]0x200B, [char]0x200D, [char]0xFE0F, [char]0xD83D, [char]0xDE00, "`n", "`t", [char]0, 'http', 'https://', 'javascript:', 'file:', '\\srv\', 'C:\', '.exe', '.xlsx', 'www.')
+function Get-RandomText([int]$max) { -join (1..($rnd.Next(0, $max) + 1) | ForEach-Object { $alphabet[$rnd.Next($alphabet.Count)] }) }
+$crash = @(); $leak = @()
+for ($i = 0; $i -lt 1500; $i++) {
+    $x = Get-RandomText 25
+    try {
+        $u = Get-SafeUrl $x
+        if ($u -and $u -notmatch '^https?://[^\s"''<>`^{}|\\]+$') { $leak += "url: $u" }
+        if (Test-SafeOpenPath $x) { if ([IO.Path]::GetExtension($x).ToLowerInvariant() -notin $CtxOpenExt) { $leak += "chemin: $x" } }
+        [void](Get-CleanTitle $x); [void](ConvertTo-DisplayText $x); [void](Short-Text $x 7); [void](Get-SearchKey $x)
+        $d = ConvertTo-DisplayText $x
+        if ($d -match '[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]|[\u0000-\u0008]') { $leak += "texte: $([int[]][char[]]$d -join ',')" }
+        $w = ConvertTo-CtxWindow ([pscustomobject]@{ app = $x; title = $x; url = $x; path = $x; hwnd = $x; pid = $x; private = ($i % 7 -eq 0) })
+        if ($w.url -and $w.url -notmatch '^https?://') { $leak += "fenetre: $($w.url)" }
+        if ($w.app -match '[^a-z0-9_.-]') { $leak += "appli: $($w.app)" }
+        $c = ConvertTo-Context ([pscustomobject]@{ id = $x; status = $x; created = $x; doing = $x; next = $x; windows = @($w, $null, $x); focusCards = @($x, 'ok_1') })
+        if ($c.id -notmatch '^[A-Za-z0-9_-]{1,64}$' -or $c.status -notin 'open', 'done') { $leak += "reprise: $($c.id)" }
+    } catch { $crash += "$($_.Exception.Message) <- $x" }
+}
+foreach ($l in ($crash + $leak | Select-Object -First 5)) { Write-Host "  $l" -ForegroundColor Yellow }
+Check '1500 textes au hasard : aucune fonction ne plante' ($crash.Count -eq 0) "$($crash.Count) plantage(s)"
+Check 'et rien de dangereux ne passe les filtres (adresses, chemins, identifiants, texte affiche)' ($leak.Count -eq 0) "$($leak.Count) fuite(s)"
+# fichiers de reprises abimes de toutes les facons : Orbit demarre quand meme
+$bad = 0
+foreach ($j in '', 'null', '{}', '[]', '[null]', '[1,2]', '"texte"', '[{"windows":"pas une liste"}]', '[{"windows":[{"hwnd":{"a":1}}]}]', '[{"focusCards":{"x":1}}]', ('[' + ('{"id":"a"},' * 300) + '{}]')) {
+    [IO.File]::WriteAllText($CtxFile, $j)
+    try { Load-Contexts; if ($NB.Contexts.Count -gt $CtxMax) { $bad++ } } catch { $bad++; Write-Host "  $j -> $($_.Exception.Message)" -ForegroundColor Yellow }
+}
+Check 'reprises.json abime de 11 facons : jamais de plantage, jamais plus de 200 reprises' ($bad -eq 0)
 
 Section 'Tests unitaires des petites fonctions'
 Check 'Limit-Prio : 0 -> 1, 11 -> 10, texte -> 5' ((Limit-Prio 0) -eq 1 -and (Limit-Prio 11) -eq 10 -and (Limit-Prio 'abc') -eq 5)

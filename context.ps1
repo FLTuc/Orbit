@@ -410,6 +410,8 @@ function New-Context {
 
 function Start-Interruption {
     if ($script:ctxWin -and $ctxWin.IsVisible) { $ctxWin.Activate() | Out-Null; return }
+    # double clic : la capture d'ecran de la premiere est en cours, on ne recommence pas
+    if ($script:CtxShotTimer -and $script:CtxShotTimer.IsEnabled) { return }
     $ctx = New-Context
     # le focus en cours se met en pause tout de suite (le temps de l'interruption ne compte pas)
     $paused = $false
@@ -476,7 +478,7 @@ function Restore-ContextWindow($w) {
         if ($same) { return 'front' }
     }
     $url = Get-SafeUrl $w.url
-    if ($url) { Start-Process explorer.exe $url; return 'opened' }
+    if ($url) { Start-Process explorer.exe "`"$url`""; return 'opened' }
     if ($w.path -and (Test-SafeOpenPath $w.path -Folder)) { Start-Process explorer.exe "`"$($w.path)`""; return 'opened' }
     if ($w.path -and (Test-SafeOpenPath $w.path)) { Start-Process explorer.exe "`"$($w.path)`""; return 'opened' }
     return ''
@@ -596,8 +598,25 @@ function Get-ResumeText($ctx, [switch]$Reminder) {
     return $text
 }
 
+# Quand la bulle a ete proposee pour chaque reprise : au retour d'une absence ou au clic
+# sur Orbit, on ne la repropose pas a chaque fois (les rappels s'en chargent)
+$script:CtxOfferedAt = @{}
+function Test-ContextOffered([string]$id, [double]$minutes) {
+    $t = $script:CtxOfferedAt[$id]
+    return ($t -and ((Get-Date) - $t).TotalMinutes -lt $minutes)
+}
+
+# La reprise a proposer d'office (retour d'absence, clic sur Orbit) : la plus recente,
+# de moins de 12 h, et pas deja proposee dans les $minutes dernieres minutes
+function Get-ContextToOffer([double]$minutes) {
+    $c = Get-LatestOpenContext -Hours 12
+    if ($c -and -not (Test-ContextOffered $c.id $minutes)) { return $c }
+    return $null
+}
+
 function Show-ResumeBubble($ctx, [switch]$Reminder) {
     if (-not $ctx) { return }
+    $script:CtxOfferedAt[$ctx.id] = Get-Date
     $script:BubbleCtxId = $ctx.id
     $btns = @(
         @{ Label = '▶ Reprendre'; Action = { Resume-Context $script:BubbleCtxId }; Primary = $true },
@@ -624,7 +643,7 @@ function Check-ContextReturn {
     if ($script:CtxAwayId -and $idle -lt 3) {
         $c = Find-Context $script:CtxAwayId
         $script:CtxAwayId = ''
-        if ($c -and $c.status -eq 'open' -and -not $O.AutoPaused) { Show-ResumeBubble $c }
+        if ($c -and $c.status -eq 'open' -and -not $O.AutoPaused -and -not (Test-ContextOffered $c.id 30)) { Show-ResumeBubble $c }
     }
 }
 
@@ -861,12 +880,16 @@ function New-ContextCard($ctx) {
     $shot = Get-ContextShotPath $ctx.id
     if ($open -and (Test-Path -LiteralPath $shot)) {
         try {
-            $bi = New-Object Windows.Media.Imaging.BitmapImage
-            $bi.BeginInit()
-            $bi.CacheOption = 'OnLoad'     # le fichier n'est pas verrouille (on peut l'effacer)
-            $bi.DecodePixelWidth = 260
-            $bi.UriSource = New-Object Uri($shot)
-            $bi.EndInit()
+            $fs = [IO.File]::OpenRead($shot)
+            try {
+                $bi = New-Object Windows.Media.Imaging.BitmapImage
+                $bi.BeginInit()
+                $bi.CacheOption = 'OnLoad'     # lu tout de suite : le fichier n'est pas verrouille (on peut l'effacer)
+                $bi.DecodePixelWidth = 260
+                $bi.StreamSource = $fs
+                $bi.EndInit()
+                $bi.Freeze()
+            } finally { $fs.Dispose() }
             $img = New-Object Windows.Controls.Image
             $img.Source = $bi; $img.Width = 260; $img.HorizontalAlignment = 'Left'; $img.Margin = '0,6,0,0'
             $img.Cursor = 'Hand'; $img.ToolTip = 'Clic : voir la capture en grand'; $img.Tag = $ctx.id

@@ -2036,8 +2036,9 @@ function Check-Idle {
     } elseif ($O.AutoPaused -and $idleS -lt 3) {
         $O.AutoPaused = $false
         # une reprise attend (« Je m'interromps ») : on propose directement de s'y remettre
-        $ctx = Get-LatestOpenContext -Hours 12
-        if ($ctx) { $script:CtxAwayId = ''; Show-ResumeBubble $ctx; return }
+        $script:CtxAwayId = ''
+        $ctx = Get-ContextToOffer 30
+        if ($ctx) { Show-ResumeBubble $ctx; return }
         $mins = [math]::Max(1, [math]::Round(($now - $O.AwaySince).TotalMinutes))
         Ensure-Visible
         $left = [math]::Ceiling($O.Remaining.TotalMinutes)
@@ -2226,8 +2227,9 @@ function Accept-MorningPlan {
 
 function Show-Status {
     # une reprise recente attend : « Où j'en étais ? » (sauf pendant un focus qui tourne)
+    # (une seule fois par quart d'heure : ensuite, un bouton « ↩ Où j'en étais » suffit)
     if ($O.State -eq 'Idle' -or ($O.State -in 'Focus', 'Break' -and $O.Paused)) {
-        $ctx = Get-LatestOpenContext -Hours 12
+        $ctx = Get-ContextToOffer 15
         if ($ctx -and -not ($O.State -eq 'Idle' -and (Test-MorningPlanDue))) { Show-ResumeBubble $ctx; return }
     }
     switch ($O.State) {
@@ -2236,7 +2238,10 @@ function Show-Status {
             $hello = Pick $Lines.Hello
             $due = Get-DeadlineSummary
             if ($due) { $hello += "`n`n$due" }
-            Show-Bubble $hello -Buttons (@(Get-StartButtons) + @($BtnPickCards, $BtnTodo, $BtnLater)) -Force -AutoHide -Seconds 60
+            $ctxBtn = @()
+            $open = Get-LatestOpenContext
+            if ($open) { $script:BubbleCtxId = $open.id; $ctxBtn = @(@{ Label = "↩ Où j'en étais"; Action = { Show-ResumeBubble (Find-Context $script:BubbleCtxId) } }) }
+            Show-Bubble $hello -Buttons (@(Get-StartButtons) + @($BtnPickCards, $BtnTodo) + $ctxBtn + @($BtnLater)) -Force -AutoHide -Seconds 60
         }
         'AwaitBreak' { Ask-Break }
         'AwaitFocus' { Ask-Focus }
@@ -2748,6 +2753,11 @@ function Test-Watchdogs {
             Write-Log "Surveillance : Orbit etait hors de l'ecran, ramene a sa place"
         }
     }
+    # Orbit se cache le temps d'une capture d'ecran (« Je m'interromps ») : jamais plus longtemps
+    if ($window.Opacity -lt 1 -and -not ($script:CtxShotTimer -and $script:CtxShotTimer.IsEnabled)) {
+        $window.Opacity = 1
+        Write-Log "Surveillance : Orbit etait reste transparent, il reapparait"
+    }
     # la bulle ne doit jamais rester bloquee « visible » sans texte
     if ($ui.BubbleWrap.Visibility -eq 'Visible' -and -not $ui.BubbleText.Text -and $ui.BubbleButtons.Children.Count -eq 0) { Hide-Bubble }
 }
@@ -2772,13 +2782,17 @@ function Step-Autopilot($now) {
     if ($k % 9 -eq 0) { Show-QuickNote; $qn.QnText.Text = "autopilote $($now.ToString('HH:mm:ss'))"; Close-QuickNote }
     if ($k % 11 -eq 0) { Open-Notebook 'Todo'; Close-Notebook }
     if ($k % 13 -eq 0) { Tell-Fact -Force }
-    if ($k % 17 -eq 0 -and -not ($script:ctxWin -and $ctxWin.IsVisible)) {
-        # une interruption complete : capture, post-it, enregistrement, puis terminee
-        Start-Interruption
-        if ($script:ctxWin -and $ctxWin.IsVisible) { $cx.CtxNext.Text = "autopilote $($now.ToString('HH:mm:ss'))"; Close-ContextEditor }
+    # une interruption complete (une fois sur deux avec capture d'ecran) : fenetres, post-it,
+    # enregistrement au tour suivant, puis terminee
+    if ($script:ctxWin -and $ctxWin.IsVisible) {
+        $cx.CtxNext.Text = "autopilote $($now.ToString('HH:mm:ss'))"
+        Close-ContextEditor
         $c = Get-LatestOpenContext
         if ($c) { Complete-Context $c.id }
         if ($O.State -eq 'Focus' -and $O.Paused) { Toggle-Pause }
+    } elseif ($k % 17 -eq 0) {
+        $Config.ContextScreenshot = ($k % 34 -eq 0)
+        Start-Interruption
     }
     if ($k % 10 -eq 0) {
         $p = [Diagnostics.Process]::GetCurrentProcess()

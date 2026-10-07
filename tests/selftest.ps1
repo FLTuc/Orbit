@@ -213,6 +213,9 @@ try {
     $Config.ContextScreenshot = $true
     Start-Focus
     Start-Interruption
+    $n1 = $NB.Contexts.Count; $first = $script:CtxEdit.Ctx.id
+    Start-Interruption   # double clic pendant la capture
+    Check 'double clic sur ✋ pendant la capture : ignore' ($script:CtxEdit.Ctx.id -eq $first)
     if ($script:CtxShotTimer -and $script:CtxShotTimer.IsEnabled) { $script:CtxShotTimer.Stop(); Complete-InterruptionShot }
     Check 'le focus se met en pause' ($O.State -eq 'Focus' -and $O.Paused)
     Check 'le post-it s''ouvre avec ce qui a ete garde' ($ctxWin.IsVisible -and $cx.CtxSummary.Text -match 'note-de-test')
@@ -220,6 +223,8 @@ try {
     $shot = Get-ContextShotPath $id
     Check 'capture d''ecran gardee (JPEG)' ((Test-Path $shot) -and (Get-Item $shot).Length -gt 1000)
     Check 'Orbit est revenu apres la capture' ($window.Opacity -eq 1)
+    $window.Opacity = 0; Test-Watchdogs
+    Check 'surveillance : Orbit reste transparent par erreur -> il reapparait' ($window.Opacity -eq 1)
     $cx.CtxDoing.Text = 'test de reprise'; $cx.CtxNext.Text = 'ecrire la ligne 2'
     Close-ContextEditor
     $ctx = Find-Context $id
@@ -230,6 +235,11 @@ try {
     Show-Status
     Check 'clic sur Orbit : « Où j''en étais ? » avec la prochaine etape' ($ui.BubbleText.Text -match 'ecrire la ligne 2' -and $ui.BubbleButtons.Children.Count -ge 4)
     Hide-Bubble
+    $st = $O.State; $O.State = 'Idle'
+    Show-Status
+    Check 'reclic juste apres : bulle normale, avec un bouton « ↩ Où j''en étais »' ($ui.BubbleText.Text -notmatch 'ecrire la ligne 2' -and
+        @($ui.BubbleButtons.Children | Where-Object { [string]$_.Content -match 'Où j' }).Count -eq 1)
+    Hide-Bubble; $O.State = $st
     Open-Notebook 'Ctx'
     Check 'onglet Reprises : la reprise et sa capture' ($pn.CtxList.Children.Count -ge 1 -and [string]$pn.TabCtx.Content -match '\(\d+\)' -and
         @($pn.CtxList.Children | Where-Object { $_.Child -and @($_.Child.Children | Where-Object { $_ -is [Windows.Controls.Image] }).Count }).Count -ge 1)
