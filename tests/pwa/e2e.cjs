@@ -56,7 +56,7 @@ function pcZip(entries) {
     check('politique de securite stricte (aucun script exterieur ni en ligne)', /script-src 'self'/.test(csp) && /object-src 'none'/.test(csp) && !/unsafe/.test(csp));
     check('aucun script dans la page elle-meme', (await page.locator('script:not([src])').count()) === 0);
     const man = await (await page.request.get(base + 'manifest.webmanifest')).json();
-    check('manifeste : nom, plein ecran, partage, raccourci Brain Dump', man.display === 'standalone' && man.share_target && man.shortcuts.some((s) => /dump/.test(s.url)));
+    check('manifeste : nom, plein ecran, partage, raccourci note rapide', man.display === 'standalone' && man.share_target && man.shortcuts.some((s) => /action=note/.test(s.url)));
     let iconsOk = true;
     for (const ic of man.icons.filter((i) => i.type === 'image/png')) {
       const buf = await (await page.request.get(base + ic.src)).body();
@@ -136,42 +136,22 @@ function pcZip(entries) {
     await page.goto(base + '?share_title=Article%20utile&share_text=A%20lire&share_url=https%3A%2F%2Fexemple.fr%2Farticle');
     await page.waitForSelector('#sheet:not(.hidden)');
     check('le lien partage est prerempli', (await page.inputValue('#sheet input[inputmode=url]')) === 'https://exemple.fr/article');
-    await page.click('#sheet >> text=📥 Plutôt dans le Brain Dump');
+    await page.click('#sheet >> text=📝 Plutôt en note');
     st = await state();
-    check('… et peut aller dans le Brain Dump', st.anchor.dump.length === 1 && /exemple\.fr/.test(st.anchor.dump[0].text));
+    check('… et peut aller dans les notes', st.notes.some((n) => /exemple\.fr/.test(n.text)));
 
-    section('📥 Brain Dump et tri a froid');
-    for (const t of ['Payer la facture EDF', 'Idée cadeau Léa', 'Ranger le garage']) {
-      await page.click('#dumpFab');
-      await page.fill('#sheet textarea', t);
-      await page.press('#sheet textarea', 'Enter');
-    }
+    section('📝 Note rapide (bouton rond)');
+    await page.click('#noteFab');
+    await page.fill('#sheet textarea', 'Payer la facture EDF');
+    await page.click('#sheet >> text=✓ OK');
     st = await state();
-    check('capture en 2 gestes (bouton 📥, Entrée)', st.anchor.dump.length === 4);
-    check('pastille du Dump sur l\'onglet', (await page.textContent('#dumpCount')) === '4');
-    await tab('dump');
-    await page.click('#sortStart');
-    const card = page.locator('.sort-card');
-    const box = await card.boundingBox();
-    // 1re idee : glissee du doigt vers la droite -> action
-    const cdp = await ctx.newCDPSession(page);
-    const x = box.x + box.width / 2, y = box.y + box.height / 2;
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
-    for (let i = 1; i <= 6; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + i * 30, y }] });
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-    await page.waitForTimeout(250);
-    const trace = [(await state()).anchor.dump.length];
-    for (const label of ['📦 Archiver', '⚡ À débloquer', '🗂 Carte (tableau)']) {
-      await page.click(`#focusMode button:has-text("${label}")`);
-      trace.push((await state()).anchor.dump.length);
-    }
-    console.log(`  (reste dans le bac apres chaque geste : ${trace.join(' -> ')})`);
-    st = await state();
-    check('tri : glisser = action, puis archive, deblocage, carte', st.anchor.dump.length === 0 && st.anchor.tasks.filter((t) => t.status === 'todo').length === 2 && st.anchor.tasks.some((t) => t.status === 'archived') && st.kanban.cards.some((c) => /Ranger le garage/.test(c.text)) && st.anchor.unstick);
-    check('bac trie : bouton pour se debloquer', await page.locator('#focusMode >> text=⚡ Me débloquer').isVisible());
+    check('note gardee en 2 gestes', st.notes.some((n) => n.text === 'Payer la facture EDF'));
+    check('onglets : Orbit, Tableaux, Notes, Reprises, Plus (plus de Dump ni DopaList)', (await page.locator('.tabbar button').allTextContents()).join('|').replace(/\s/g, '') === '🛰Orbit|🗂Tableaux|📝Notes|↩Reprises|☰Plus');
 
     section('⚡ Unstick Me (une seule chose a la fois)');
-    await page.click('#focusMode >> text=⚡ Me débloquer');
+    await page.click('#sosBtn');
+    await page.fill('#focusMode textarea', 'Payer la facture EDF');
+    await page.click('#focusMode >> text=⚡ Découper');
     check('une seule etape affichee', (await page.locator('.fm-step').count()) === 1 && /Étape 1 sur/.test(await page.textContent('#focusMode')));
     await page.click('#focusMode >> text=▶ Je commence');
     await page.clock.fastForward('03:00');
@@ -195,18 +175,11 @@ function pcZip(entries) {
     await tab('home');
     check('la seance reste reprenable depuis l\'accueil', await visible('#homeUnstick'));
 
-    section('📋 DopaList et journal des victoires');
-    await tab('dopa');
-    await page.fill('#dopaInput', 'Prendre mes médicaments');
-    await page.selectOption('#dopaRepeat', 'daily');
-    await page.click('#dopaForm button[type=submit]');
-    await page.locator('.dopa', { hasText: 'Prendre mes médicaments' }).click();
-    st = await state();
-    check('routine cochee : victoire du jour', st.anchor.tasks.find((t) => t.title === 'Prendre mes médicaments').lastDone === '2026-10-05');
-    check('aucun compteur « en retard » dans la DopaList', !/retard/i.test(await page.textContent('#view-dopa')));
-    await page.click('#openJournal');
+    section('🏆 Journal des victoires');
+    await page.click('.tabbar [data-tab=more]');
+    await page.click('[data-go=journal]');
     const journal = await page.textContent('#view-journal');
-    check('journal : victoires du jour (focus, reprise, deblocage, routine)', /Prendre mes médicaments/.test(journal) && /Focus de 50 min/.test(journal) && /Débloqué/.test(journal) && /victoires/.test(journal));
+    check('journal rempli tout seul (focus, reprise, deblocage)', /Focus de 50 min/.test(journal) && /Débloqué/.test(journal) && /victoires/.test(journal));
 
     section('🔍 Recherche');
     await page.click('#openSearch');
@@ -229,7 +202,7 @@ function pcZip(entries) {
     await page.waitForFunction(() => window.__orbit.state().kanban.boards[0].name === 'Projet PC', null, { timeout: 5000 }).catch(() => {});
     st = await state();
     check('zip d\'Orbit PC importe (tableaux, notes)', st.kanban.boards[0].name === 'Projet PC' && st.notes[0].text === 'Note du PC');
-    check('DopaList du telephone gardee (absente du zip)', st.anchor.tasks.length > 0);
+    check('victoires du telephone gardees (absentes du zip)', st.anchor.wins.length > 0);
     await page.click('#undoImport');
     await page.waitForTimeout(200);
     st = await state();
@@ -248,8 +221,7 @@ function pcZip(entries) {
     await page.waitForSelector('#bigClock');
     st = await state();
     check('sans reseau : l\'appli s\'ouvre, les donnees sont la', st.kanban.cards.length >= 2 && st.anchor.wins.length >= 3);
-    await page.click('.tabbar [data-tab=more]');
-    await page.click('[data-go=notes]');
+    await page.click('.tabbar [data-tab=notes]');
     await page.click('#noteNew');
     await page.fill('#sheet textarea', 'Note écrite hors ligne');
     await page.click('#sheet >> text=✓ OK');
@@ -258,9 +230,22 @@ function pcZip(entries) {
     await ctx.setOffline(false);
 
     section('Bouton retour d\'Android');
-    await page.click('#dumpFab');
+    await page.click('#noteFab');
     await page.goBack();
     check('retour : ferme la fenetre sans quitter l\'appli', !(await visible('#sheet')) && page.url().startsWith(base));
+
+    section('Ancien Brain Dump / DopaList : rien n\'est perdu');
+    await page.evaluate(() => {
+      const raw = JSON.parse(localStorage.getItem('orbit.v1'));
+      raw.anchor.dump = [{ id: 'aaaa', text: 'Vieille idée du Brain Dump', created: '2026-10-01T10:00:00' }];
+      raw.anchor.tasks = [{ id: 'bbbb', title: 'Vieille routine', status: 'todo', isRoutine: true, repeat: 'weekdays' }];
+      localStorage.setItem('orbit.v1', JSON.stringify(raw));
+    });
+    await page.reload();
+    await page.waitForSelector('#bigClock');
+    st = await state();
+    check('idee -> note, routine -> carte qui se repete', st.notes.some((n) => n.text === 'Vieille idée du Brain Dump') && st.kanban.cards.find((c) => c.text === 'Vieille routine')?.repeat === 'workdays' && !st.anchor.dump.length && !st.anchor.tasks.length);
+    check('Orbit le dit dans sa bulle', /Rien n'est perdu/.test(await page.textContent('#bubbleText')));
 
     section('Mode sombre');
     await page.emulateMedia({ colorScheme: 'dark' });

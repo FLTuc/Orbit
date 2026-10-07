@@ -9,11 +9,6 @@ const tasks = ['Répondre au mail de Julie', 'Faire mon compte-rendu de réunion
   'Faire les courses', 'Aller courir', 'Cuisiner le dîner', 'Corriger le bug du script', "Prendre rendez-vous chez l'ophtalmo", 'Trier mes papiers'];
 const expected = Object.fromEntries(tasks.map((t) => [t, S.decompose(t, rules)]));
 fs.writeFileSync('tests/fixtures/unstick-expected.json', JSON.stringify(expected, null, 2) + '\n');
-const s = S.defaultState();
-S.dumpAdd(s, 'Idée notée sur le téléphone 🚀');
-const r = S.dopaAdd(s, 'Boire un verre d’eau', 'daily');
-r.lastDone = '2026-10-04';
-S.dopaAdd(s, 'Envoyer le devis');
-s.anchor.wins.push({ id: 'w1', title: 'Débloqué : Ranger le bureau', kind: 'unstick', at: '2026-10-04T10:00:00' });
-fs.writeFileSync('tests/fixtures/lifeanchor-telephone.json', S.toDesktopFiles(s)['lifeanchor.json'] + '\n');
+// tests/fixtures/lifeanchor-telephone.json n'est plus genere : c'est un exemple de l'ANCIEN format
+// (Brain Dump + DopaList), garde pour verifier que la conversion en notes et cartes ne perd rien.
 console.log('ok');

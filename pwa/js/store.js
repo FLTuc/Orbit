@@ -200,7 +200,7 @@ export function sanitizeCard(t, board, col, order) {
     done: bool(t.done), created: isoOrEmpty(t.created) || isoLocal(), doneAt: isoOrEmpty(t.doneAt),
     board, col, order: num(order, -1e9, 1e9, 0),
     pomos: Math.floor(num(t.pomos, 0, 1e6, 0)), focusMin: Math.floor(num(t.focusMin, 0, 1e8, 0)), lastFocus: isoOrEmpty(t.lastFocus),
-    checks: sanitizeChecks(t.checks), repeat: ['', 'weekdays', 'daily', 'weekly', 'biweekly', 'monthly'].includes(t.repeat) ? t.repeat : '',
+    checks: sanitizeChecks(t.checks), repeat: ['', 'workdays', 'weekdays', 'daily', 'weekly', 'biweekly', 'monthly'].includes(t.repeat) ? t.repeat : '',
     spawned: bool(t.spawned),
   };
 }
@@ -244,7 +244,7 @@ export function sanitizeKanban(data) {
     .map((u) => Object.assign(sanitizeCard(u, isSafeId(u.board) ? u.board : '', '', 0), { showAt: dayOrEmpty(u.showAt) }))
     .filter((u) => u.showAt);
   out.templates = (Array.isArray(d.templates) ? d.templates : []).filter((m) => m && typeof m === 'object' && m.name).slice(0, 200)
-    .map((m) => ({ name: cleanText(m.name, 60), text: cleanText(m.text), desc: cleanText(m.desc, LIMITS.long), prio: limitPrio(m.prio), checks: sanitizeChecks(m.checks), repeat: ['', 'weekdays', 'daily', 'weekly', 'biweekly', 'monthly'].includes(m.repeat) ? m.repeat : '' }));
+    .map((m) => ({ name: cleanText(m.name, 60), text: cleanText(m.text), desc: cleanText(m.desc, LIMITS.long), prio: limitPrio(m.prio), checks: sanitizeChecks(m.checks), repeat: ['', 'workdays', 'weekdays', 'daily', 'weekly', 'biweekly', 'monthly'].includes(m.repeat) ? m.repeat : '' }));
   return out;
 }
 
@@ -597,14 +597,12 @@ export function repriseToCard(s, id) {
 // --- recherche ------------------------------------------------------------------
 export function searchAll(s, q) {
   const words = searchKey(q).split(' ').filter(Boolean);
-  const r = { cards: [], notes: [], reprises: [], tasks: [], dump: [] };
+  const r = { cards: [], notes: [], reprises: [] };
   if (!words.length) return r;
   r.cards = s.kanban.cards.filter((t) => matches(`${t.text} ${t.desc} ${t.checks.map((c) => c.text).join(' ')}`, words))
     .sort((a, b) => (a.done - b.done) || a.prio - b.prio);
   r.notes = s.notes.filter((n) => matches(n.text, words));
   r.reprises = s.reprises.filter((c) => matches(`${c.doing} ${c.next} ${c.windows.map((w) => `${w.title} ${w.url}`).join(' ')}`, words));
-  r.tasks = s.anchor.tasks.filter((t) => matches(t.title, words));
-  r.dump = s.anchor.dump.filter((d) => matches(d.text, words));
   return r;
 }
 
@@ -615,7 +613,7 @@ export function toDesktopFiles(s) {
     'kanban.json': JSON.stringify(s.kanban, null, 2),
     'notes.json': JSON.stringify(s.notes, null, 2),
     'reprises.json': JSON.stringify(s.reprises, null, 2),
-    'lifeanchor.json': JSON.stringify({ dump: s.anchor.dump, tasks: s.anchor.tasks, wins: s.anchor.wins }, null, 2),
+    'lifeanchor.json': JSON.stringify({ dump: [], tasks: [], wins: s.anchor.wins }, null, 2),
   };
 }
 // fichiers lus dans un export d'Orbit PC (ceux qui manquent : on garde l'existant)
@@ -638,10 +636,11 @@ export function fromDesktopFiles(s, files) {
 }
 
 // =============================================================================
-//  Les 3 modules « anti-paralysie » : Brain Dump, DopaList, Unstick Me
-//  (meme fichier lifeanchor.json que la version PC)
+//  S.O.S / Unstick Me et journal des victoires
+//  (meme fichier lifeanchor.json que la version PC ; « dump » et « tasks » ne sont plus
+//  lus que pour convertir l'ancien Brain Dump et l'ancienne DopaList)
 // =============================================================================
-export const REPEATS = { daily: 'chaque jour', weekdays: 'en semaine', weekly: 'chaque semaine' };
+const REPEATS = { daily: 'chaque jour', weekdays: 'en semaine', weekly: 'chaque semaine' };
 
 export function defaultAnchor() { return { dump: [], tasks: [], wins: [], unstick: null }; }
 
@@ -703,83 +702,21 @@ export function winStreak(s, now = new Date()) {
   return n;
 }
 
-// --- Brain Dump : capturer sans trier, trier « a froid » ------------------------------
-export function dumpAdd(s, text) {
-  const t = cleanText(text, 2000).trim();
-  if (!t || s.anchor.dump.length >= 1000) return null;
-  const x = { id: newId(), text: t, created: isoLocal() };
-  s.anchor.dump.push(x);
-  return x;
-}
-function dumpTake(s, id) {
-  const x = s.anchor.dump.find((d) => d.id === id);
-  if (x) s.anchor.dump = s.anchor.dump.filter((d) => d.id !== id);
-  return x;
-}
-// action : 'dopa' | 'unstick' | 'card' | 'archive' | 'delete'
-export function dumpSort(s, id, action, rules) {
-  const x = dumpTake(s, id);
-  if (!x) return null;
-  if (action === 'delete') return { action };
-  if (action === 'card') return { action, card: addCard(s, x.text) };
-  const task = { id: newId(), title: cleanText(x.text, 300), status: action === 'archive' ? 'archived' : 'todo', isRoutine: false, repeat: '',
-    created: x.created, completedAt: '', lastDone: '', steps: [] };
-  s.anchor.tasks.push(task);
-  if (action === 'unstick') startUnstick(s, task.title, rules, task.id);
-  return { action, task };
-}
-
-// --- DopaList : actions et routines ------------------------------------------------
-export function dopaAdd(s, title, repeat = '') {
-  const t = cleanText(title, 300).trim();
-  if (!t) return null;
-  const task = { id: newId(), title: t, status: 'todo', isRoutine: !!REPEATS[repeat], repeat: REPEATS[repeat] ? repeat : '',
-    created: isoLocal(), completedAt: '', lastDone: '', steps: [] };
-  s.anchor.tasks.push(task);
-  return task;
-}
-// une routine est « a faire » si elle n'a pas ete faite sur sa periode
-export function routineDue(t, now = new Date()) {
-  if (!t.isRoutine || t.status === 'archived') return false;
-  const today = dayString(now);
-  if (t.repeat === 'weekdays' && (now.getDay() === 0 || now.getDay() === 6)) return false;
-  if (t.repeat === 'weekly') {
-    if (!t.lastDone) return true;
-    const last = parseLocal(t.lastDone);
-    return (new Date(now.getFullYear(), now.getMonth(), now.getDate()) - last) / 86400000 >= 7;
+// --- ancien Brain Dump / DopaList : rien n'est perdu ------------------------------------
+// idees -> notes rapides, actions -> cartes, routines -> cartes qui se repetent (comme sur le PC)
+export function migrateAnchor(s) {
+  let notes = 0, cards = 0;
+  for (const d of s.anchor.dump) if (addNote(s, d.text)) notes++;
+  for (const t of s.anchor.tasks.filter((x) => x.status === 'todo')) {
+    const c = addCard(s, t.title);
+    if (!c) continue;
+    if (t.isRoutine) { c.repeat = t.repeat === 'weekdays' ? 'workdays' : t.repeat === 'weekly' ? 'weekly' : 'daily'; c.desc = 'Ancienne routine de la DopaList'; }
+    cards++;
   }
-  return t.lastDone !== today;
+  const had = s.anchor.dump.length + s.anchor.tasks.length > 0;
+  s.anchor.dump = []; s.anchor.tasks = [];
+  return had ? { notes, cards } : null;
 }
-export function dopaView(s, now = new Date()) {
-  const today = dayString(now);
-  const routines = s.anchor.tasks.filter((t) => t.isRoutine && t.status !== 'archived')
-    .map((t) => ({ task: t, doneToday: t.lastDone === today, due: routineDue(t, now) }))
-    .filter((r) => r.due || r.doneToday);
-  const actions = s.anchor.tasks.filter((t) => !t.isRoutine && t.status === 'todo');
-  return { routines, actions };
-}
-export function dopaComplete(s, id, now = new Date()) {
-  const t = s.anchor.tasks.find((x) => x.id === id);
-  if (!t) return null;
-  if (t.isRoutine) {
-    if (t.lastDone === dayString(now)) return null;
-    t.lastDone = dayString(now);
-    return addWin(s, t.title, 'routine', now);
-  }
-  if (t.status !== 'todo') return null;
-  t.status = 'completed';
-  t.completedAt = isoLocal(now);
-  return addWin(s, t.title, 'task', now);
-}
-export function dopaUndo(s, id, now = new Date()) {
-  const t = s.anchor.tasks.find((x) => x.id === id);
-  if (!t) return;
-  if (t.isRoutine) { if (t.lastDone === dayString(now)) t.lastDone = ''; }
-  else if (t.status === 'completed') { t.status = 'todo'; t.completedAt = ''; }
-  const i = s.anchor.wins.map((w) => w.title).lastIndexOf(t.title);
-  if (i >= 0 && s.anchor.wins[i].at.slice(0, 10) === dayString(now)) s.anchor.wins.splice(i, 1);
-}
-export function dopaRemove(s, id) { s.anchor.tasks = s.anchor.tasks.filter((t) => t.id !== id); }
 
 // --- Unstick Me : decoupage local en micro-etapes ------------------------------------
 export function decompose(text, rules) {
@@ -813,11 +750,6 @@ export function unstickStepDone(s, now = new Date()) {
   u.timerEndsAt = 0;
   if (u.index < u.steps.length - 1) { u.index++; return 'next'; }
   addWin(s, `Débloqué : ${u.title}`, 'unstick', now);
-  if (u.taskId) {
-    const t = s.anchor.tasks.find((x) => x.id === u.taskId);
-    if (t && !t.isRoutine && t.status === 'todo') { t.status = 'completed'; t.completedAt = isoLocal(now); }
-    if (t && t.isRoutine) t.lastDone = dayString(now);
-  }
   s.anchor.unstick = null;
   return 'finished';
 }

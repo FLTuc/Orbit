@@ -1,15 +1,15 @@
 ﻿# ---------------------------------------------------------------------------
-#  Les 3 modules anti-paralysie (les memes que sur le telephone) :
-#   - 📥 Brain Dump : vider sa tete sans rien trier (bouton 📥 a cote d'Orbit),
-#     puis trier « a froid », une idee a la fois ;
-#   - 📋 DopaList : actions et routines en grandes cartes, et le journal des
-#     victoires (ce qui a ete fait aujourd'hui, jamais ce qui est « en retard ») ;
-#   - ⚡ Unstick Me / 🚨 S.O.S : une tache qui bloque est decoupee en 3 a 5
-#     micro-etapes ridiculement petites ; on n'en voit qu'une a la fois, avec un
-#     minuteur doux de 2 min 30 qui ne sonne jamais.
+#  🚨 S.O.S / ⚡ Unstick Me et le journal des victoires (les memes que sur le telephone) :
+#   - une tache qui bloque est decoupee en 3 a 5 micro-etapes ridiculement
+#     petites ; on n'en voit qu'une a la fois, avec un minuteur doux de 2 min 30
+#     qui ne sonne jamais ;
+#   - le journal des victoires note tout seul ce qui a ete fait (focus termines,
+#     cartes finies, reprises, deblocages), jamais ce qui est « en retard ».
 #  Le decoupage est fait sur le PC, avec les regles de unstick\rules.json (les memes
 #  que sur le telephone) : aucun service d'IA, rien ne sort du PC.
 #  Donnees : lifeanchor.json (meme format que le telephone, voyage avec l'export).
+#  (Le Brain Dump et la DopaList ont ete retires : leurs donnees deviennent des notes
+#  rapides et des cartes, une seule fois, au premier lancement.)
 # ---------------------------------------------------------------------------
 $AnchorFile = Join-Path $DataDir 'lifeanchor.json'
 $AnchorRulesFile = Join-Path $PSScriptRoot 'unstick\rules.json'
@@ -112,7 +112,7 @@ function Load-Anchor {
         foreach ($f in @(Get-ChildItem -Path $BackupDir -Filter 'lifeanchor-????-??-??.json' -ErrorAction SilentlyContinue | Sort-Object Name -Descending)) {
             try {
                 Import-AnchorData (ConvertFrom-Json ([IO.File]::ReadAllText($f.FullName)))
-                $NB.LoadNotice = (@($NB.LoadNotice, "Ton fichier DopaList / Brain Dump était abîmé 😬 J'ai repris la copie du $($f.BaseName.Substring(11)).") | Where-Object { $_ }) -join "`n"
+                $NB.LoadNotice = (@($NB.LoadNotice, "Ton fichier de victoires était abîmé 😬 J'ai repris la copie du $($f.BaseName.Substring(11)).") | Where-Object { $_ }) -join "`n"
                 break
             } catch {}
         }
@@ -129,7 +129,7 @@ function Save-Anchor {
             Limit-Backups 'lifeanchor-????-??-??.json' 7
             $Anchor.BackupDay = $day
         }
-        $data = [ordered]@{ dump = @($Anchor.Dump); tasks = @($Anchor.Tasks); wins = @($Anchor.Wins); unstick = $Anchor.Unstick }
+        $data = [ordered]@{ dump = @($Anchor.Dump); tasks = @($Anchor.Tasks); wins = @($Anchor.Wins); unstick = $Anchor.Unstick }   # (dump et tasks : vides, anciens modules)
         Write-FileSafe $AnchorFile (ConvertTo-Json -InputObject $data -Depth 6)
     } catch { Write-Log "Ecriture lifeanchor.json : $($_.Exception.Message)" }
 }
@@ -161,93 +161,33 @@ function Get-WinStreak([datetime]$now = (Get-Date)) {
 }
 
 # ---------------------------------------------------------------------------
-#  Brain Dump
+#  Anciennes donnees (Brain Dump, DopaList) : converties une seule fois
+#  idees du Brain Dump -> notes rapides ; actions -> cartes ; routines -> cartes recurrentes
 # ---------------------------------------------------------------------------
-function Add-DumpItem([string]$text) {
-    $t = (Get-AnchorText $text 2000).Trim()
-    if (-not $t -or $Anchor.Dump.Count -ge 1000) { return $null }
-    $x = [pscustomobject]@{ id = (New-Id); text = $t; created = (Get-Date).ToString('s') }
-    [void]$Anchor.Dump.Add($x)
-    Save-Anchor
-    return $x
-}
-
-# tri a froid : 'dopa' | 'unstick' | 'card' | 'archive' | 'delete'
-function Invoke-DumpSort([string]$id, [string]$action) {
-    $x = $Anchor.Dump | Where-Object { $_.id -eq $id } | Select-Object -First 1
-    if (-not $x) { return $null }
-    $Anchor.Dump.Remove($x)
-    $r = $null
-    if ($action -eq 'card') {
+function Convert-AnchorLegacy {
+    $notes = 0; $cards = 0
+    foreach ($d in @($Anchor.Dump)) {
+        if ($d -and $d.text -and (Add-Note $d.text)) { $notes++ }
+    }
+    foreach ($t in @($Anchor.Tasks | Where-Object { $_.status -eq 'todo' })) {
         $NB.LastAddedId = ''
-        Add-Todo (Get-TextStart $x.text 300)
-        $r = Find-Todo $NB.LastAddedId
-    } elseif ($action -ne 'delete') {
-        $t = ConvertTo-AnchorTask ([pscustomobject]@{ id = (New-Id); title = $x.text; status = $(if ($action -eq 'archive') { 'archived' } else { 'todo' }); created = $x.created })
-        [void]$Anchor.Tasks.Add($t)
-        if ($action -eq 'unstick') { [void](Start-Unstick $t.title $t.id) }
-        $r = $t
+        Add-Todo $t.title -Quiet
+        $c = Find-Todo $NB.LastAddedId
+        if (-not $c) { continue }
+        if ($t.isRoutine) {
+            $c.repeat = switch ($t.repeat) { 'weekdays' { 'workdays' } 'weekly' { 'weekly' } default { 'daily' } }
+            $c.desc = 'Ancienne routine de la DopaList'
+        }
+        $cards++
     }
+    if (-not ($Anchor.Dump.Count + $Anchor.Tasks.Count)) { return }
+    $Anchor.Dump.Clear(); $Anchor.Tasks.Clear()
+    if ($cards) { Save-Todos }
     Save-Anchor
-    return $r
-}
-
-# ---------------------------------------------------------------------------
-#  DopaList
-# ---------------------------------------------------------------------------
-function Add-DopaTask([string]$title, [string]$repeat = '') {
-    $t = (Get-AnchorText $title 300).Trim()
-    if (-not $t) { return $null }
-    $x = ConvertTo-AnchorTask ([pscustomobject]@{ id = (New-Id); title = $t; status = 'todo'; repeat = $repeat; isRoutine = [bool]$AnchorRepeats.Contains($repeat) })
-    [void]$Anchor.Tasks.Add($x)
-    Save-Anchor
-    return $x
-}
-function Find-DopaTask([string]$id) { foreach ($t in $Anchor.Tasks) { if ($t.id -eq $id) { return $t } } }
-
-function Test-RoutineDue($t, [datetime]$now = (Get-Date)) {
-    if (-not $t.isRoutine -or $t.status -eq 'archived') { return $false }
-    if ($t.repeat -eq 'weekdays' -and $now.DayOfWeek -in 'Saturday', 'Sunday') { return $false }
-    if ($t.repeat -eq 'weekly') {
-        if (-not $t.lastDone) { return $true }
-        return (($now.Date - [datetime]::ParseExact($t.lastDone, 'yyyy-MM-dd', $null)).TotalDays -ge 7)
+    Write-Log "Brain Dump et DopaList retires : $notes note(s) et $cards carte(s) creees"
+    if ($notes -or $cards) {
+        $NB.LoadNotice = (@($NB.LoadNotice, "Le Brain Dump et la DopaList ont été retirés. Rien n'est perdu : $notes idée(s) sont devenues des notes rapides 📝 et $cards action(s) ou routine(s) sont devenues des cartes 🗂 (les routines se répètent).") | Where-Object { $_ }) -join "`n"
     }
-    return $t.lastDone -ne $now.ToString('yyyy-MM-dd')
-}
-
-function Get-DopaView([datetime]$now = (Get-Date)) {
-    $today = $now.ToString('yyyy-MM-dd')
-    $routines = @($Anchor.Tasks | Where-Object { $_.isRoutine -and $_.status -ne 'archived' } | ForEach-Object {
-            [pscustomobject]@{ Task = $_; DoneToday = ($_.lastDone -eq $today); Due = (Test-RoutineDue $_ $now) } } | Where-Object { $_.Due -or $_.DoneToday })
-    $actions = @($Anchor.Tasks | Where-Object { -not $_.isRoutine -and $_.status -eq 'todo' })
-    return [pscustomobject]@{ Routines = $routines; Actions = $actions }
-}
-
-function Complete-DopaTask([string]$id, [datetime]$now = (Get-Date)) {
-    $t = Find-DopaTask $id
-    if (-not $t) { return $null }
-    if ($t.isRoutine) {
-        if ($t.lastDone -eq $now.ToString('yyyy-MM-dd')) { return $null }
-        $t.lastDone = $now.ToString('yyyy-MM-dd')
-        return (Add-Win $t.title 'routine' $now)
-    }
-    if ($t.status -ne 'todo') { return $null }
-    $t.status = 'completed'; $t.completedAt = $now.ToString('s')
-    return (Add-Win $t.title 'task' $now)
-}
-function Undo-DopaTask([string]$id, [datetime]$now = (Get-Date)) {
-    $t = Find-DopaTask $id
-    if (-not $t) { return }
-    if ($t.isRoutine) { if ($t.lastDone -eq $now.ToString('yyyy-MM-dd')) { $t.lastDone = '' } }
-    elseif ($t.status -eq 'completed') { $t.status = 'todo'; $t.completedAt = '' }
-    for ($i = $Anchor.Wins.Count - 1; $i -ge 0; $i--) {
-        if ($Anchor.Wins[$i].title -eq $t.title -and $Anchor.Wins[$i].at.StartsWith($now.ToString('yyyy-MM-dd'))) { $Anchor.Wins.RemoveAt($i); break }
-    }
-    Save-Anchor
-}
-function Remove-DopaTask([string]$id) {
-    $t = Find-DopaTask $id
-    if ($t) { $Anchor.Tasks.Remove($t); Save-Anchor }
 }
 
 # ---------------------------------------------------------------------------
@@ -300,11 +240,6 @@ function Complete-UnstickStep([datetime]$now = (Get-Date)) {
     $u.timerEndsAt = [double]0
     if ($u.index -lt $u.steps.Count - 1) { $u.index++; Save-Anchor; return 'next' }
     $Anchor.Unstick = $null
-    if ($u.taskId) {
-        $t = Find-DopaTask $u.taskId
-        if ($t -and -not $t.isRoutine -and $t.status -eq 'todo') { $t.status = 'completed'; $t.completedAt = $now.ToString('s') }
-        elseif ($t -and $t.isRoutine) { $t.lastDone = $now.ToString('yyyy-MM-dd') }
-    }
     [void](Add-Win "Débloqué : $($u.title)" 'unstick' $now)
     return 'finished'
 }
@@ -342,74 +277,7 @@ function Set-BrownNoise([bool]$on) {
 }
 
 # ---------------------------------------------------------------------------
-#  Fenetre « capture rapide » (bouton 📥 a cote d'Orbit, menu, icone)
-# ---------------------------------------------------------------------------
-[xml]$AnchorDumpXaml = @'
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Brain Dump" Width="380" SizeToContent="Height" ResizeMode="NoResize"
-        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        Topmost="True" ShowInTaskbar="False" FontFamily="Segoe UI, Segoe UI Emoji, Segoe UI Symbol" FontSize="14">
-  <Border Margin="8" CornerRadius="14" Background="#EEEBFF" BorderBrush="#1E1B3A" BorderThickness="2.5">
-    <Border.Effect><DropShadowEffect BlurRadius="0" ShadowDepth="4" Direction="-45" Opacity="0.25"/></Border.Effect>
-    <StackPanel Margin="14,10,14,12">
-      <Grid x:Name="BdHeader" Background="Transparent" Cursor="SizeAll" Margin="0,0,0,6">
-        <TextBlock Text="📥 Vide ta tête" FontWeight="Bold" FontSize="15" Foreground="#1E1B3A"/>
-        <Button x:Name="BdClose" Content="✕" HorizontalAlignment="Right" Width="24" Height="22" Background="Transparent" BorderThickness="0" Cursor="Hand"/>
-      </Grid>
-      <TextBox x:Name="BdText" AcceptsReturn="False" TextWrapping="Wrap" MinHeight="64" MaxHeight="200" VerticalScrollBarVisibility="Auto"
-               Padding="6,4" BorderBrush="#9F95E8"/>
-      <Grid Margin="0,8,0,0">
-        <TextBlock x:Name="BdHint" Foreground="#6B6880" FontSize="11.5" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,110,0"
-                   Text="Rien à trier maintenant · Entrée = déposer · Win+H pour dicter"/>
-        <Button x:Name="BdSave" Content="📥 Déposer" HorizontalAlignment="Right" Padding="12,4" Cursor="Hand" Background="#6C5CE7" Foreground="White" BorderThickness="0"/>
-      </Grid>
-    </StackPanel>
-  </Border>
-</Window>
-'@
-$script:bdWin = $null
-$script:bdClosing = $false
-function Initialize-QuickDump {
-    if ($script:bdWin) { return }
-    $script:bdWin = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $AnchorDumpXaml))
-    $script:bd = @{}
-    foreach ($n in 'BdHeader', 'BdClose', 'BdText', 'BdHint', 'BdSave') { $bd[$n] = $bdWin.FindName($n) }
-    $bd.BdHeader.Add_MouseLeftButtonDown({ try { $bdWin.DragMove() } catch {} })
-    $bd.BdClose.Add_Click({ Invoke-Safe { Close-QuickDump } })
-    $bd.BdSave.Add_Click({ Invoke-Safe { Close-QuickDump } })
-    $bd.BdText.Add_KeyDown({ param($s, $e) if ($e.Key -eq 'Return') { $e.Handled = $true; Invoke-Safe { Close-QuickDump } } })
-    $bdWin.Add_Deactivated({ Invoke-Safe { Close-QuickDump } })
-    $bdWin.Add_PreviewKeyDown({ param($s, $e) if ($e.Key -eq 'Escape') { $e.Handled = $true; Invoke-Safe { Close-QuickDump } } })
-    $bdWin.Add_Closing({ param($s, $e) if (-not $NB.Quitting) { $e.Cancel = $true; Invoke-Safe { Close-QuickDump } } })
-}
-function Show-QuickDump {
-    Initialize-QuickDump
-    $bd.BdText.Text = ''
-    if (-not $bdWin.IsVisible) {
-        $wa = Get-WorkArea ([System.Windows.Forms.Screen]::FromPoint([System.Windows.Forms.Cursor]::Position))
-        $bdWin.Left = ($wa.L + $wa.R) / 2 - 190
-        $bdWin.Top = [math]::Max($wa.T, ($wa.T + $wa.B) / 2 - 120)
-        $bdWin.Show()
-    }
-    $bdWin.Activate() | Out-Null
-    $bd.BdText.Focus() | Out-Null
-}
-function Close-QuickDump {
-    if (-not $script:bdWin -or $script:bdClosing -or -not $bdWin.IsVisible) { return }
-    $script:bdClosing = $true
-    try {
-        $t = $bd.BdText.Text
-        $bdWin.Hide()
-        if (Add-DumpItem $t) {
-            Show-Bubble "📥 Déposé ($($Anchor.Dump.Count) dans le bac). Tu trieras plus tard, à froid." -Force -Seconds 3
-            Render-AnchorTabs
-        }
-    } finally { $script:bdClosing = $false }
-}
-
-# ---------------------------------------------------------------------------
-#  Fenetre plein ecran doux : tri a froid et Unstick Me (une seule chose a la fois)
+#  Fenetre plein ecran doux : Unstick Me (une seule chose a la fois)
 # ---------------------------------------------------------------------------
 [xml]$AnchorFocusXaml = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -434,9 +302,7 @@ function Close-QuickDump {
 </Window>
 '@
 $script:afWin = $null
-$script:afMode = ''        # 'sort' | 'sos' | 'unstick' | 'done' | 'sorted'
-$script:afQueue = New-Object System.Collections.ArrayList
-$script:afSortUnstick = $false
+$script:afMode = ''        # 'sos' | 'unstick' | 'done'
 $script:afTimer = $null
 
 function Initialize-AnchorFocus {
@@ -448,14 +314,7 @@ function Initialize-AnchorFocus {
     $af.AfClose.Add_Click({ Invoke-Safe { Close-AnchorFocus } })
     $af.AfNoise.Add_Click({ Invoke-Safe { [void](Set-BrownNoise (-not $script:NoisePlayer)); Update-NoiseButton } })
     $afWin.Add_Closing({ param($s, $e) if (-not $NB.Quitting) { $e.Cancel = $true; Invoke-Safe { Close-AnchorFocus } } })
-    # fleches du clavier pendant le tri : → action, ← archiver, ↑ debloquer
-    $afWin.Add_PreviewKeyDown({
-            param($s, $e)
-            if ($e.Key -eq 'Escape') { $e.Handled = $true; Invoke-Safe { Close-AnchorFocus }; return }
-            if ($script:afMode -ne 'sort') { return }
-            $a = switch ($e.Key) { 'Right' { 'dopa' } 'Left' { 'archive' } 'Up' { 'unstick' } default { '' } }
-            if ($a -and -not ($e.OriginalSource -is [Windows.Controls.TextBox])) { $e.Handled = $true; Invoke-Safe { Invoke-SortAction $a } }
-        })
+    $afWin.Add_PreviewKeyDown({ param($s, $e) if ($e.Key -eq 'Escape') { $e.Handled = $true; Invoke-Safe { Close-AnchorFocus } } })
     $script:afTimer = New-Object Windows.Threading.DispatcherTimer
     $script:afTimer.Interval = [timespan]::FromMilliseconds(500)
     $script:afTimer.Add_Tick({ Invoke-Safe { Update-UnstickTimer } 'deblocage' })
@@ -479,7 +338,6 @@ function Close-AnchorFocus {
     if ($script:afTimer) { $script:afTimer.Stop() }
     $afWin.Hide()
     $script:afMode = ''
-    Render-AnchorTabs
 }
 
 # petits outils pour construire le contenu (toujours du texte, jamais du code)
@@ -508,75 +366,6 @@ function New-AfRow([object[]]$items) {
     return $w
 }
 
-# --- tri a froid ------------------------------------------------------------------
-function Start-DumpSort {
-    if (-not $Anchor.Dump.Count) { Show-Bubble "✨ Bac vide : rien à trier." -Force -Seconds 3; return }
-    $script:afQueue.Clear()
-    foreach ($x in $Anchor.Dump) { [void]$script:afQueue.Add($x.id) }
-    $script:afSortUnstick = $false
-    $script:afMode = 'sort'
-    Show-AnchorFocus
-    Render-DumpSort
-}
-function Invoke-SortAction([string]$action) {
-    if (-not $script:afQueue.Count) { return }
-    $id = $script:afQueue[0]
-    $script:afQueue.RemoveAt(0)
-    if ($action -ne 'later') {
-        [void](Invoke-DumpSort $id $action)
-        if ($action -eq 'unstick') { $script:afSortUnstick = $true }
-    }
-    Render-DumpSort
-}
-function Render-DumpSort {
-    $af.AfTitle.Text = '🧊 Tri à froid'
-    $af.AfBody.Children.Clear()
-    $id = if ($script:afQueue.Count) { $script:afQueue[0] } else { '' }
-    $x = if ($id) { $Anchor.Dump | Where-Object { $_.id -eq $id } | Select-Object -First 1 }
-    if (-not $x) {
-        $script:afMode = 'sorted'
-        [void]$af.AfBody.Children.Add((New-AfText '✨ Bac trié !' 26 '#1E1B3A' 'Bold'))
-        [void]$af.AfBody.Children.Add((New-AfText 'Ta tête est plus légère. Bravo.' 14 '#6B6880'))
-        $row = @()
-        if ($script:afSortUnstick -and $Anchor.Unstick) { $row += New-AfButton "⚡ Me débloquer sur « $(Short-Text $Anchor.Unstick.title 30) »" { Invoke-Safe { Show-Unstick } } 'primary' }
-        $row += New-AfButton '📋 Voir ma DopaList' { Invoke-Safe { Close-AnchorFocus; Open-Notebook 'Dopa' } }
-        [void]$af.AfBody.Children.Add((New-AfRow $row))
-        Play-Win -Big
-        Render-AnchorTabs
-        return
-    }
-    [void]$af.AfBody.Children.Add((New-AfText "Encore $($script:afQueue.Count) · une idée à la fois" 13 '#6B6880'))
-    $card = New-Object Windows.Controls.Border
-    $card.Background = 'White'; $card.BorderBrush = '#1E1B3A'; $card.BorderThickness = '2.5'; $card.CornerRadius = '18'
-    $card.Padding = '18'; $card.Margin = '0,10,0,10'; $card.MinHeight = 150; $card.Cursor = 'SizeAll'
-    $card.ToolTip = 'Fais-la glisser : → action, ← archiver, ↑ débloquer (ou les flèches du clavier)'
-    $tt = New-Object Windows.Media.TranslateTransform
-    $card.RenderTransform = $tt
-    $tb = New-AfText $x.text 19 '#1E1B3A' 'Bold'
-    $tb.VerticalAlignment = 'Center'
-    $card.Child = $tb
-    # glisser la carte a la souris
-    $card.Add_MouseLeftButtonDown({ param($s, $e) $script:afDrag = $e.GetPosition($afWin); [void]$s.CaptureMouse() })
-    $card.Add_MouseMove({ param($s, $e) if ($script:afDrag -and $s.IsMouseCaptured) { $p = $e.GetPosition($afWin); $s.RenderTransform.X = $p.X - $script:afDrag.X; $s.RenderTransform.Y = [math]::Min(0, $p.Y - $script:afDrag.Y) } })
-    $card.Add_MouseLeftButtonUp({
-            param($s, $e)
-            if (-not $script:afDrag) { return }
-            $p = $e.GetPosition($afWin); $dx = $p.X - $script:afDrag.X; $dy = $p.Y - $script:afDrag.Y
-            $script:afDrag = $null; $s.ReleaseMouseCapture(); $s.RenderTransform.X = 0; $s.RenderTransform.Y = 0
-            Invoke-Safe { if ($dx -gt 90) { Invoke-SortAction 'dopa' } elseif ($dx -lt -90) { Invoke-SortAction 'archive' } elseif ($dy -lt -90) { Invoke-SortAction 'unstick' } }
-        })
-    [void]$af.AfBody.Children.Add($card)
-    [void]$af.AfBody.Children.Add((New-AfText '← 📦 archiver    ·    ↑ ⚡ débloquer    ·    action ✅ →' 12 '#6B6880'))
-    [void]$af.AfBody.Children.Add((New-AfRow @(
-                (New-AfButton '✅ En action (DopaList)' { Invoke-Safe { Invoke-SortAction 'dopa' } } 'primary'),
-                (New-AfButton '⚡ À débloquer' { Invoke-Safe { Invoke-SortAction 'unstick' } }),
-                (New-AfButton '🗂 Carte (tableau)' { Invoke-Safe { Invoke-SortAction 'card' } }))))
-    [void]$af.AfBody.Children.Add((New-AfRow @(
-                (New-AfButton '📦 Archiver' { Invoke-Safe { Invoke-SortAction 'archive' } }),
-                (New-AfButton '🗑 Supprimer' { Invoke-Safe { Invoke-SortAction 'delete' } }),
-                (New-AfButton '⏭ Plus tard' { Invoke-Safe { Invoke-SortAction 'later' } }))))
-}
-
 # --- 🚨 S.O.S et Unstick Me -------------------------------------------------------------
 function Show-Sos {
     if ($Anchor.Unstick) { Show-Unstick; return }
@@ -592,10 +381,14 @@ function Show-Sos {
     [void]$af.AfBody.Children.Add($tb)
     $script:afSosBox = $tb
     [void]$af.AfBody.Children.Add((New-AfRow @((New-AfButton '⚡ Découper' { Invoke-Safe { if ($script:afSosBox.Text.Trim()) { Start-UnstickFor $script:afSosBox.Text } } } 'primary'))))
-    # idees : actions de la DopaList et cartes du focus
+    # idees : les cartes du focus, puis les plus urgentes des tableaux
     $ideas = @()
-    foreach ($t in @((Get-DopaView).Actions | Select-Object -First 3)) { $ideas += New-AfButton (Short-Text $t.title 28) { param($s, $e) Invoke-Safe { $x = Find-DopaTask $s.Tag; if ($x) { Start-UnstickFor $x.title $x.id } } } '' $t.id }
-    foreach ($t in @(Get-FocusCards -Open | Select-Object -First 2)) { $ideas += New-AfButton (Short-Text $t.text 28) { param($s, $e) Invoke-Safe { $x = Find-Todo $s.Tag; if ($x) { Start-UnstickFor $x.text } } } '' $t.id }
+    $seen = @{}
+    foreach ($t in @(@(Get-FocusCards -Open) + @(Get-PlanCards 3 | ForEach-Object { $_.Card }))) {
+        if (-not $t -or $seen.ContainsKey($t.id) -or $ideas.Count -ge 4) { continue }
+        $seen[$t.id] = $true
+        $ideas += New-AfButton (Short-Text $t.text 28) { param($s, $e) Invoke-Safe { $x = Find-Todo $s.Tag; if ($x) { Start-UnstickFor $x.text } } } '' $t.id
+    }
     if ($ideas.Count) {
         [void]$af.AfBody.Children.Add((New-AfText 'Ou bien :' 12 '#6B6880'))
         [void]$af.AfBody.Children.Add((New-AfRow $ideas))
@@ -681,10 +474,9 @@ function Complete-UnstickUi {
     [void]$af.AfBody.Children.Add((New-AfText "Le plus dur, c'était de commencer. C'est fait, et c'est noté dans tes victoires." 14 '#6B6880'))
     [void]$af.AfBody.Children.Add((New-AfRow @(
                 (New-AfButton '🚀 Enchaîner avec un focus' { Invoke-Safe { Close-AnchorFocus; Ensure-Visible; Start-Focus } } 'primary'),
-                (New-AfButton '🏆 Mes victoires' { Invoke-Safe { Close-AnchorFocus; Open-Notebook 'Dopa' } }),
+                (New-AfButton '🏆 Mes victoires' { Invoke-Safe { Close-AnchorFocus; Show-Wins } }),
                 (New-AfButton 'Fermer' { Invoke-Safe { Close-AnchorFocus } }))))
     Play-Win -Big
-    Render-AnchorTabs
 }
 
 # petite fete : son (si active) et Orbit content
@@ -694,77 +486,24 @@ function Play-Win([switch]$Big) {
 }
 
 # ---------------------------------------------------------------------------
-#  Onglets du carnet : 📋 DopaList (et victoires) et 📥 Dump
+#  🏆 Mes victoires du jour (clic droit sur Orbit, ou a la fin d'un deblocage)
 # ---------------------------------------------------------------------------
-function New-DopaCard($t, [bool]$doneToday) {
-    $b = New-Object Windows.Controls.Border
-    $b.Margin = '0,0,0,8'; $b.Padding = '12,8,8,8'; $b.CornerRadius = '14'; $b.BorderThickness = '2'; $b.Cursor = 'Hand'; $b.Tag = $t.id
-    $b.Background = if ($doneToday) { '#E3F6E7' } else { 'White' }
-    $b.BorderBrush = if ($doneToday) { '#2F9E44' } else { '#1E1B3A' }
-    $b.ToolTip = if ($doneToday) { 'Fait aujourd''hui ✓ (clic : annuler)' } else { 'Clic : fait ! ✅' }
-    $dp = New-Object Windows.Controls.DockPanel
-    $btns = New-Object Windows.Controls.StackPanel
-    $btns.Orientation = 'Horizontal'
-    [Windows.Controls.DockPanel]::SetDock($btns, 'Right')
-    [void]$btns.Children.Add((New-NoteButton '⚡' 'Je bloque : découper en micro-étapes' $t.id { param($s, $e) $e.Handled = $true; Invoke-Safe { $x = Find-DopaTask $s.Tag; if ($x) { Start-UnstickFor $x.title $x.id } } }))
-    [void]$btns.Children.Add((New-NoteButton '🗂' 'En carte (tableau)' $t.id { param($s, $e) $e.Handled = $true; Invoke-Safe { $x = Find-DopaTask $s.Tag; if ($x) { Add-Todo $x.title; Remove-DopaTask $x.id; Render-AnchorTabs } } }))
-    [void]$btns.Children.Add((New-NoteButton '🗑' 'Supprimer' $t.id { param($s, $e) $e.Handled = $true; Invoke-Safe { Remove-DopaTask $s.Tag; Render-AnchorTabs } }))
-    [void]$dp.Children.Add($btns)
-    $tb = New-Object Windows.Controls.TextBlock
-    $tb.Text = "$(if ($doneToday) { '✓ ' })$($t.title)$(if ($t.isRoutine) { "   🔁 $($AnchorRepeats[$t.repeat])" })"
-    $tb.TextWrapping = 'Wrap'; $tb.FontWeight = 'SemiBold'; $tb.VerticalAlignment = 'Center'
-    $tb.Foreground = if ($doneToday) { '#2F7A3E' } else { '#1E1B3A' }
-    [void]$dp.Children.Add($tb)
-    $b.Child = $dp
-    $b.Add_MouseLeftButtonUp({
-            param($s, $e)
-            Invoke-Safe {
-                $x = Find-DopaTask $s.Tag
-                if (-not $x) { return }
-                if ($x.isRoutine -and $x.lastDone -eq (Get-Date).ToString('yyyy-MM-dd')) { Undo-DopaTask $x.id }
-                elseif (Complete-DopaTask $x.id) { Play-Win -Big }
-                Render-AnchorTabs
-            }
-        })
-    return $b
-}
-
-function Render-AnchorTabs {
-    Update-Tabs
-    if (-not $script:panel -or -not $pn.DopaList) { return }
-    if ($NB.Tab -eq 'Dopa') {
-        $pn.DopaList.Children.Clear()
-        $v = Get-DopaView
-        [void]$pn.DopaList.Children.Add((New-SectionTitle '🔁 Routines du jour'))
-        if (-not $v.Routines.Count) { [void]$pn.DopaList.Children.Add((New-CtxText 'Pas de routine pour aujourd''hui. Ajoute-en une (« chaque jour », « en semaine »…).' 12 '#9A98B0')) }
-        foreach ($r in @($v.Routines | Sort-Object -Property DoneToday)) { [void]$pn.DopaList.Children.Add((New-DopaCard $r.Task $r.DoneToday)) }
-        [void]$pn.DopaList.Children.Add((New-SectionTitle '⚡ Actions'))
-        if (-not $v.Actions.Count) { [void]$pn.DopaList.Children.Add((New-CtxText 'Rien en attente 🌿 Ajoute une action, ou trie ton Brain Dump.' 12 '#9A98B0')) }
-        foreach ($t in $v.Actions) { [void]$pn.DopaList.Children.Add((New-DopaCard $t $false)) }
-        # journal des victoires : ce qui est fait, jamais ce qui est « en retard »
-        $wins = Get-WinsOfDay
-        $streak = Get-WinStreak
-        $head = if ($wins.Count) { "🏆 Aujourd'hui : $($wins.Count) victoire$(if ($wins.Count -gt 1) { 's' }) 🎉$(if ($streak -ge 2) { "   🔥 $streak jours d'affilée" })" } else { "🏆 Mes victoires : la journée commence, chaque petite chose comptera ici 🌱" }
-        [void]$pn.DopaList.Children.Add((New-SectionTitle $head))
-        foreach ($w in ($wins | Select-Object -First 30)) {
-            $ico = if ($AnchorWinIcons.ContainsKey($w.kind)) { $AnchorWinIcons[$w.kind] } else { '✅' }
-            [void]$pn.DopaList.Children.Add((New-CtxText "$ico  $($w.title)   ·  $($w.at.Substring(11, 5))" 12.5 '#4A4766'))
-        }
-        $pn.DopaCount.Text = "$(@($v.Actions).Count) action(s) · $(@($v.Routines | Where-Object { -not $_.DoneToday }).Count) routine(s) à faire aujourd'hui"
-    } elseif ($NB.Tab -eq 'Dump') {
-        $pn.DumpList.Children.Clear()
-        foreach ($d in @($Anchor.Dump | Sort-Object -Property created -Descending)) {
-            $b = New-Object Windows.Controls.Border
-            $b.Margin = '0,0,0,6'; $b.Padding = '10,6'; $b.CornerRadius = '10'; $b.Background = '#EEEBFF'
-            $tb = New-Object Windows.Controls.TextBlock
-            $tb.Text = $d.text; $tb.TextWrapping = 'Wrap'; $tb.Foreground = '#1E1B3A'
-            $b.Child = $tb
-            [void]$pn.DumpList.Children.Add($b)
-        }
-        $n = $Anchor.Dump.Count
-        $pn.DumpSort.Content = if ($n) { "🧊 Trier à froid ($n)" } else { '✨ Bac vide : rien à trier' }
-        $pn.DumpSort.IsEnabled = $n -gt 0
+function Get-WinsText {
+    $wins = @(Get-WinsOfDay)
+    if (-not $wins.Count) { return "🏆 La journée commence : chaque petite chose faite (focus, carte finie, déblocage…) sera notée ici 🌱" }
+    $streak = Get-WinStreak
+    $text = "🏆 Aujourd'hui : $($wins.Count) victoire$(if ($wins.Count -gt 1) { 's' }) 🎉$(if ($streak -ge 2) { "  ·  🔥 $streak jours d'affilée" })"
+    foreach ($w in ($wins | Select-Object -First 12)) {
+        $ico = if ($AnchorWinIcons.ContainsKey($w.kind)) { $AnchorWinIcons[$w.kind] } else { '✅' }
+        $text += "`n$ico $(Short-Text $w.title 50)"
     }
+    if ($wins.Count -gt 12) { $text += "`n… et $($wins.Count - 12) autre(s)" }
+    return $text
+}
+function Show-Wins {
+    Ensure-Visible
+    Show-Bubble (Get-WinsText) -Force -Seconds 15
 }
 
 Load-Anchor
+Convert-AnchorLegacy

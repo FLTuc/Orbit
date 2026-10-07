@@ -7,7 +7,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; font-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <meta name="referrer" content="no-referrer">
   <meta name="theme-color" content="#1E1B3A">
-  <meta name="description" content="Orbit : Pomodoro, tableaux, notes, Brain Dump, DopaList et Unstick Me, hors ligne.">
+  <meta name="description" content="Orbit : Pomodoro, tableaux, notes rapides, S.O.S déblocage et victoires, hors ligne.">
   <title>Orbit</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
@@ -60,25 +60,6 @@
       <div id="homeToday" class="panel"></div>
     </section>
 
-    <!-- ====== DopaList ====== -->
-    <section id="view-dopa" class="view hidden" data-title="DopaList">
-      <div class="view-head">
-        <h1>📋 DopaList</h1>
-        <button id="openJournal" class="chip" type="button"></button>
-      </div>
-      <form id="dopaForm" class="add-row" autocomplete="off">
-        <input id="dopaInput" type="text" maxlength="300" placeholder="Une action ou une routine…" aria-label="Nouvelle action">
-        <select id="dopaRepeat" aria-label="Répétition">
-          <option value="">Une fois</option><option value="daily">Chaque jour</option><option value="weekdays">En semaine</option><option value="weekly">Chaque semaine</option>
-        </select>
-        <button class="btn primary" type="submit">＋</button>
-      </form>
-      <h2 class="section">🔁 Routines du jour</h2>
-      <div id="dopaRoutines" class="cards-grid"></div>
-      <h2 class="section">⚡ Actions</h2>
-      <div id="dopaActions" class="cards-grid"></div>
-    </section>
-
     <!-- ====== Journal des victoires ====== -->
     <section id="view-journal" class="view hidden" data-title="Victoires">
       <div class="view-head"><h1>🏆 Mes victoires</h1></div>
@@ -86,21 +67,6 @@
       <div id="journalToday" class="list"></div>
       <h2 class="section">Les jours d'avant</h2>
       <div id="journalPast" class="list"></div>
-    </section>
-
-    <!-- ====== Brain Dump ====== -->
-    <section id="view-dump" class="view hidden" data-title="Brain Dump">
-      <div class="view-head"><h1>📥 Brain Dump</h1></div>
-      <p class="muted">Vide ta tête ici, sans trier. Tu trieras plus tard, à froid.</p>
-      <form id="dumpForm" class="dump-form" autocomplete="off">
-        <textarea id="dumpInput" rows="3" maxlength="2000" placeholder="Ce qui te passe par la tête…" aria-label="Ce qui te passe par la tête"></textarea>
-        <div class="row">
-          <button id="dumpMic" class="btn" type="button" aria-label="Dicter">🎙 Dicter</button>
-          <button class="btn primary grow" type="submit">📥 Déposer</button>
-        </div>
-      </form>
-      <button id="sortStart" class="btn big soft" type="button"></button>
-      <div id="dumpList" class="list"></div>
     </section>
 
     <!-- ====== Tableaux Kanban ====== -->
@@ -116,7 +82,6 @@
     <section id="view-more" class="view hidden" data-title="Plus">
       <div class="view-head"><h1>☰ Plus</h1></div>
       <div class="menu-grid">
-        <button class="tile" data-go="notes" type="button">📝<span>Notes</span></button>
         <button class="tile" data-go="reprises" type="button">↩<span id="tileReprises">Reprises</span></button>
         <button class="tile" data-go="journal" type="button">🏆<span>Victoires</span></button>
         <button class="tile" data-go="search" type="button">🔍<span>Rechercher</span></button>
@@ -157,7 +122,7 @@
       <div class="view-head"><h1>💻 PC ↔ téléphone</h1></div>
       <div class="panel">
         <h2>📥 Recevoir depuis Orbit PC</h2>
-        <p class="muted">Sur le PC : clic droit sur Orbit &gt; 📦 Autre PC &gt; Exporter. Mets le zip sur ton téléphone (mail, OneDrive, câble), puis choisis-le ici. Tes tableaux, notes, reprises et DopaList du téléphone sont remplacés (une copie est gardée pour revenir en arrière).</p>
+        <p class="muted">Sur le PC : clic droit sur Orbit &gt; 📦 Autre PC &gt; Exporter. Mets le zip sur ton téléphone (mail, OneDrive, câble), puis choisis-le ici. Tes tableaux, notes, reprises et victoires du téléphone sont remplacés (une copie est gardée pour revenir en arrière).</p>
         <label class="btn primary file-btn">Choisir le zip d'Orbit PC<input id="importZip" type="file" accept=".zip,application/zip"></label>
         <button id="undoImport" class="btn hidden" type="button">↩ Revenir à avant l'import</button>
       </div>
@@ -170,13 +135,13 @@
     </section>
   </main>
 
-  <button id="dumpFab" class="fab" type="button" aria-label="Capture rapide (Brain Dump)">📥</button>
+  <button id="noteFab" class="fab" type="button" aria-label="Note rapide">📝</button>
 
   <nav class="tabbar" aria-label="Navigation">
     <button data-tab="home" type="button" class="active"><span>🛰</span>Orbit</button>
-    <button data-tab="dopa" type="button"><span>📋</span>DopaList</button>
-    <button data-tab="dump" type="button"><span>📥</span><b id="dumpCount"></b>Dump</button>
     <button data-tab="kanban" type="button"><span>🗂</span>Tableaux</button>
+    <button data-tab="notes" type="button"><span>📝</span>Notes</button>
+    <button data-tab="reprises" type="button"><span>↩</span>Reprises</button>
     <button data-tab="more" type="button"><span>☰</span>Plus</button>
   </nav>
 

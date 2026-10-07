@@ -7,8 +7,8 @@ import { readZip, writeZip } from './zip.js';
 import * as Ob from './orbit.js';
 
 const $ = (id) => document.getElementById(id);
-const VIEWS = ['home', 'dopa', 'journal', 'dump', 'kanban', 'more', 'notes', 'reprises', 'search', 'settings', 'transfer'];
-const TAB_OF = { home: 'home', dopa: 'dopa', journal: 'dopa', dump: 'dump', kanban: 'kanban' };
+const VIEWS = ['home', 'journal', 'kanban', 'more', 'notes', 'reprises', 'search', 'settings', 'transfer'];
+const TAB_OF = { home: 'home', kanban: 'kanban', notes: 'notes', reprises: 'reprises' };
 const WIN_ICON = { task: '✅', routine: '🔁', unstick: '⚡', focus: '🍅', card: '🗂', reprise: '↩' };
 
 // --- petit outil : construire un element sans jamais passer par du HTML ------------------
@@ -47,6 +47,9 @@ function save() {
   } catch { toast("⚠ La mémoire du téléphone est pleine : je n'ai pas pu enregistrer."); }
 }
 function commit() { save(); render(); }
+// l'ancien Brain Dump et l'ancienne DopaList ont ete retires : rien n'est perdu
+let migrated = St.migrateAnchor(S);
+if (migrated) save();
 // une autre fenetre d'Orbit a modifie les donnees
 window.addEventListener('storage', (e) => { if (e.key === St.STORAGE_KEY) { S = load(); render(); } });
 
@@ -396,15 +399,11 @@ function renderHome() {
 
   const today = clear($('homeToday'));
   const wins = St.winsOfDay(S).length;
-  const dv = St.dopaView(S);
-  const routinesLeft = dv.routines.filter((r) => !r.doneToday).length;
   const rep = St.latestOpenReprise(S);
   today.append(h('h2', { text: "Aujourd'hui" }));
   const row = h('div', { class: 'item-actions' });
   if (rep) row.append(btn(`↩ Où j'en étais`, () => showResumeBubble(rep)));
   row.append(btn(wins ? `🏆 ${wins} victoire${wins > 1 ? 's' : ''}` : '🏆 Mes victoires', () => go('journal')));
-  if (routinesLeft) row.append(btn(`🔁 ${routinesLeft} routine${routinesLeft > 1 ? 's' : ''}`, () => go('dopa')));
-  if (S.anchor.dump.length) row.append(btn(`🧊 Trier ${S.anchor.dump.length} idée${S.anchor.dump.length > 1 ? 's' : ''}`, openSort));
   row.append(btn('☀ Plan du jour', () => showMorningPlan(true)));
   today.append(row);
 }
@@ -440,8 +439,6 @@ function showMorningPlan(manual) {
   const hello = new Date().getHours() < 12 ? '☀ Bonjour !' : '👋 Re-bonjour !';
   const plan = St.planCards(S, 3);
   const rep = St.latestOpenReprise(S);
-  const dv = St.dopaView(S);
-  const routines = dv.routines.filter((r) => !r.doneToday);
   let text = hello;
   const btns = [];
   if (rep) { text += `\n↩ Tu t'étais arrêté(e) ${St.formatAgo(rep.created)} sur « ${St.repriseTitle(rep, 50)} ».`; btns.push({ label: '↩ Reprendre là', run: () => resumeReprise(rep.id) }); }
@@ -450,8 +447,7 @@ function showMorningPlan(manual) {
     plan.forEach((p, i) => { text += `\n${i + 1}. P${p.card.prio} « ${St.shortText(p.card.text, 45)} »${p.why ? `\n     ${p.why}` : ''}`; });
     btns.push({ label: '🎯 Go, focus sur ces cartes', primary: true, run: () => { S.kanban.focus = plan.map((p) => p.card.id); save(); startFocus(); } });
   }
-  if (routines.length) { text += `\n\n🔁 Routines : ${routines.slice(0, 3).map((r) => r.task.title).join(', ')}${routines.length > 3 ? '…' : ''}`; btns.push({ label: '📋 Mes routines', run: () => go('dopa') }); }
-  if (!plan.length && !routines.length && !rep) text += "\nRien de prévu : c'est le moment de vider ta tête dans 📥 Brain Dump, puis de trier à froid.";
+  if (!plan.length && !rep) text += "\nRien de prévu : ajoute une carte dans 🗂 Tableaux, ou note une idée avec 📝.";
   btns.push({ label: 'Plus tard', run: () => {} });
   bubble(text, btns, { seconds: manual ? 0 : 180 });
 }
@@ -498,7 +494,7 @@ function openInterrupt({ url = '', title = '', fromShare = false, edit = null } 
       bubble(`✋ C'est noté, je garde où tu en es.${r.next ? `\n➡ ${St.shortText(r.next, 80)}` : ''}\nQuand tu reviens, touche-moi : je te remets là où tu en étais.${pausedHere ? '\n⏸ Focus en pause.' : ''}`, [], { seconds: 8 });
     };
     const actions = h('div', { class: 'actions' });
-    if (fromShare) actions.append(btn('📥 Plutôt dans le Brain Dump', () => { saved = true; St.dumpAdd(S, [title, link.value].filter(Boolean).join('\n')); commit(); closeModal(); toast('📥 Déposé dans le Brain Dump'); }));
+    if (fromShare) actions.append(btn('📝 Plutôt en note', () => { saved = true; St.addNote(S, [title, link.value].filter(Boolean).join('\n')); commit(); closeModal(); toast('📝 Gardé dans tes notes'); }));
     actions.append(btn('Annuler', () => closeModal()), btn('✓ Enregistrer', doSave, 'btn primary'));
     el.append(actions);
   }, () => {
@@ -600,147 +596,8 @@ function repriseItem(c) {
 }
 
 // =========================================================================================
-//  📥 Brain Dump et tri a froid
+//  🏆 Journal des victoires (rempli tout seul : focus, cartes finies, deblocages, reprises)
 // =========================================================================================
-function dumpAdd(text) {
-  const x = St.dumpAdd(S, text);
-  if (!x) return false;
-  commit();
-  if (S.settings.vibrate) Ob.vibrate(15);
-  return true;
-}
-function openQuickDump() {
-  sheet('📥 Vide ta tête', (el) => {
-    const ta = h('textarea', { rows: 4, maxlength: 2000, placeholder: 'Ce qui te passe par la tête… (rien à trier maintenant)' });
-    const send = () => { if (dumpAdd(ta.value)) { closeModal(); toast('📥 Déposé. Tu trieras plus tard, à froid.'); } else closeModal(); };
-    ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } });
-    el.append(ta, h('div', { class: 'actions' }, micButton(ta), btn('📥 Déposer', send, 'btn primary')));
-  });
-}
-function renderDump() {
-  const n = S.anchor.dump.length;
-  const sb = $('sortStart');
-  sb.textContent = n ? `🧊 Trier à froid (${n})` : '✨ Bac vide : rien à trier';
-  sb.disabled = !n;
-  const list = clear($('dumpList'));
-  for (const d of [...S.anchor.dump].reverse()) {
-    list.append(h('div', { class: 'dump-item' }, d.text));
-  }
-}
-
-let sortQueue = [];
-let sortUnstick = false;
-function openSort() {
-  sortQueue = S.anchor.dump.map((d) => d.id);
-  sortUnstick = false;
-  if (!sortQueue.length) { toast('✨ Bac vide'); return; }
-  openModal('focus');
-  $('focusMode').classList.remove('hidden');
-  renderSort();
-}
-function sortAct(action) {
-  const id = sortQueue[0];
-  if (!id) return;
-  if (action === 'later') { sortQueue.shift(); renderSort(); return; }
-  const r = St.dumpSort(S, id, action, RULES);
-  sortQueue.shift();
-  if (action === 'unstick') sortUnstick = true;
-  save();
-  if (S.settings.vibrate) Ob.vibrate(15);
-  if (r && action === 'dopa' && S.settings.sounds) Ob.success(0.08);
-  renderSort();
-}
-function renderSort() {
-  const fm = clear($('focusMode'));
-  const id = sortQueue[0];
-  const item = S.anchor.dump.find((d) => d.id === id);
-  fm.append(h('div', { class: 'fm-top' }, h('b', { text: '🧊 Tri à froid' }), btn('✖ Fermer', () => closeModal(), 'btn ghost')));
-  const center = h('div', { class: 'fm-center' });
-  fm.append(center);
-  if (!item) {
-    center.append(h('div', { class: 'fm-step', text: '✨ Bac trié !' }), h('p', { class: 'muted', text: 'Ta tête est plus légère. Bravo.' }));
-    const acts = h('div', { class: 'fm-actions' });
-    if (sortUnstick && S.anchor.unstick) acts.append(btn(`⚡ Me débloquer sur « ${St.shortText(S.anchor.unstick.title, 30)} »`, () => { closeModal(); openRunner(); }, 'btn primary big'));
-    acts.append(btn('📋 Voir ma DopaList', () => { closeModal(); go('dopa'); }, 'btn big'));
-    center.append(acts);
-    celebrate(null, true);
-    return;
-  }
-  center.append(h('p', { class: 'muted', text: `Encore ${sortQueue.length} · glisse ou choisis` }));
-  const card = h('div', { class: 'sort-card', text: item.text });
-  center.append(card,
-    h('div', { class: 'sort-hints' }, h('span', { text: '← 📦 Archiver' }), h('span', { text: '↑ ⚡ Débloquer' }), h('span', { text: 'Action ✅ →' })),
-    h('div', { class: 'sort-grid' },
-      btn('✅ En action (DopaList)', () => sortAct('dopa'), 'btn primary'),
-      btn('⚡ À débloquer', () => sortAct('unstick'), 'btn soft'),
-      btn('🗂 Carte (tableau)', () => sortAct('card')),
-      btn('📦 Archiver', () => sortAct('archive')),
-      btn('🗑 Supprimer', () => sortAct('delete')),
-      btn('⏭ Plus tard', () => sortAct('later'), 'btn ghost')));
-  // glisser la carte : droite = action, gauche = archive, haut = debloquer
-  let x0 = 0, y0 = 0, dragging = false;
-  card.addEventListener('pointerdown', (e) => { dragging = true; x0 = e.clientX; y0 = e.clientY; card.setPointerCapture(e.pointerId); card.style.transition = 'none'; });
-  card.addEventListener('pointermove', (e) => { if (dragging) card.style.transform = `translate(${e.clientX - x0}px, ${Math.min(0, e.clientY - y0)}px) rotate(${(e.clientX - x0) / 20}deg)`; });
-  const end = (e) => {
-    if (!dragging) return;
-    dragging = false;
-    const dx = e.clientX - x0, dy = e.clientY - y0;
-    card.style.transition = '';
-    if (dx > 90) sortAct('dopa');
-    else if (dx < -90) sortAct('archive');
-    else if (dy < -90) sortAct('unstick');
-    else card.style.transform = '';
-  };
-  card.addEventListener('pointerup', end);
-  card.addEventListener('pointercancel', end);
-}
-
-// =========================================================================================
-//  📋 DopaList et journal des victoires
-// =========================================================================================
-function completeDopa(id, el) {
-  const w = St.dopaComplete(S, id);
-  if (!w) return;
-  commit();
-  celebrate(el, true);
-  toast(`${Ob.pick(Ob.LINES.win)} « ${St.shortText(w.title, 30)} »`, { label: 'Annuler', run: () => { St.dopaUndo(S, id); commit(); } }, 5);
-}
-function dopaCard(t, doneToday) {
-  const el = h('div', { class: `dopa${doneToday ? ' done' : ''}`, role: 'button', tabindex: '0' },
-    h('div', { class: 't', text: t.title }),
-    h('div', { class: 'meta' },
-      h('span', { text: t.isRoutine ? `🔁 ${St.REPEATS[t.repeat]}` : '' }),
-      h('span', {},
-        btn('⚡', (e) => { e.stopPropagation(); startUnstickFor(t.title, t.id); }, 'unstick', { 'aria-label': 'Débloquer avec Unstick Me' }),
-        btn('⋯', (e) => { e.stopPropagation(); dopaMenu(t); }, 'unstick', { 'aria-label': 'Options' }))));
-  el.addEventListener('click', () => { if (!doneToday) completeDopa(t.id, el); else { St.dopaUndo(S, t.id); commit(); } });
-  el.addEventListener('keydown', (e) => { if (e.key === 'Enter') el.click(); });
-  return el;
-}
-function dopaMenu(t) {
-  sheet(St.shortText(t.title, 60), (el) => {
-    const rep = h('select', {}, h('option', { value: '' }, 'Une fois'), Object.entries(St.REPEATS).map(([k, v]) => h('option', { value: k, selected: t.repeat === k }, v)));
-    rep.value = t.repeat;
-    el.append(h('label', { class: 'field', text: 'Répétition' }), rep, h('div', { class: 'actions' },
-      btn('⚡ Débloquer', () => { closeModal(); startUnstickFor(t.title, t.id); }),
-      btn('✏ Renommer', async () => { closeModal(); const v = await askText('Renommer', t.title); if (v) { t.title = St.cleanText(v); commit(); } }),
-      btn('🗂 En carte', () => { St.addCard(S, t.title); St.dopaRemove(S, t.id); commit(); closeModal(); toast('🗂 Ajoutée au tableau'); }),
-      btn('📦 Archiver', () => { t.status = 'archived'; commit(); closeModal(); }),
-      btn('🗑 Supprimer', () => { St.dopaRemove(S, t.id); commit(); closeModal(); }),
-      btn('✓ OK', () => { t.repeat = rep.value; t.isRoutine = !!rep.value; if (!t.isRoutine && t.status !== 'todo') t.status = 'todo'; commit(); closeModal(); }, 'btn primary')));
-  });
-}
-function renderDopa() {
-  const wins = St.winsOfDay(S).length;
-  $('openJournal').textContent = wins ? `🏆 ${wins} aujourd'hui` : '🏆 Victoires';
-  const v = St.dopaView(S);
-  const r = clear($('dopaRoutines'));
-  if (!v.routines.length) r.append(h('div', { class: 'empty', text: 'Pas de routine pour aujourd’hui. Ajoute-en une (« Chaque jour », « En semaine »…).' }));
-  for (const x of v.routines.sort((a, b) => a.doneToday - b.doneToday)) r.append(dopaCard(x.task, x.doneToday));
-  const a = clear($('dopaActions'));
-  if (!v.actions.length) a.append(h('div', { class: 'empty', text: 'Rien en attente 🌿 Ajoute une action, ou trie ton Brain Dump.' }));
-  for (const t of v.actions) a.append(dopaCard(t, false));
-}
 function renderJournal() {
   const today = St.winsOfDay(S);
   const streak = St.winStreak(S);
@@ -766,9 +623,9 @@ function renderJournal() {
 // =========================================================================================
 let runnerTick = 0;
 function stopRunnerTimer() { clearInterval(runnerTick); runnerTick = 0; }
-function startUnstickFor(title, taskId = '') {
-  if (!RULES) { toast('Un instant…'); data('unstick').then((r) => { RULES = r; startUnstickFor(title, taskId); }); return; }
-  St.startUnstick(S, title, RULES, taskId);
+function startUnstickFor(title) {
+  if (!RULES) { toast('Un instant…'); data('unstick').then((r) => { RULES = r; startUnstickFor(title); }); return; }
+  St.startUnstick(S, title, RULES);
   commit();
   openRunner();
 }
@@ -781,8 +638,8 @@ function openSos() {
   const go2 = () => { const v = inp.value.trim(); if (v) startUnstickFor(v); };
   inp.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); go2(); } });
   const sugg = h('div', { class: 'item-actions' });
-  const ideas = [...St.dopaView(S).actions.map((t) => [t.title, t.id]), ...St.focusCards(S, true).map((t) => [t.text, ''])].slice(0, 4);
-  for (const [t, id] of ideas) sugg.append(btn(St.shortText(t, 28), () => startUnstickFor(t, id), 'chip'));
+  const ideas = [...St.focusCards(S, true), ...St.planCards(S, 4).map((p) => p.card)].map((t) => t.text).filter((t, i, a) => a.indexOf(t) === i).slice(0, 4);
+  for (const t of ideas) sugg.append(btn(St.shortText(t, 28), () => startUnstickFor(t), 'chip'));
   fm.append(h('div', { class: 'fm-top' }, h('b', { text: '🚨 S.O.S déblocage' }), btn('✖ Fermer', () => closeModal(), 'btn ghost')),
     h('div', { class: 'fm-center' },
       h('div', { class: 'fm-step', text: "Qu'est-ce que tu n'arrives pas à commencer ?" }),
@@ -1057,8 +914,6 @@ function renderSearch() {
   section('🗂 Cartes', r.cards, (t) => h('button', { type: 'button', class: `card${t.done ? ' dim' : ''}`, onclick: () => openCard(t.id) }, h('span', { class: `prio p${t.prio}`, text: `P${t.prio}` }), t.text, h('div', { class: 'meta', text: St.getBoard(S, t.board)?.name || '' })));
   section('📝 Notes', r.notes, (n) => h('button', { type: 'button', class: 'card', onclick: () => openNote(n.id) }, St.noteTitle(n, 80)));
   section('↩ Reprises', r.reprises, (c) => h('button', { type: 'button', class: 'card', onclick: () => go('reprises') }, St.repriseTitle(c, 80)));
-  section('📋 DopaList', r.tasks, (t) => h('button', { type: 'button', class: 'card', onclick: () => go('dopa') }, `${t.status === 'completed' ? '✓ ' : t.status === 'archived' ? '📦 ' : ''}${t.title}`));
-  section('📥 Brain Dump', r.dump, (d) => h('button', { type: 'button', class: 'card', onclick: () => go('dump') }, St.shortText(d.text, 80)));
   if (!out.children.length) out.append(h('p', { class: 'muted', text: 'Rien trouvé.' }));
 }
 
@@ -1099,7 +954,7 @@ function renderSettings() {
   f.append(h('fieldset', {}, h('legend', { text: '🧹 Mes données' }),
     h('p', { class: 'muted small', text: 'Tout est enregistré sur ce téléphone uniquement. Pour une sauvegarde : ☰ Plus > 💻 PC ↔ téléphone.' }),
     btn('Tout effacer', async () => {
-      if (await askConfirm('Effacer toutes les données d’Orbit sur ce téléphone ?', 'Oui, tout effacer') && await askConfirm('Vraiment ? (tableaux, notes, reprises, DopaList…)', 'Effacer')) {
+      if (await askConfirm('Effacer toutes les données d’Orbit sur ce téléphone ?', 'Oui, tout effacer') && await askConfirm('Vraiment ? (tableaux, notes, reprises, victoires…)', 'Effacer')) {
         S = St.defaultState(); commit(); toast('Données effacées');
       }
     })));
@@ -1115,10 +970,11 @@ async function importZip(file) {
     const files = await readZip(await file.arrayBuffer(), DESKTOP_FILES);
     if (!Object.keys(files).length) { toast("Ce zip ne contient pas de données d'Orbit"); return; }
     const next = St.fromDesktopFiles(S, files);
-    const what = [`${next.kanban.cards.length} carte(s)`, `${next.notes.length} note(s)`, `${next.reprises.length} reprise(s)`, `${next.anchor.tasks.length} action(s) DopaList`].join(', ');
+    const what = [`${next.kanban.cards.length} carte(s)`, `${next.notes.length} note(s)`, `${next.reprises.length} reprise(s)`].join(', ');
     if (!(await askConfirm(`Remplacer les données du téléphone par celles du zip ?\n${what}`, 'Remplacer'))) return;
     try { localStorage.setItem(BACKUP_KEY, JSON.stringify(S)); } catch { /* pas de place : tant pis pour la copie */ }
     S = St.normalizeState(next);
+    St.migrateAnchor(S);
     commit();
     toast('📥 Données du PC récupérées ✓', { label: 'Annuler', run: undoImport }, 8);
   } catch (e) { toast(`Import impossible : ${St.shortText(e.message || 'fichier illisible', 60)}`); }
@@ -1168,14 +1024,11 @@ function micButton(target) {
 //  Rendu general
 // =========================================================================================
 function render() {
-  $('dumpCount').textContent = S.anchor.dump.length ? String(Math.min(99, S.anchor.dump.length)) : '';
   const open = St.openReprises(S).length;
   $('tileReprises').textContent = open ? `Reprises (${open})` : 'Reprises';
   $('undoImport').classList.toggle('hidden', !localStorage.getItem(BACKUP_KEY));
   if (view === 'home') renderHome();
-  else if (view === 'dopa') renderDopa();
   else if (view === 'journal') renderJournal();
-  else if (view === 'dump') renderDump();
   else if (view === 'kanban') renderKanban();
   else if (view === 'notes') renderNotes();
   else if (view === 'reprises') renderReprises();
@@ -1191,22 +1044,16 @@ for (const b of document.querySelectorAll('[data-go]')) b.addEventListener('clic
 $('goHome').addEventListener('click', () => go('home'));
 $('openSearch').addEventListener('click', () => go('search'));
 $('sosBtn').addEventListener('click', openSos);
-$('dumpFab').addEventListener('click', openQuickDump);
+$('noteFab').addEventListener('click', () => openNote());
 $('ctxBadge').addEventListener('click', () => openInterrupt());
 $('ctxNew').addEventListener('click', () => openInterrupt());
 $('noteNew').addEventListener('click', () => openNote());
-$('openJournal').addEventListener('click', () => go('journal'));
-$('sortStart').addEventListener('click', openSort);
 $('boardMenu').addEventListener('click', boardMenu);
 $('boardPick').addEventListener('change', (e) => { S.kanban.current = e.target.value; commit(); });
 $('searchInput').addEventListener('input', renderSearch);
 $('exportZip').addEventListener('click', exportZip);
 $('undoImport').addEventListener('click', undoImport);
 $('importZip').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) importZip(f); });
-$('dumpMic').replaceWith(Object.assign(micButton($('dumpInput')), { id: 'dumpMic', textContent: '🎙 Dicter' }));
-$('dumpForm').addEventListener('submit', (e) => { e.preventDefault(); if (dumpAdd($('dumpInput').value)) { $('dumpInput').value = ''; toast('📥 Déposé'); } });
-$('dumpInput').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('dumpForm').requestSubmit(); } });
-$('dopaForm').addEventListener('submit', (e) => { e.preventDefault(); if (St.dopaAdd(S, $('dopaInput').value, $('dopaRepeat').value)) { $('dopaInput').value = ''; commit(); } });
 $('orbitBot').addEventListener('click', () => {
   if (bubbleHasQuestion()) return;
   const rep = St.latestOpenReprise(S, 12);
@@ -1217,7 +1064,7 @@ $('orbitBot').addEventListener('click', () => {
   else if (t.state === 'Break') bubble(`Encore ${Math.ceil(St.timeLeft(S) / 60000)} min de pause, profite 😌`);
   else if (t.state === 'AwaitBreak') askBreak();
   else if (t.state === 'AwaitFocus') askFocus();
-  else bubble(Ob.pick(Ob.LINES.hello), [{ label: '🚀 Focus', run: startFocus, primary: true }, { label: '🚨 Je bloque', run: openSos }, { label: '📥 Vider ma tête', run: openQuickDump }]);
+  else bubble(Ob.pick(Ob.LINES.hello), [{ label: '🚀 Focus', run: startFocus, primary: true }, { label: '🚨 Je bloque', run: openSos }, { label: '📝 Note rapide', run: () => openNote() }]);
 });
 Ob.followPointer($('orbitBot'), [$('eyeL'), $('eyeR')]);
 
@@ -1261,11 +1108,12 @@ if (shared) {
   const title = St.cleanText(params.get('share_title') || (params.get('share_text') || '').replace(url, '').trim(), 200);
   openInterrupt({ url, title, fromShare: true });
 } else if (action === 'interrupt') openInterrupt();
-else if (action === 'note') openNote();
-else if (action === 'dump') openQuickDump();
+else if (action === 'note' || action === 'dump') openNote();
 else if (action === 'sos') openSos();
 else if (action === 'focus' && S.timer.state === 'Idle') startFocus();
-else if (!startEvent) {
+else if (migrated) {
+  bubble(`Le Brain Dump et la DopaList ont été retirés. Rien n'est perdu : ${migrated.notes} idée(s) sont devenues des notes 📝 et ${migrated.cards} action(s) ou routine(s) des cartes 🗂.`, [], { seconds: 12 });
+} else if (!startEvent) {
   const rep = St.latestOpenReprise(S, 12);
   if (rep) showResumeBubble(rep);
   else setTimeout(() => { if (view === 'home' && !modal && !bubbleHasQuestion()) { if (S.settings.morningPlan && S.timer.state === 'Idle' && new Date().getHours() >= 5 && S.stats.planDay !== St.dayString()) showMorningPlan(false); else bubble(Ob.pick(Ob.LINES.hello), [], { seconds: 6, silent: true }); } }, 400);

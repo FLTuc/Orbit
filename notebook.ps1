@@ -797,7 +797,7 @@ function Move-Card([string]$id, [string]$colId, [int]$index = -1, [switch]$Quiet
     }
 }
 
-function Add-Todo([string]$text, $prio = $DefaultPrio, [string]$colId = '') {
+function Add-Todo([string]$text, $prio = $DefaultPrio, [string]$colId = '', [switch]$Quiet) {
     $text = $text.Trim()
     # raccourci : "!2 Appeler Paul" ou "Appeler Paul !2" donne la priorite 2
     if ($text -match '(^|\s)!(10|[1-9])(?=\s|$)') {
@@ -843,6 +843,7 @@ function Add-Todo([string]$text, $prio = $DefaultPrio, [string]$colId = '') {
     $NB.LastAddedId = $NB.Todos[$NB.Todos.Count - 1].id
     Save-Todos
     Render-Todos -Cols $colId
+    if ($Quiet) { return }
     $msg = Pick @("Noté ! ✍", "C'est dans la liste 📝", "Hop, enregistré 💾", "Je m'en souviendrai pour toi 🧠")
     if ($prio -le 2) { $msg += " Priorité $prio, je la mets en haut de la pile 🔥" }
     if ($remindAt) { $msg += " Rappel prévu $(Format-When $remindAt) ⏰" }
@@ -1204,7 +1205,7 @@ function Test-SearchMatch([string]$haystack, [string[]]$words) {
 
 function Find-Everything([string]$query) {
     $words = @((Get-SearchKey $query) -split '\s+' | Where-Object { $_ })
-    $r = @{ Cards = @(); Upcoming = @(); Clips = @(); Archives = @(); Notes = @(); Contexts = @(); Dopa = @(); Dump = @() }
+    $r = @{ Cards = @(); Upcoming = @(); Clips = @(); Archives = @(); Notes = @(); Contexts = @() }
     if (-not $words.Count) { return $r }
     $r.Cards = @($NB.Todos | Where-Object {
             Test-SearchMatch ("$($_.text) $($_.desc) " + (($_.checks | ForEach-Object { $_.text }) -join ' ')) $words } |
@@ -1214,10 +1215,6 @@ function Find-Everything([string]$query) {
     $r.Contexts = @(@($NB.Contexts) | Where-Object {
             $_ -and (Test-SearchMatch ("$($_.doing) $($_.next) " + ((@($_.windows) | ForEach-Object { "$($_.title) $($_.url) $($_.path)" }) -join ' ')) $words) } |
         Sort-Object -Property @{ e = { [int]($_.status -ne 'open') } }, @{ e = { [string]$_.created }; Descending = $true })
-    if ($Anchor) {
-        $r.Dopa = @($Anchor.Tasks | Where-Object { $_ -and (Test-SearchMatch $_.title $words) })
-        $r.Dump = @($Anchor.Dump | Where-Object { $_ -and (Test-SearchMatch $_.text $words) })
-    }
     $seen = @{}
     $r.Clips = @(@($NB.Favs) + @($NB.Clips) | Where-Object {
             $_ -and -not $seen.ContainsKey($_.text) -and ($seen[$_.text] = $true) -and (Test-SearchMatch $_.text $words) } |
@@ -1313,17 +1310,6 @@ function Render-Search {
                         param($s, $e) Invoke-Safe { Select-Tab 'Ctx' } } ($c.status -ne 'open')))
         }
     }
-    if ($r.Dopa.Count) {
-        [void]$pn.SearchList.Children.Add((New-SectionTitle "📋 DopaList ($($r.Dopa.Count))"))
-        foreach ($t in $r.Dopa) {
-            $st = switch ($t.status) { 'completed' { '✓ faite' } 'archived' { '📦 archivée' } default { if ($t.isRoutine) { "🔁 $($AnchorRepeats[$t.repeat])" } else { 'à faire' } } }
-            [void]$pn.SearchList.Children.Add((New-SearchResult $t.title $st 'Clic : ouvrir la DopaList' $t.id { param($s, $e) Invoke-Safe { Select-Tab 'Dopa' } } ($t.status -ne 'todo')))
-        }
-    }
-    if ($r.Dump.Count) {
-        [void]$pn.SearchList.Children.Add((New-SectionTitle "📥 Brain Dump ($($r.Dump.Count))"))
-        foreach ($d in $r.Dump) { [void]$pn.SearchList.Children.Add((New-SearchResult (Short-Text $d.text 90) 'à trier' 'Clic : ouvrir le Brain Dump' $d.id { param($s, $e) Invoke-Safe { Select-Tab 'Dump' } })) }
-    }
     if ($r.Upcoming.Count) {
         [void]$pn.SearchList.Children.Add((New-SectionTitle "🔁 Cartes récurrentes à venir ($($r.Upcoming.Count))"))
         foreach ($u in $r.Upcoming) {
@@ -1347,7 +1333,7 @@ function Render-Search {
                         param($s, $e) Invoke-Safe { Copy-Clip $s.Tag } } $true))
         }
     }
-    $n = $r.Cards.Count + $r.Notes.Count + $r.Contexts.Count + $r.Dopa.Count + $r.Dump.Count + $r.Upcoming.Count + $r.Clips.Count + $r.Archives.Count
+    $n = $r.Cards.Count + $r.Notes.Count + $r.Contexts.Count + $r.Upcoming.Count + $r.Clips.Count + $r.Archives.Count
     if (-not $n) {
         $empty = New-Object Windows.Controls.TextBlock
         $empty.Text = "Rien trouvé pour « $q »"; $empty.Foreground = '#9A98B0'; $empty.Margin = '4,10,4,0'; $empty.TextAlignment = 'Center'
@@ -1407,10 +1393,6 @@ function Show-RevealedCard {
                 BorderBrush="#1E1B3A" FontWeight="SemiBold"/>
         <Button x:Name="TabNotes" Padding="12,5" Margin="0,0,6,4" Cursor="Hand" BorderThickness="2"
                 BorderBrush="#1E1B3A" FontWeight="SemiBold"/>
-        <Button x:Name="TabDopa" Padding="12,5" Margin="0,0,6,4" Cursor="Hand" BorderThickness="2"
-                BorderBrush="#1E1B3A" FontWeight="SemiBold" ToolTip="Actions, routines et victoires du jour"/>
-        <Button x:Name="TabDump" Padding="12,5" Margin="0,0,6,4" Cursor="Hand" BorderThickness="2"
-                BorderBrush="#1E1B3A" FontWeight="SemiBold" ToolTip="Brain Dump : vider sa tête, trier à froid"/>
         <Button x:Name="TabCtx" Padding="12,5" Margin="0,0,6,4" Cursor="Hand" BorderThickness="2"
                 BorderBrush="#1E1B3A" FontWeight="SemiBold" ToolTip="Où j'en étais : mes interruptions à reprendre"/>
         <Button x:Name="TabSearch" Content="🔍" Padding="10,5" Margin="0,0,6,4" Cursor="Hand" BorderThickness="2"
@@ -1500,45 +1482,6 @@ function Show-RevealedCard {
           </ScrollViewer>
         </DockPanel>
 
-        <!-- ===== DopaList : actions, routines, victoires ===== -->
-        <DockPanel x:Name="DopaPanel" Margin="14,0,14,12" Visibility="Collapsed">
-          <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-            <TextBox x:Name="DopaInput" Padding="8,6" BorderBrush="#1E1B3A" BorderThickness="2" VerticalContentAlignment="Center" MaxLength="300"
-                     ToolTip="Une action ou une routine (Entrée)"/>
-            <ComboBox x:Name="DopaRepeat" Grid.Column="1" Width="120" Margin="6,0,0,0" VerticalContentAlignment="Center">
-              <ComboBoxItem Tag="" Content="Une fois" IsSelected="True"/>
-              <ComboBoxItem Tag="daily" Content="Chaque jour"/>
-              <ComboBoxItem Tag="weekdays" Content="En semaine"/>
-              <ComboBoxItem Tag="weekly" Content="Chaque semaine"/>
-            </ComboBox>
-            <Button x:Name="DopaAdd" Grid.Column="2" Content="＋" Width="38" Margin="6,0,0,0" FontSize="16" FontWeight="Bold" Cursor="Hand"
-                    Foreground="White" Background="#6C5CE7" BorderBrush="#1E1B3A" BorderThickness="2"/>
-          </Grid>
-          <TextBlock x:Name="DopaCount" DockPanel.Dock="Bottom" Margin="0,8,0,0" Foreground="#6B6880" TextWrapping="Wrap"/>
-          <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel x:Name="DopaList"/>
-          </ScrollViewer>
-        </DockPanel>
-
-        <!-- ===== Brain Dump ===== -->
-        <DockPanel x:Name="DumpPanel" Margin="14,0,14,12" Visibility="Collapsed">
-          <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-            <TextBox x:Name="DumpInput" Padding="8,6" BorderBrush="#1E1B3A" BorderThickness="2" VerticalContentAlignment="Center" MaxLength="2000"
-                     ToolTip="Ce qui te passe par la tête, sans trier (Entrée ; Win+H pour dicter)"/>
-            <Button x:Name="DumpAdd" Grid.Column="1" Content="📥 Déposer" Padding="10,4" Margin="6,0,0,0" Cursor="Hand"
-                    Foreground="White" Background="#6C5CE7" BorderBrush="#1E1B3A" BorderThickness="2"/>
-          </Grid>
-          <Button x:Name="DumpSort" DockPanel.Dock="Top" Padding="10,7" Margin="0,0,0,8" Cursor="Hand" FontWeight="SemiBold"
-                  Background="#EEEBFF" BorderBrush="#6C5CE7" BorderThickness="2"/>
-          <TextBlock DockPanel.Dock="Bottom" Margin="0,8,0,0" Foreground="#6B6880" TextWrapping="Wrap"
-                     Text="Vide ta tête ici sans rien trier. Plus tard, « Trier à froid » : une idée à la fois."/>
-          <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel x:Name="DumpList"/>
-          </ScrollViewer>
-        </DockPanel>
-
         <!-- ===== Reprises (« Je m'interromps ») ===== -->
         <DockPanel x:Name="CtxPanel" Margin="14,0,14,12" Visibility="Collapsed">
           <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
@@ -1589,13 +1532,6 @@ function Update-Tabs {
     $pn.TabNotes.Background = if ($NB.Tab -eq 'Notes') { $on } else { $off }
     $pn.TabNotes.Content = "📝 Notes ($(@($NB.Notes).Count))"
     $pn.TabCtx.Background = if ($NB.Tab -eq 'Ctx') { $on } else { $off }
-    $pn.TabDopa.Background = if ($NB.Tab -eq 'Dopa') { $on } else { $off }
-    $pn.TabDump.Background = if ($NB.Tab -eq 'Dump') { $on } else { $off }
-    if ($Anchor) {
-        $nd = @((Get-DopaView).Routines | Where-Object { -not $_.DoneToday }).Count + @((Get-DopaView).Actions).Count
-        $pn.TabDopa.Content = "📋 DopaList ($nd)"
-        $pn.TabDump.Content = "📥 Dump ($($Anchor.Dump.Count))"
-    }
     $pn.TabCtx.Content = "↩ Reprises ($(@($NB.Contexts | Where-Object { $_.status -eq 'open' }).Count))"
 }
 
@@ -2455,7 +2391,7 @@ function Fit-Notebook {
         $cols = (Get-CurrentBoard).columns.Count
         $want = if ($NB.KanbanW -gt 0) { $NB.KanbanW } else { 60 + ($KanbanColW + 10) * $cols + 180 }
         $panel.Width = [math]::Max(560, [math]::Min($want, $wa.R - $wa.L - 20))
-    } elseif ($NB.Tab -in 'Search', 'Notes', 'Ctx', 'Dopa', 'Dump') {
+    } elseif ($NB.Tab -in 'Search', 'Notes', 'Ctx') {
         $panel.Width = 470
     } else {
         $panel.Width = 380
@@ -2473,13 +2409,9 @@ function Select-Tab([string]$tab) {
     $pn.SearchPanel.Visibility = if ($tab -eq 'Search') { 'Visible' } else { 'Collapsed' }
     $pn.NotesPanel.Visibility = if ($tab -eq 'Notes') { 'Visible' } else { 'Collapsed' }
     $pn.CtxPanel.Visibility = if ($tab -eq 'Ctx') { 'Visible' } else { 'Collapsed' }
-    $pn.DopaPanel.Visibility = if ($tab -eq 'Dopa') { 'Visible' } else { 'Collapsed' }
-    $pn.DumpPanel.Visibility = if ($tab -eq 'Dump') { 'Visible' } else { 'Collapsed' }
     if ($tab -eq 'Clip') { Render-Clips; $pn.ClipSearch.Focus() | Out-Null }
     elseif ($tab -eq 'Notes') { Render-Notes }
     elseif ($tab -eq 'Ctx') { Render-Contexts }
-    elseif ($tab -eq 'Dopa') { Render-AnchorTabs; $pn.DopaInput.Focus() | Out-Null }
-    elseif ($tab -eq 'Dump') { Render-AnchorTabs; $pn.DumpInput.Focus() | Out-Null }
     elseif ($tab -eq 'Search') { Render-Search; $pn.SearchBox.Focus() | Out-Null; $pn.SearchBox.SelectAll() }
     else { Render-Todos; $pn.TodoInput.Focus() | Out-Null }
     Update-Tabs
@@ -2524,9 +2456,7 @@ function Initialize-Notebook {
                    'TodoClear','TodoList','ClipPanel','ClipSearch','ClipHint','ClipCount','ClipPause','ClipClear','ClipList',
                    'TabSearch','SearchPanel','SearchBox','SearchHint','SearchCount','SearchList',
                    'TabNotes','NotesPanel','NotesAdd','NotesBackup','NotesCount','NotesList',
-                   'TabCtx','CtxPanel','CtxNew','CtxCount','CtxList',
-                   'TabDopa','DopaPanel','DopaInput','DopaRepeat','DopaAdd','DopaCount','DopaList',
-                   'TabDump','DumpPanel','DumpInput','DumpAdd','DumpSort','DumpList') {
+                   'TabCtx','CtxPanel','CtxNew','CtxCount','CtxList') {
         $pn[$n] = $panel.FindName($n)
     }
 
@@ -2550,19 +2480,6 @@ function Initialize-Notebook {
     $pn.NotesAdd.Add_Click({ Invoke-Safe { Show-QuickNote } })
     $pn.TabCtx.Add_Click({ Invoke-Safe { Select-Tab 'Ctx' } })
     $pn.CtxNew.Add_Click({ Invoke-Safe { Start-Interruption } })
-    $pn.TabDopa.Add_Click({ Invoke-Safe { Select-Tab 'Dopa' } })
-    $pn.TabDump.Add_Click({ Invoke-Safe { Select-Tab 'Dump' } })
-    $script:AddDopaFromTab = { Invoke-Safe {
-            $rep = if ($pn.DopaRepeat.SelectedItem) { [string]$pn.DopaRepeat.SelectedItem.Tag } else { '' }
-            if (Add-DopaTask $pn.DopaInput.Text $rep) { $pn.DopaInput.Clear(); Render-AnchorTabs }
-        } }
-    $pn.DopaAdd.Add_Click({ & $script:AddDopaFromTab })
-    $pn.DopaInput.Add_KeyDown({ param($s, $e) if ($e.Key -eq 'Return') { $e.Handled = $true; & $script:AddDopaFromTab } })
-    $script:AddDumpFromTab = { Invoke-Safe { if (Add-DumpItem $pn.DumpInput.Text) { $pn.DumpInput.Clear(); Render-AnchorTabs } } }
-    $pn.DumpAdd.Add_Click({ & $script:AddDumpFromTab })
-    $pn.DumpInput.Add_KeyDown({ param($s, $e) if ($e.Key -eq 'Return') { $e.Handled = $true; & $script:AddDumpFromTab } })
-    $pn.DumpSort.Add_Click({ Invoke-Safe { Start-DumpSort } })
-    $pn.NotesBackup.Add_Click({ param($s, $e) Invoke-Safe { Show-NotesBackupMenu $s } })
     $NB.SearchTimer = New-Object Windows.Threading.DispatcherTimer
     $NB.SearchTimer.Interval = [timespan]::FromMilliseconds(250)
     $NB.SearchTimer.Add_Tick({ $NB.SearchTimer.Stop(); Invoke-Safe { Render-Search } })

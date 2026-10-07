@@ -1,7 +1,7 @@
 {
   "name": "Orbit – compagnon de focus",
   "short_name": "Orbit",
-  "description": "Pomodoro, Brain Dump, DopaList, Unstick Me, tableaux, notes et « Je m'interromps », avec Orbit le petit satellite.",
+  "description": "Pomodoro, tableaux, notes rapides, S.O.S déblocage, victoires et « Je m'interromps », avec Orbit le petit satellite.",
   "id": "./",
   "start_url": "./",
   "scope": "./",
@@ -44,9 +44,9 @@
   },
   "shortcuts": [
     {
-      "name": "📥 Brain Dump : vider ma tête",
-      "short_name": "Brain Dump",
-      "url": "./?action=dump",
+      "name": "📝 Note rapide",
+      "short_name": "Note",
+      "url": "./?action=note",
       "icons": [
         {
           "src": "icons/icon-192.png",

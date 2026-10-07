@@ -114,26 +114,9 @@ input:focus, textarea:focus, select:focus, button:focus-visible { outline: 3px s
 .item-next { color: var(--accent); font-weight: 700; margin-top: 4px; white-space: pre-wrap; }
 .item-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .item-actions .btn { min-height: 38px; padding: 4px 10px; font-size: 14px; }
-.add-row { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; }
-.add-row select { width: auto; }
-.cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-.dopa {
-  position: relative; min-height: 96px; border-radius: 18px; border: 2.5px solid var(--ink); background: var(--card); box-shadow: var(--shadow);
-  padding: 12px; text-align: left; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;
-}
-.dopa .t { font-weight: 700; word-break: break-word; }
-.dopa .meta { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--muted); }
-.dopa .unstick { background: var(--soft); border: 0; border-radius: 10px; min-height: 34px; padding: 2px 10px; }
-.dopa.done { background: color-mix(in srgb, var(--ok) 18%, var(--card)); border-color: var(--ok); }
-.dopa.done .t::before { content: "✓ "; color: var(--ok); }
-.dopa:active { transform: scale(.98); }
 .empty { color: var(--muted); text-align: center; padding: 14px; border: 2px dashed var(--line); border-radius: 14px; }
 .win { display: flex; gap: 10px; align-items: center; }
 .win .ico { font-size: 22px; }
-
-/* --- Brain Dump ------------------------------------------------------------- */
-.dump-form { display: flex; flex-direction: column; gap: 8px; }
-.dump-item { background: var(--soft); border-radius: 12px; padding: 10px 12px; white-space: pre-wrap; word-break: break-word; }
 
 /* --- Kanban ------------------------------------------------------------------ */
 #boardPick { flex: 1; font-weight: 700; }
@@ -218,13 +201,6 @@ input:focus, textarea:focus, select:focus, button:focus-visible { outline: 3px s
 .ring-timer .fg.over { stroke: var(--ok); }
 .ring-timer text { fill: var(--ink); font: 800 28px ui-monospace, Consolas, monospace; }
 .fm-actions { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 420px; }
-.sort-card {
-  width: 100%; max-width: 440px; min-height: 180px; background: var(--card); border: 2.5px solid var(--ink); border-radius: 22px;
-  padding: 18px; font-size: 20px; font-weight: 700; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow);
-  touch-action: none; user-select: none; transition: transform .2s; white-space: pre-wrap; word-break: break-word;
-}
-.sort-hints { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; width: 100%; max-width: 440px; color: var(--muted); font-size: 13px; }
-.sort-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; max-width: 440px; }
 
 .toast {
   position: fixed; left: 50%; bottom: calc(var(--tab-h) + 90px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 60;
