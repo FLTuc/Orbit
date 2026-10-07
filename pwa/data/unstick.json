@@ -1,0 +1,281 @@
+{
+ "_doc": "Decoupeur local d'Orbit (« Unstick Me ») : une tache -> 3 a 5 micro-etapes ridiculement petites. Utilise par la version PC (orbit.ps1) et la version telephone (pwa). {x} = la tache, {o} = la tache sans son verbe. Les regles sont essayees dans l'ordre, la premiere dont un mot-cle apparait gagne.",
+ "rules": [
+  {
+   "name": "mail",
+   "keys": [
+    "mail",
+    "e-mail",
+    "email",
+    "courriel",
+    "repondre a",
+    "relancer",
+    "outlook",
+    "gmail"
+   ],
+   "steps": [
+    "Ouvre ta messagerie (juste l'ouvrir)",
+    "Clique sur « Nouveau » ou « Répondre »",
+    "Écris une seule phrase, même maladroite : le but du message",
+    "Ajoute « Bonjour » et « Merci », puis relis une fois",
+    "Clique sur Envoyer 🚀"
+   ]
+  },
+  {
+   "name": "appel",
+   "keys": [
+    "appeler",
+    "telephoner",
+    "rappeler",
+    "coup de fil",
+    "prendre rdv",
+    "prendre rendez-vous",
+    "rendez-vous",
+    "rdv"
+   ],
+   "steps": [
+    "Prends ton téléphone en main",
+    "Trouve le numéro (contacts, mail ou site)",
+    "Écris sur un papier la phrase d'ouverture : « Bonjour, je vous appelle pour… »",
+    "Appuie sur Appeler (tu peux raccrocher si ça sonne occupé)",
+    "Note la réponse en une ligne"
+   ]
+  },
+  {
+   "name": "banque",
+   "keys": [
+    "banque",
+    "payer",
+    "facture",
+    "virement",
+    "impots",
+    "remboursement",
+    "budget",
+    "compte bancaire"
+   ],
+   "steps": [
+    "Ouvre l'application ou le site concerné",
+    "Connecte-toi (rien d'autre)",
+    "Clique sur le solde ou la rubrique qui correspond à « {o} »",
+    "Fais la première saisie, même incomplète",
+    "Valide, ou note ce qui manque en une ligne"
+   ]
+  },
+  {
+   "name": "papiers",
+   "keys": [
+    "formulaire",
+    "dossier",
+    "papiers",
+    "administratif",
+    "declaration",
+    "attestation",
+    "remplir",
+    "caf",
+    "mutuelle",
+    "secu"
+   ],
+   "steps": [
+    "Pose le document (ou ouvre le fichier) devant toi",
+    "Lis seulement le titre et la première question",
+    "Remplis UNE case, la plus facile",
+    "Remplis la case suivante",
+    "Note sur un post-it la pièce qui manque, s'il y en a une"
+   ]
+  },
+  {
+   "name": "ranger",
+   "keys": [
+    "ranger",
+    "nettoyer",
+    "menage",
+    "vaisselle",
+    "linge",
+    "lessive",
+    "trier",
+    "aspirateur",
+    "desencombrer"
+   ],
+   "steps": [
+    "Lève-toi et va dans la pièce",
+    "Prends UN seul objet qui traîne et range-le",
+    "Lance un minuteur : 2 minutes de rangement, pas plus",
+    "Range uniquement la surface devant toi",
+    "Regarde le résultat 5 secondes : bravo ✨"
+   ]
+  },
+  {
+   "name": "ecrire",
+   "keys": [
+    "ecrire",
+    "rediger",
+    "rapport",
+    "compte-rendu",
+    "compte rendu",
+    "article",
+    "memoire",
+    "presentation",
+    "slides",
+    "powerpoint",
+    "document",
+    "lettre"
+   ],
+   "steps": [
+    "Ouvre le fichier (ou crée-le, vide)",
+    "Écris le titre, même provisoire",
+    "Écris 3 mots-clés de ce que tu veux dire, en vrac",
+    "Transforme le premier mot-clé en une phrase moche",
+    "Ajoute une deuxième phrase : tu es lancé(e) 🎉"
+   ]
+  },
+  {
+   "name": "etudier",
+   "keys": [
+    "reviser",
+    "etudier",
+    "apprendre",
+    "lire",
+    "cours",
+    "examen",
+    "lecture"
+   ],
+   "steps": [
+    "Ouvre le livre, le cours ou le fichier à la bonne page",
+    "Lis seulement le premier titre",
+    "Lis un paragraphe, rien de plus",
+    "Écris une phrase qui le résume",
+    "Coche : tu as commencé ✅"
+   ]
+  },
+  {
+   "name": "courses",
+   "keys": [
+    "courses",
+    "acheter",
+    "commander",
+    "supermarche",
+    "pharmacie"
+   ],
+   "steps": [
+    "Ouvre une note (ou l'appli de courses)",
+    "Écris les 3 choses les plus urgentes",
+    "Prends ton sac, tes clés ou ta carte",
+    "Mets tes chaussures",
+    "Sors (ou valide le panier) 🛒"
+   ]
+  },
+  {
+   "name": "sport",
+   "keys": [
+    "sport",
+    "courir",
+    "marcher",
+    "yoga",
+    "salle",
+    "etirements",
+    "muscu",
+    "faire du velo"
+   ],
+   "steps": [
+    "Mets juste ta tenue (ou tes chaussures)",
+    "Bois un verre d'eau",
+    "Fais 1 minute de mouvement, n'importe lequel",
+    "Continue 2 minutes si ça va",
+    "Note ce que tu as fait : ça compte 💪"
+   ]
+  },
+  {
+   "name": "cuisine",
+   "keys": [
+    "cuisiner",
+    "cuisine",
+    "repas",
+    "manger",
+    "diner",
+    "dejeuner",
+    "preparer a manger"
+   ],
+   "steps": [
+    "Va dans la cuisine",
+    "Sors une casserole ou une poêle",
+    "Choisis UN ingrédient principal",
+    "Allume le feu ou le four",
+    "Fais la première étape de la recette, même simple"
+   ]
+  },
+  {
+   "name": "code",
+   "keys": [
+    "coder",
+    "programmer",
+    "bug",
+    "deployer",
+    "script",
+    "excel",
+    "tableur",
+    "macro"
+   ],
+   "steps": [
+    "Ouvre le fichier ou le projet",
+    "Relis seulement la dernière chose que tu avais faite",
+    "Écris en commentaire (ou sur un post-it) la toute prochaine petite étape",
+    "Fais cette étape, même partiellement",
+    "Teste ou enregistre une fois"
+   ]
+  },
+  {
+   "name": "reunion",
+   "keys": [
+    "reunion",
+    "preparer la reunion",
+    "entretien",
+    "point avec",
+    "visio",
+    "teams"
+   ],
+   "steps": [
+    "Ouvre l'invitation ou le sujet de la réunion",
+    "Écris le but de la réunion en une phrase",
+    "Liste 3 points à aborder, en vrac",
+    "Prépare la première question à poser",
+    "Mets un rappel 5 minutes avant ⏰"
+   ]
+  }
+ ],
+ "generic": [
+  "Prépare juste ce qu'il faut pour « {x} » (ouvre l'appli, le fichier, ou pose l'objet devant toi)",
+  "Fais la toute première action visible, même mal faite",
+  "Continue seulement 2 minutes, sans viser la fin",
+  "Note en une ligne où tu t'arrêtes",
+  "Félicite-toi : tu as commencé « {x} » 🎉"
+ ],
+ "verbs": [
+  "faire",
+  "finir",
+  "terminer",
+  "commencer",
+  "preparer",
+  "envoyer",
+  "appeler",
+  "ecrire",
+  "rediger",
+  "ranger",
+  "nettoyer",
+  "payer",
+  "remplir",
+  "lire",
+  "reviser",
+  "acheter",
+  "repondre",
+  "relancer",
+  "organiser",
+  "planifier",
+  "trier",
+  "corriger",
+  "mettre a jour",
+  "mettre",
+  "regarder",
+  "verifier",
+  "prendre"
+ ]
+}

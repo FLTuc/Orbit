@@ -1,0 +1,4 @@
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+jokes/*.txt text eol=crlf
+culture/*.txt text eol=crlf

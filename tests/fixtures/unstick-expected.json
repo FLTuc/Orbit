@@ -1,0 +1,107 @@
+{
+  "Répondre au mail de Julie": [
+    "Ouvre ta messagerie (juste l'ouvrir)",
+    "Clique sur « Nouveau » ou « Répondre »",
+    "Écris une seule phrase, même maladroite : le but du message",
+    "Ajoute « Bonjour » et « Merci », puis relis une fois",
+    "Clique sur Envoyer 🚀"
+  ],
+  "Faire mon compte-rendu de réunion": [
+    "Ouvre le fichier (ou crée-le, vide)",
+    "Écris le titre, même provisoire",
+    "Écris 3 mots-clés de ce que tu veux dire, en vrac",
+    "Transforme le premier mot-clé en une phrase moche",
+    "Ajoute une deuxième phrase : tu es lancé(e) 🎉"
+  ],
+  "Payer la facture EDF": [
+    "Ouvre l'application ou le site concerné",
+    "Connecte-toi (rien d'autre)",
+    "Clique sur le solde ou la rubrique qui correspond à « facture EDF »",
+    "Fais la première saisie, même incomplète",
+    "Valide, ou note ce qui manque en une ligne"
+  ],
+  "Ranger le bureau": [
+    "Lève-toi et va dans la pièce",
+    "Prends UN seul objet qui traîne et range-le",
+    "Lance un minuteur : 2 minutes de rangement, pas plus",
+    "Range uniquement la surface devant toi",
+    "Regarde le résultat 5 secondes : bravo ✨"
+  ],
+  "Appeler le dentiste": [
+    "Prends ton téléphone en main",
+    "Trouve le numéro (contacts, mail ou site)",
+    "Écris sur un papier la phrase d'ouverture : « Bonjour, je vous appelle pour… »",
+    "Appuie sur Appeler (tu peux raccrocher si ça sonne occupé)",
+    "Note la réponse en une ligne"
+  ],
+  "Finir le dossier CAF": [
+    "Pose le document (ou ouvre le fichier) devant toi",
+    "Lis seulement le titre et la première question",
+    "Remplis UNE case, la plus facile",
+    "Remplis la case suivante",
+    "Note sur un post-it la pièce qui manque, s'il y en a une"
+  ],
+  "Réparer le vélo": [
+    "Prépare juste ce qu'il faut pour « Réparer le vélo » (ouvre l'appli, le fichier, ou pose l'objet devant toi)",
+    "Fais la toute première action visible, même mal faite",
+    "Continue seulement 2 minutes, sans viser la fin",
+    "Note en une ligne où tu t'arrêtes",
+    "Félicite-toi : tu as commencé « Réparer le vélo » 🎉"
+  ],
+  "Préparer la présentation client": [
+    "Ouvre le fichier (ou crée-le, vide)",
+    "Écris le titre, même provisoire",
+    "Écris 3 mots-clés de ce que tu veux dire, en vrac",
+    "Transforme le premier mot-clé en une phrase moche",
+    "Ajoute une deuxième phrase : tu es lancé(e) 🎉"
+  ],
+  "Réviser le chapitre 3": [
+    "Ouvre le livre, le cours ou le fichier à la bonne page",
+    "Lis seulement le premier titre",
+    "Lis un paragraphe, rien de plus",
+    "Écris une phrase qui le résume",
+    "Coche : tu as commencé ✅"
+  ],
+  "Faire les courses": [
+    "Ouvre le livre, le cours ou le fichier à la bonne page",
+    "Lis seulement le premier titre",
+    "Lis un paragraphe, rien de plus",
+    "Écris une phrase qui le résume",
+    "Coche : tu as commencé ✅"
+  ],
+  "Aller courir": [
+    "Mets juste ta tenue (ou tes chaussures)",
+    "Bois un verre d'eau",
+    "Fais 1 minute de mouvement, n'importe lequel",
+    "Continue 2 minutes si ça va",
+    "Note ce que tu as fait : ça compte 💪"
+  ],
+  "Cuisiner le dîner": [
+    "Va dans la cuisine",
+    "Sors une casserole ou une poêle",
+    "Choisis UN ingrédient principal",
+    "Allume le feu ou le four",
+    "Fais la première étape de la recette, même simple"
+  ],
+  "Corriger le bug du script": [
+    "Ouvre le fichier ou le projet",
+    "Relis seulement la dernière chose que tu avais faite",
+    "Écris en commentaire (ou sur un post-it) la toute prochaine petite étape",
+    "Fais cette étape, même partiellement",
+    "Teste ou enregistre une fois"
+  ],
+  "Prendre rendez-vous chez l'ophtalmo": [
+    "Prends ton téléphone en main",
+    "Trouve le numéro (contacts, mail ou site)",
+    "Écris sur un papier la phrase d'ouverture : « Bonjour, je vous appelle pour… »",
+    "Appuie sur Appeler (tu peux raccrocher si ça sonne occupé)",
+    "Note la réponse en une ligne"
+  ],
+  "Trier mes papiers": [
+    "Pose le document (ou ouvre le fichier) devant toi",
+    "Lis seulement le titre et la première question",
+    "Remplis UNE case, la plus facile",
+    "Remplis la case suivante",
+    "Note sur un post-it la pièce qui manque, s'il y en a une"
+  ]
+}

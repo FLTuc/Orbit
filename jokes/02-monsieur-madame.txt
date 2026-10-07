@@ -1,0 +1,107 @@
+# "Monsieur et Madame..." : le prénom + le nom forment une phrase.
+Monsieur et Madame Térieur ont deux fils. Comment s'appellent-ils ?|Alain et Alex.
+Monsieur et Madame Covert ont un fils. Comment s'appelle-t-il ?|Harry.
+Monsieur et Madame Bon ont un fils. Comment s'appelle-t-il ?|Jean.
+Monsieur et Madame Peuplu ont un fils. Comment s'appelle-t-il ?|Jean (j'en peux plus).
+Monsieur et Madame Sérien ont un fils. Comment s'appelle-t-il ?|Jean (j'en sais rien).
+Monsieur et Madame Tanrien ont un fils. Comment s'appelle-t-il ?|Jean (j'entends rien).
+Monsieur et Madame Registre ont un fils. Comment s'appelle-t-il ?|Jean (enregistre).
+Monsieur et Madame Darme ont un fils. Comment s'appelle-t-il ?|Jean (gendarme).
+Monsieur et Madame Tille ont une fille. Comment s'appelle-t-elle ?|Jeanne (gentille).
+Monsieur et Madame Croche ont une fille. Comment s'appelle-t-elle ?|Sarah (ça raccroche).
+Monsieur et Madame Pelle ont une fille. Comment s'appelle-t-elle ?|Sarah (ça rappelle).
+Monsieur et Madame Fraîchit ont une fille. Comment s'appelle-t-elle ?|Sarah (ça rafraîchit).
+Monsieur et Madame Masse ont une fille. Comment s'appelle-t-elle ?|Sarah (ça ramasse).
+Monsieur et Madame Conte ont une fille. Comment s'appelle-t-elle ?|Sarah (ça raconte).
+Monsieur et Madame Mollie ont une fille. Comment s'appelle-t-elle ?|Sarah (ça ramollit).
+Monsieur et Madame Dote ont une fille. Comment s'appelle-t-elle ?|Sarah (ça radote).
+Monsieur et Madame Ochon ont un fils. Comment s'appelle-t-il ?|Paul (polochon).
+Monsieur et Madame Emploi ont un fils. Comment s'appelle-t-il ?|Paul (Pôle emploi).
+Monsieur et Madame Ution ont un fils. Comment s'appelle-t-il ?|Paul (pollution).
+Monsieur et Madame Itesse ont un fils. Comment s'appelle-t-il ?|Paul (politesse).
+Monsieur et Madame Aroïde ont un fils. Comment s'appelle-t-il ?|Paul (Polaroïd).
+Monsieur et Madame Versaire ont une fille. Comment s'appelle-t-elle ?|Annie (anniversaire).
+Monsieur et Madame Mal ont une fille. Comment s'appelle-t-elle ?|Annie (animal).
+Monsieur et Madame Conda ont une fille. Comment s'appelle-t-elle ?|Anna (anaconda).
+Monsieur et Madame Lyse ont une fille. Comment s'appelle-t-elle ?|Anna (analyse).
+Monsieur et Madame Nas ont une fille. Comment s'appelle-t-elle ?|Anna (ananas).
+Monsieur et Madame Ticipe ont une fille. Comment s'appelle-t-elle ?|Anne (anticipe).
+Monsieur et Madame Gine ont une fille. Comment s'appelle-t-elle ?|Anne (angine).
+Monsieur et Madame Tare ont un fils. Comment s'appelle-t-il ?|Guy (guitare).
+Monsieur et Madame Don ont un fils. Comment s'appelle-t-il ?|Guy (guidon).
+Monsieur et Madame Mauve ont un fils. Comment s'appelle-t-il ?|Guy (guimauve).
+Monsieur et Madame Clette ont une fille. Comment s'appelle-t-elle ?|Lara (la raclette).
+Monsieur et Madame Fale ont une fille. Comment s'appelle-t-elle ?|Lara (la rafale).
+Monsieur et Madame Tatouille ont une fille. Comment s'appelle-t-elle ?|Lara (la ratatouille).
+Monsieur et Madame Quette ont une fille. Comment s'appelle-t-elle ?|Lara (la raquette).
+Monsieur et Madame Dio ont une fille. Comment s'appelle-t-elle ?|Lara (la radio).
+Monsieur et Madame Kiroul ont un fils. Comment s'appelle-t-il ?|Pierre (pierre qui roule).
+Monsieur et Madame Ouzi ont un fils. Comment s'appelle-t-il ?|Jacques (jacuzzi).
+Monsieur et Madame Assin ont un fils. Comment s'appelle-t-il ?|Marc (marcassin).
+Monsieur et Madame Aron ont un fils. Comment s'appelle-t-il ?|Marc (macaron).
+Monsieur et Madame Courant ont un fils. Comment s'appelle-t-il ?|Théo (t'es au courant ?).
+Monsieur et Madame Riz ont un fils. Comment s'appelle-t-il ?|Théo (théorie).
+Monsieur et Madame Rème ont un fils. Comment s'appelle-t-il ?|Théo (théorème).
+Monsieur et Madame Rotte ont une fille. Comment s'appelle-t-elle ?|Jessica (j'ai six carottes).
+Monsieur et Madame Ptipeu ont un fils. Comment s'appelle-t-il ?|Justin (juste un petit peu).
+Monsieur et Madame Suffit ont un fils. Comment s'appelle-t-il ?|Sam (ça me suffit).
+Monsieur et Madame Ouraï ont un fils. Comment s'appelle-t-il ?|Sam (samouraï).
+Monsieur et Madame Cament ont un fils. Comment s'appelle-t-il ?|Médhi (médicament).
+Monsieur et Madame Terranée ont un fils. Comment s'appelle-t-il ?|Médhi (Méditerranée).
+Monsieur et Madame Tation ont un fils. Comment s'appelle-t-il ?|Médhi (méditation).
+Monsieur et Madame Gole ont un fils. Comment s'appelle-t-il ?|Thierry (t'y rigoles ?).
+Monsieur et Madame Javel ont une fille. Comment s'appelle-t-elle ?|Aude (eau de Javel).
+Monsieur et Madame Toilette ont une fille. Comment s'appelle-t-elle ?|Aude (eau de toilette).
+Monsieur et Madame Cologne ont une fille. Comment s'appelle-t-elle ?|Aude (eau de Cologne).
+Monsieur et Madame Golade ont un fils. Comment s'appelle-t-il ?|Henri (en rigolade).
+Monsieur et Madame Outan ont un fils. Comment s'appelle-t-il ?|Laurent (l'orang-outan).
+Monsieur et Madame Dinateur ont une fille. Comment s'appelle-t-elle ?|Laure (l'ordinateur).
+Monsieur et Madame Fer ont une fille. Comment s'appelle-t-elle ?|Lucie (Lucifer).
+Monsieur et Madame Ponce ont un fils. Comment s'appelle-t-il ?|Ray (réponse).
+Monsieur et Madame Cuation ont une fille. Comment s'appelle-t-elle ?|Eva (évacuation).
+Monsieur et Madame Zion ont une fille. Comment s'appelle-t-elle ?|Eva (évasion).
+Monsieur et Madame Mobile ont un fils. Comment s'appelle-t-il ?|Otto (automobile).
+Monsieur et Madame Route ont un fils. Comment s'appelle-t-il ?|Otto (autoroute).
+Monsieur et Madame Graphe ont un fils. Comment s'appelle-t-il ?|Otto (autographe).
+Monsieur et Madame Matique ont un fils. Comment s'appelle-t-il ?|Otto (automatique).
+Monsieur et Madame Stop ont un fils. Comment s'appelle-t-il ?|Otto (auto-stop).
+Monsieur et Madame Gator ont un fils. Comment s'appelle-t-il ?|Ali (alligator).
+Monsieur et Madame Mentation ont un fils. Comment s'appelle-t-il ?|Ali (alimentation).
+Monsieur et Madame Touille ont un fils. Comment s'appelle-t-il ?|Sacha (ça chatouille).
+Monsieur et Madame Grine ont un fils. Comment s'appelle-t-il ?|Sacha (ça chagrine).
+Monsieur et Madame Odie ont une fille. Comment s'appelle-t-elle ?|Mel (mélodie).
+Monsieur et Madame Fasol ont un fils. Comment s'appelle-t-il ?|Rémi (ré mi fa sol).
+Monsieur et Madame Harmonique ont un fils. Comment s'appelle-t-il ?|Phil (philharmonique).
+Monsieur et Madame Osophie ont un fils. Comment s'appelle-t-il ?|Phil (philosophie).
+Monsieur et Madame Tre ont un fils. Comment s'appelle-t-il ?|Phil (filtre).
+Monsieur et Madame Timètre ont un fils. Comment s'appelle-t-il ?|Vincent (vingt centimètres).
+Monsieur et Madame Dunord ont un fils. Comment s'appelle-t-il ?|Edgar (gare du Nord).
+Monsieur et Madame Delest ont un fils. Comment s'appelle-t-il ?|Edgar (gare de l'Est).
+Monsieur et Madame Lermitte ont un fils. Comment s'appelle-t-il ?|Bernard (bernard-l'ermite).
+Monsieur et Madame Coptère ont un fils. Comment s'appelle-t-il ?|Élie (hélicoptère).
+Monsieur et Madame Minatoire ont un fils. Comment s'appelle-t-il ?|Élie (éliminatoire).
+Monsieur et Madame Lencieux ont une fille. Comment s'appelle-t-elle ?|Cécile (c'est silencieux).
+Monsieur et Madame Stiquée ont une fille. Comment s'appelle-t-elle ?|Sophie (sophistiquée).
+Monsieur et Madame Erne ont une fille. Comment s'appelle-t-elle ?|Maude (moderne).
+Monsieur et Madame Pérée ont une fille. Comment s'appelle-t-elle ?|Inès (inespérée).
+Monsieur et Madame Tine ont un fils. Comment s'appelle-t-il ?|Clément (clémentine).
+Monsieur et Madame Ate ont un fils. Comment s'appelle-t-il ?|Tom (tomate).
+Monsieur et Madame Zeblouse ont une fille. Comment s'appelle-t-elle ?|Agathe (agace les blouses).
+Monsieur et Madame Marre ont un fils. Comment s'appelle-t-il ?|Jean (j'en ai marre).
+Monsieur et Madame Sive ont une fille. Comment s'appelle-t-elle ?|Jeanne (gencive).
+Monsieur et Madame Temps ont un fils. Comment s'appelle-t-il ?|Justin (juste à temps).
+Monsieur et Madame Phone ont un fils. Comment s'appelle-t-il ?|Saxo (saxophone).
+Monsieur et Madame Coustic ont un fils. Comment s'appelle-t-il ?|Ali (acoustique… presque).
+Monsieur et Madame Disse ont une fille. Comment s'appelle-t-elle ?|Candice (quand dis-ce ?).
+Monsieur et Madame Tentique ont un fils. Comment s'appelle-t-il ?|Otto (authentique).
+Monsieur et Madame Rance ont une fille. Comment s'appelle-t-elle ?|Flo (Flo Rance, Florence).
+Monsieur et Madame Nonyme ont une fille. Comment s'appelle-t-elle ?|Anne (anonyme).
+Monsieur et Madame Tomie ont une fille. Comment s'appelle-t-elle ?|Anna (anatomie).
+Monsieur et Madame Logie ont une fille. Comment s'appelle-t-elle ?|Anna (analogie).
+Monsieur et Madame Chronique ont une fille. Comment s'appelle-t-elle ?|Anna (anachronique).
+Monsieur et Madame Thème ont une fille. Comment s'appelle-t-elle ?|Anna (anathème).
+Monsieur et Madame Graphe ont une fille. Comment s'appelle-t-elle ?|Calli (calligraphe).
+Monsieur et Madame Phonie ont une fille. Comment s'appelle-t-elle ?|Sym (symphonie).
+Monsieur et Madame Ment ont un fils. Comment s'appelle-t-il ?|Armand (Armand Ment, l'armement).
+Monsieur et Madame Lafraise ont un fils. Comment s'appelle-t-il ?|Ramène (ramène ta fraise).
+Monsieur et Madame Zonne ont une fille. Comment s'appelle-t-elle ?|Amé (Amazone).
