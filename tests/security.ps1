@@ -92,7 +92,7 @@ $opens = @([regex]::Matches($cx, 'Start-Process explorer\.exe [^\r\n]*') | ForEa
 $restore = [regex]::Match($cx, '(?s)function Restore-ContextWindow.*?\n}').Value
 Check "reprises : adresses web (http/https) et chemins verifies avant d'ouvrir ($($opens.Count) endroits)" (
     $restore -match '\$url = Get-SafeUrl \$w\.url' -and $restore -match 'Test-SafeOpenPath \$w\.path -Folder' -and
-    $cx -match "if \(\`$u -match '\^https\?://" -and $cx -match '\$CtxOpenExt -contains')
+    $cx -match "if \(\`$u -match '\^https\?://" -and $cx -match '\$CtxOpenExt -(not)?contains')
 Check 'reprises : identifiants filtres et captures nommees par Orbit' ($cx -match 'id = \(Get-SafeId \$c\.id\)' -and $cx -match "Join-Path \`$CtxShotDir \(\(Get-SafeId \`$id\)")
 Check "reprises : fenetres de navigation privee jamais lues" ($cx -match 'function Test-PrivateTitle' -and $cx -match "-not \`$w\.private -and \`$w\.hwnd")
 
