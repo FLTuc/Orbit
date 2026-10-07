@@ -115,6 +115,7 @@ $Config = @{
     ContextScreenshot   = $false # petite capture d'ecran a chaque interruption
     ContextRemind       = $true  # relancer si la reprise attend
     ContextRemindMin    = 30
+    AnchorButton        = $true  # bouton 📥 (Brain Dump) a cote d'Orbit
 }
 # (tous ces reglages se modifient aussi depuis clic droit > Reglages)
 
@@ -452,6 +453,22 @@ public static class OrbitNative {
         foreach (double v in buf) w.Write((short)(Math.Max(-1, Math.Min(1, v * volume)) * 32767));
         w.Flush();
         return ms.ToArray();
+    }
+
+    // Bruit brun (ambiance pour se concentrer) : boucle de quelques secondes, debut et fin en fondu
+    public static byte[] BrownNoise(double volume, int seconds) {
+        const int rate = 22050;
+        int n = rate * seconds;
+        double[] buf = new double[n];
+        Random rnd = new Random(7);
+        double last = 0;
+        for (int i = 0; i < n; i++) {
+            last = (last + 0.02 * (rnd.NextDouble() * 2 - 1)) / 1.02;
+            buf[i] = last * 3.5;
+        }
+        int fade = rate / 10;
+        for (int i = 0; i < fade; i++) { double k = (double)i / fade; buf[i] *= k; buf[n - 1 - i] *= k; }
+        return Wav(buf, volume);
     }
 
     // ajoute une note "percussive" (somme de partiels qui s'eteignent) a partir de 'start' secondes
@@ -1218,6 +1235,13 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
 
     </Canvas>
 
+    <!-- bouton « Brain Dump » : vider sa tete en 2 clics (option des reglages) -->
+    <Border x:Name="AnchorBadge" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,158,52"
+            Width="34" Height="34" CornerRadius="17" Background="#FF6C5CE7" BorderBrush="#1E1B3A" BorderThickness="2"
+            Cursor="Hand" ToolTip="📥 Brain Dump : note ce qui te passe par la tête, sans trier (tu trieras plus tard)">
+      <TextBlock Text="📥" FontSize="15" FontFamily="Segoe UI Emoji" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    </Border>
+
     <!-- bouton « Je m'interromps » : a cote d'Orbit pendant un focus (option des reglages) -->
     <Border x:Name="CtxBadge" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,158,10"
             Width="34" Height="34" CornerRadius="17" Background="#FFFDFBFF" BorderBrush="#1E1B3A" BorderThickness="2"
@@ -1407,6 +1431,7 @@ function Get-SettingsSnapshot {
         contextScreenshot  = $Config.ContextScreenshot
         contextRemind      = $Config.ContextRemind
         contextRemindMin   = $Config.ContextRemindMin
+        anchorButton       = $Config.AnchorButton
     }
 }
 
@@ -1445,6 +1470,7 @@ function Apply-SettingsData($d) {
     if (Has 'contextWindows') { $Config.ContextWindows = [math]::Min(5, [math]::Max(0, [int]$d.contextWindows)) }
     if (Has 'contextScreenshot') { $Config.ContextScreenshot = [bool]$d.contextScreenshot }
     if (Has 'contextRemind') { $Config.ContextRemind = [bool]$d.contextRemind }
+    if (Has 'anchorButton') { $Config.AnchorButton = [bool]$d.anchorButton }
     if (Has 'contextRemindMin') { $Config.ContextRemindMin = [math]::Min(480, [math]::Max(5, [int]$d.contextRemindMin)) }
     if ($Config.WanderMaxMin -le $Config.WanderMinMin) { $Config.WanderMaxMin = $Config.WanderMinMin + 1 }
 }
@@ -2139,6 +2165,7 @@ function On-TimerEnded {
         $O.FocusMinToday += $O.SessionMin
         Save-Stats
         [void](Add-FocusToCards ([int][math]::Round($O.SessionMin)))
+        [void](Add-Win "Focus de $([int][math]::Round($O.SessionMin)) min" 'focus')
         $O.State = 'AwaitBreak'
         Ask-Break
         Show-Tray "Session de focus terminée 🎉" "Clique sur Orbit pour lancer ta pause."
@@ -2167,6 +2194,8 @@ function Update-Pill {
     if ($clock) { $clock.Text = $txt }
     $badge = if ($Config.ContextButton -and $O.State -eq 'Focus' -and -not $O.Paused) { 'Visible' } else { 'Collapsed' }
     if ($ui.CtxBadge.Visibility -ne $badge) { $ui.CtxBadge.Visibility = $badge }
+    $dump = if ($Config.AnchorButton) { 'Visible' } else { 'Collapsed' }
+    if ($ui.AnchorBadge.Visibility -ne $dump) { $ui.AnchorBadge.Visibility = $dump }
     if ($script:tray) {
         $tip = "Orbit - $txt - $($O.FocusToday) focus aujourd'hui"
         $tip = Get-TextStart $tip 63
@@ -2212,6 +2241,9 @@ function Show-MorningPlan {
     }
     $rest = @(Get-OpenTodos).Count - $plan.Count
     if ($rest -gt 0) { $text += "`n(+ $rest autre(s) carte(s) dans tes tableaux)" }
+    $routines = @((Get-DopaView).Routines | Where-Object { -not $_.DoneToday })
+    if ($routines.Count) { $text += "`n🔁 Routines : $((@($routines | Select-Object -First 3 | ForEach-Object { $_.Task.title })) -join ', ')$(if ($routines.Count -gt 3) { '…' })" }
+    if ($Anchor.Dump.Count) { $text += "`n📥 $($Anchor.Dump.Count) idée(s) à trier dans ton Brain Dump" }
     $text += "`n`nOn s'y met ?"
     Show-Bubble $text -Force -AutoHide -Seconds 180 -Buttons (@($ctxBtn) + @(
         @{ Label = '🎯 Go, focus sur ces cartes'; Action = { Accept-MorningPlan }; Primary = $true },
@@ -2794,9 +2826,23 @@ function Step-Autopilot($now) {
         $Config.ContextScreenshot = ($k % 34 -eq 0)
         Start-Interruption
     }
+    # les 3 modules : vider sa tete, trier a froid, se debloquer etape par etape
+    if ($k % 7 -eq 0) { Show-QuickDump; $bd.BdText.Text = "idee $($now.ToString('HH:mm:ss'))"; Close-QuickDump }
+    if ($k % 19 -eq 0 -and $Anchor.Dump.Count) {
+        Start-DumpSort
+        while ($script:afQueue.Count) { Invoke-SortAction $(if ($script:afQueue.Count % 2) { 'dopa' } else { 'archive' }) }
+        Close-AnchorFocus
+    }
+    if ($k % 23 -eq 0) {
+        Start-UnstickFor "Répondre au mail $k"
+        while ($Anchor.Unstick) { Complete-UnstickUi }
+        Close-AnchorFocus
+        $a = (Get-DopaView).Actions | Select-Object -First 1
+        if ($a) { [void](Complete-DopaTask $a.id) }
+    }
     if ($k % 10 -eq 0) {
         $p = [Diagnostics.Process]::GetCurrentProcess()
-        Write-Log ("Autopilote : etat {0}, focus {1}, reprises {4}, memoire {2:N0} Mo, poignees {3}" -f $O.State, $O.FocusToday, ($p.PrivateMemorySize64 / 1MB), $p.HandleCount, @($NB.Contexts).Count)
+        Write-Log ("Autopilote : etat {0}, focus {1}, reprises {4}, victoires {5}, memoire {2:N0} Mo, poignees {3}" -f $O.State, $O.FocusToday, ($p.PrivateMemorySize64 / 1MB), $p.HandleCount, @($NB.Contexts).Count, @($Anchor.Wins).Count)
     }
 }
 
@@ -2855,6 +2901,7 @@ function Set-Mini([bool]$on) {
     $ui.SpeechTail.Margin = if ($on) { '0,-3.5,28,0' } else { '0,-3.5,61,0' }
     $ui.ThoughtTail.Margin = if ($on) { '0,3,26,0' } else { '0,3,59,0' }
     $ui.CtxBadge.Margin = if ($on) { '0,0,92,4' } else { '0,0,158,10' }
+    $ui.AnchorBadge.Margin = if ($on) { '0,0,92,42' } else { '0,0,158,52' }
     if ($on) { $O.Walking = $false }
     Fit-BubbleWindow
 }
@@ -2901,11 +2948,16 @@ function Quit-Orbit {
 . (Join-Path $PSScriptRoot 'notebook.ps1')
 . (Join-Path $PSScriptRoot 'notes.ps1')
 . (Join-Path $PSScriptRoot 'context.ps1')
+. (Join-Path $PSScriptRoot 'anchor.ps1')
 . (Join-Path $PSScriptRoot 'settings.ps1')
 
 $menu = New-Object Windows.Controls.ContextMenu
 $miCtx    = New-MenuItem "✋  Je m'interromps (garder où j'en suis)" { Start-Interruption }
 $miCtxList = New-MenuItem "↩  Mes reprises" { Open-Notebook 'Ctx' }
+$miSos    = New-MenuItem "🚨  S.O.S : je bloque (une seule chose à la fois)" { Show-Sos }
+$miDump   = New-MenuItem "📥  Brain Dump : vider ma tête" { Show-QuickDump }
+$miSort   = New-MenuItem "🧊  Trier mon Brain Dump à froid" { Start-DumpSort }
+$miDopa   = New-MenuItem "📋  DopaList et victoires du jour" { Open-Notebook 'Dopa' }
 $miNote   = New-MenuItem "📝  Note rapide" { Show-QuickNote }
 $miFact   = New-MenuItem "🧠  Le saviez-vous ? (culture G)" { Ensure-Visible; Tell-Fact -Force }
 $miNotes  = New-MenuItem "📒  Mes notes" { Open-Notebook 'Notes' }
@@ -2955,7 +3007,8 @@ foreach ($k in $Skins.Keys) {
 [void]$miSkin.Items.Add((New-Object Windows.Controls.Separator))
 [void]$miSkin.Items.Add((New-MenuItem "🖼  Choisir une autre image…" { if (Choose-CustomImage) { Set-Skin 'Custom'; Save-Settings } }))
 
-foreach ($i in @($miCtx, $miCtxList, (New-Object Windows.Controls.Separator),
+foreach ($i in @($miSos, $miCtx, $miCtxList, (New-Object Windows.Controls.Separator),
+                 $miDump, $miSort, $miDopa, (New-Object Windows.Controls.Separator),
                  $miNote, $miNotes, $miTodo, $miClip, $miSearch, (New-Object Windows.Controls.Separator),
                  $miFocus, $miCards, $miPlan, $miBreak, $miPause, $miStop, $miRhythm, $miTasks, (New-Object Windows.Controls.Separator),
                  $miSkin, $miQuiet, $miWander, $miMini, $miHome, $miHide, $miAuto, (New-Object Windows.Controls.Separator),
@@ -2973,6 +3026,9 @@ $menu.Add_Opened({
     $miTasks.IsChecked = $O.TaskReminders
     $nCtx = @(Get-OpenContexts).Count
     $miCtxList.Header = if ($nCtx) { "↩  Mes reprises ($nCtx en attente)" } else { "↩  Mes reprises" }
+    $miSort.Header = if ($Anchor.Dump.Count) { "🧊  Trier mon Brain Dump à froid ($($Anchor.Dump.Count))" } else { "🧊  Trier mon Brain Dump à froid" }
+    $miSort.IsEnabled = $Anchor.Dump.Count -gt 0
+    $miSos.Header = if ($Anchor.Unstick) { "🚨  S.O.S : reprendre « $(Short-Text $Anchor.Unstick.title 30) »" } else { "🚨  S.O.S : je bloque (une seule chose à la fois)" }
     foreach ($k in $skinItems.Keys) { $skinItems[$k].IsChecked = ($k -eq $O.Skin) }
     foreach ($name in $rhythmItems.Keys) {
         $r = $Rhythms[$name]
@@ -3006,6 +3062,8 @@ $ui.Bot.Add_MouseLeftButtonDown({
 
 # Le bouton ✋ a cote d'Orbit (pendant un focus)
 $ui.CtxBadge.Add_MouseLeftButtonUp({ param($s, $e) $e.Handled = $true; Invoke-Safe { Start-Interruption } })
+# Le bouton 📥 : capture rapide (Brain Dump)
+$ui.AnchorBadge.Add_MouseLeftButtonUp({ param($s, $e) $e.Handled = $true; Invoke-Safe { Show-QuickDump } })
 
 # ---------------------------------------------------------------------------
 #  Icone dans la zone de notification
@@ -3103,6 +3161,9 @@ try {
     [void]$cms.Items.Add('Prendre ma pause', $null, { Invoke-Safe { Ensure-Visible; Start-Break } })
     [void]$cms.Items.Add('Couper le chrono', $null, { Invoke-Safe { Stop-Cycle } })
     [void]$cms.Items.Add('-')
+    [void]$cms.Items.Add('🚨 S.O.S : je bloque', $null, { Invoke-Safe { Show-Sos } })
+    [void]$cms.Items.Add('📥 Brain Dump : vider ma tête', $null, { Invoke-Safe { Show-QuickDump } })
+    [void]$cms.Items.Add('📋 DopaList et victoires', $null, { Invoke-Safe { Open-Notebook 'Dopa' } })
     [void]$cms.Items.Add('✋ Je m''interromps', $null, { Invoke-Safe { Start-Interruption } })
     [void]$cms.Items.Add('↩ Mes reprises', $null, { Invoke-Safe { Open-Notebook 'Ctx' } })
     [void]$cms.Items.Add('📝 Note rapide', $null, { Invoke-Safe { Show-QuickNote } })

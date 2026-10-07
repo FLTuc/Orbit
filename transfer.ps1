@@ -6,7 +6,7 @@
 $ExportManifest = 'orbit-export.json'
 # ce qui ne voyage pas : propre a ce PC, temporaire ou prive
 $ExportSkip = @('native-*.dll', '*.log', 'etat.json', 'derniere-relance.txt', '*.tmp', 'clipboard', 'avant-import-*', 'kanban-illisible-*',
-                'captures', 'reprises-illisible-*')
+                'captures', 'reprises-illisible-*', 'lifeanchor-illisible-*')
 
 function Test-ExportSkip([string]$relative) {
     $first = $relative.Split('\/')[0]

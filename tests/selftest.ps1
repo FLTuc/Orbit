@@ -69,7 +69,7 @@ Check 'polices des bulles trouvees (texte, emoji, symboles)' ($script:GlyphMaps.
 $texts = New-Object System.Collections.Generic.List[string]
 foreach ($t in $Jokes) { $texts.Add($t) }
 foreach ($t in $Facts) { $texts.Add($t) }
-foreach ($file in 'orbit.ps1', 'notebook.ps1', 'notes.ps1', 'settings.ps1', 'transfer.ps1') {
+foreach ($file in 'orbit.ps1', 'notebook.ps1', 'notes.ps1', 'settings.ps1', 'transfer.ps1', 'context.ps1', 'anchor.ps1') {
     $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $Root $file), [ref]$null, [ref]$null)
     foreach ($node in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.StringConstantExpressionAst] -or
                                      $args[0] -is [System.Management.Automation.Language.ExpandableStringExpressionAst] }, $true)) { $texts.Add($node.Value) }
@@ -267,6 +267,59 @@ finally {
     Get-Process -Name notepad -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 }
 
+Section 'Brain Dump, DopaList, Unstick Me (vraies fenetres)'
+try {
+    Update-Pill
+    Check 'bouton 📥 a cote d''Orbit' ($ui.AnchorBadge.Visibility -eq 'Visible')
+    $n0 = $Anchor.Dump.Count
+    Show-QuickDump
+    Check 'capture rapide : la fenetre s''ouvre, prete a ecrire' ($bdWin.IsVisible)
+    $bd.BdText.Text = 'Payer la facture EDF'
+    Close-QuickDump
+    foreach ($t in 'Idee cadeau', 'Ranger le garage') { Show-QuickDump; $bd.BdText.Text = $t; Close-QuickDump }
+    Check 'deposee en 2 gestes (bouton 📥, Entree)' ($Anchor.Dump.Count -eq $n0 + 3 -and -not $bdWin.IsVisible)
+    Open-Notebook 'Dump'
+    Check 'onglet Dump : la liste et le bouton de tri' ($pn.DumpList.Children.Count -ge 3 -and [string]$pn.DumpSort.Content -match 'Trier')
+    Close-Notebook
+    Start-DumpSort
+    Check 'tri a froid : une idee a la fois' ($afWin.IsVisible -and $script:afMode -eq 'sort')
+    $key = { param($k) $ev = New-Object Windows.Input.KeyEventArgs([Windows.Input.Keyboard]::PrimaryDevice, [Windows.PresentationSource]::FromVisual($afWin), 0, $k); $ev.RoutedEvent = [Windows.Input.Keyboard]::PreviewKeyDownEvent; $afWin.RaiseEvent($ev) }
+    while ($script:afQueue.Count -gt 3) { Invoke-SortAction 'later' }
+    & $key ([Windows.Input.Key]::Right)
+    & $key ([Windows.Input.Key]::Left)
+    Invoke-SortAction 'unstick'
+    Check 'fleches du clavier et boutons : action, archive, deblocage' ($script:afMode -eq 'sorted' -and $Anchor.Unstick)
+    Show-Unstick
+    Check 'Unstick Me : une seule etape affichee' ($script:afMode -eq 'unstick' -and $af.AfTitle.Text -match '⚡')
+    $Anchor.Unstick.timerEndsAt = [double](Get-NowMs) - 1000
+    Render-Unstick
+    Check 'minuteur doux termine : pas d''alarme, on peut continuer' ($script:afClock.Text -eq '✓')
+    $steps = $Anchor.Unstick.steps.Count
+    for ($i = 0; $i -lt $steps; $i++) { Complete-UnstickUi }
+    Check 'toutes les etapes : « Tu es lancé(e) »' ($script:afMode -eq 'done' -and -not $Anchor.Unstick)
+    Close-AnchorFocus
+    Show-Sos
+    Check '🚨 S.O.S : la question, et des idees de la DopaList' ($script:afMode -eq 'sos' -and $script:afSosBox)
+    $script:afSosBox.Text = 'Répondre au mail de Julie'
+    Start-UnstickFor $script:afSosBox.Text
+    Check 'S.O.S : decoupage immediat (messagerie)' ($Anchor.Unstick.steps[0].content -match 'messagerie')
+    Close-AnchorFocus
+    $Anchor.Unstick = $null
+    Check 'bruit brun : demarre et s''arrete' ((Set-BrownNoise $true) -and $script:NoisePlayer -and -not (Set-BrownNoise $false) -and -not $script:NoisePlayer)
+    [void](Add-DopaTask 'Boire un verre d''eau' 'daily')
+    Open-Notebook 'Dopa'
+    $cards = @($pn.DopaList.Children | Where-Object { $_ -is [Windows.Controls.Border] })
+    Check 'onglet DopaList : routines, actions et victoires du jour' ($cards.Count -ge 2 -and [string]$pn.TabDopa.Content -match 'DopaList')
+    $nw = $Anchor.Wins.Count
+    $c = $cards | Where-Object { $_.Child.Children[1].Text -match 'Boire' } | Select-Object -First 1
+    $c.RaiseEvent((New-Object Windows.Input.MouseButtonEventArgs([Windows.Input.Mouse]::PrimaryDevice, 0, [Windows.Input.MouseButton]::Left) -Property @{ RoutedEvent = [Windows.UIElement]::MouseLeftButtonUpEvent }))
+    Check 'clic sur une routine : faite, victoire' ($Anchor.Wins.Count -eq $nw + 1)
+    Close-Notebook
+    Open-Settings
+    Check 'reglages : bouton 📥' ($sw.SAnchorButton.IsChecked -eq $Config.AnchorButton)
+    $settingsWin.Hide()
+} catch { Check 'scenario sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
+
 Section 'Export vers un autre PC'
 try {
     $zip = Join-Path $appData 'export-test.zip'
@@ -283,6 +336,7 @@ try {
     Check 'et les tableaux' (@($names | Where-Object { $_ -match 'donnees[\\/]kanban\.json$' }).Count -eq 1)
     Check 'mais pas le code compile de ce PC' (@($names | Where-Object { $_ -match 'native-' }).Count -eq 0)
     Check 'ni les captures d''ecran' (@($names | Where-Object { $_ -match 'captures[\\/]' }).Count -eq 0)
+    Check 'DopaList, Brain Dump et victoires aussi (comme sur le telephone)' (@($names | Where-Object { $_ -match 'donnees[\\/]lifeanchor\.json$' }).Count -eq 1)
     Check 'les reprises, oui (le texte)' (@($names | Where-Object { $_ -match 'donnees[\\/]reprises\.json$' }).Count -eq 1)
     Write-Host "  ($([math]::Round((Get-Item $zip).Length / 1KB)) Ko, $($names.Count) fichiers)"
 } catch { Check 'export sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }

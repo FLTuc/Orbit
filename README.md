@@ -63,6 +63,11 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
     - **💾 Enregistrer une copie** où tu veux, en .txt ou .md ;
     - si le fichier des notes est abîmé au démarrage, Orbit repart tout seul de la dernière sauvegarde ;
     - et toujours une copie lisible dans `%APPDATA%\Orbit\notes.md`.
+- **⚓ Les 3 modules anti-paralysie** (pensés pour le TDAH, aussi sur le téléphone) :
+  - **🚨 S.O.S / ⚡ Unstick Me** : clic droit > 🚨 S.O.S, ou ⚡ sur une action ou une carte. Tu écris ce que tu n'arrives pas à commencer (Win+H pour dicter) ; Orbit le découpe en 3 à 5 micro-étapes ridiculement petites (« Ouvre ta messagerie (juste l'ouvrir) »…) et n'en montre **qu'une à la fois**, avec une barre de 2 min 30 qui se vide doucement **sans jamais sonner**. « 🔪 Encore plus petit » ajoute une étape de préparation, ✏ la modifie, ⏭ la passe. À la fin : « 🎉 Tu es lancé(e) » et la victoire est notée. Un fond sonore 🟤 bruit brun est disponible.
+  - **📥 Brain Dump** : le bouton rond 📥 à côté d'Orbit (ou clic droit > 📥) ouvre une petite case : tu écris, Entrée, c'est déposé. Aucune catégorie, aucune date. Plus tard, **🧊 Trier à froid** : une idée à la fois, à glisser (→ action, ← archiver, ↑ débloquer) ou avec les boutons (carte de tableau, supprimer, plus tard). Les flèches du clavier marchent aussi dans cette fenêtre.
+  - **📋 DopaList** (onglet du carnet) : actions et routines (chaque jour, en semaine, chaque semaine) en grandes cartes ; un clic = fait, avec un petit son. Pas de compteur rouge ni de « en retard » : une routine non faite revient simplement le lendemain. En bas, le **🏆 journal des victoires** du jour (actions, routines, déblocages, focus terminés, cartes finies, reprises) et la série de jours d'affilée.
+  - Le découpage est fait **sur le PC**, avec les règles du fichier `unstick\rules.json` (les mêmes sur le téléphone, modifiables) : aucun service d'IA, rien ne sort du PC. Le PC et le téléphone donnent exactement les mêmes étapes (vérifié par les tests).
 - **✋ Je m'interromps (savoir où tu t'es arrêté)** : quand on t'interrompt (collègue, appel, réunion), un clic suffit pour ne pas perdre le fil.
   - **Où cliquer** : le bouton rond **✋** à côté d'Orbit pendant un focus, clic droit sur Orbit > ✋ Je m'interromps, ou l'icône près de l'horloge. Pas de raccourci clavier.
   - **Ce qu'Orbit garde tout seul** :
@@ -106,6 +111,41 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   - blagues de pause (oui/non et fréquence), phrases de motivation, commentaires sur les applis, mode silencieux ;
   - apparence (satellite, droïde, robot, majordome robot ou humain, cerveau humain) ;
   - balades (oui/non et fréquence), sons (style, fichiers perso WAV ou MP3, volume, bouton ▶ pour écouter), lancement au démarrage de Windows.
+
+## 📱 Orbit sur ton téléphone (Android, iPhone)
+
+Le dossier `pwa\` contient Orbit en version « appli web installable » : elle s'ajoute à l'écran d'accueil, s'ouvre en plein écran, **fonctionne sans réseau** et garde tout sur le téléphone (rien n'est envoyé nulle part).
+
+**Ce qu'il y a dedans** :
+- Orbit et sa bulle, le Pomodoro (50/10, 25/5 ou perso) avec ses confirmations, les blagues et la culture G ;
+- les tableaux Kanban, les notes, ✋ Je m'interromps, le plan du matin et la recherche ;
+- 🚨 S.O.S / ⚡ Unstick Me, 📥 Brain Dump (tri à froid en glissant le doigt) et 📋 DopaList avec le journal des victoires ;
+- sons doux et vibrations, écran maintenu allumé pendant un focus (option), bruit brun, dictée (🎙).
+
+**Les petits plus du téléphone** :
+- **Partager** une page depuis Chrome vers Orbit la garde comme « reprise », avec son lien.
+- **Appui long sur l'icône** : 📥 Brain Dump, 🚨 S.O.S, ✋ Je m'interromps, 🚀 Focus.
+
+**PC ↔ téléphone** (☰ Plus > 💻) :
+- *Recevoir* : lit directement le zip créé par Orbit PC (clic droit > 📦 Autre PC > Exporter).
+- *Envoyer* : crée un zip qu'Orbit PC ouvre avec « Importer un export… ».
+- Ce sont les mêmes fichiers des deux côtés : tableaux, notes, reprises, DopaList, Brain Dump, victoires.
+
+**L'installer** : il faut que le dossier `pwa\` soit en ligne en HTTPS (obligatoire pour une appli installable). Au choix :
+1. **GitHub Pages** : Settings > Pages > Source « GitHub Actions ». Le workflow « Version téléphone » publie alors l'appli à chaque mise à jour de `main`. Sur un dépôt **privé**, GitHub Pages demande un abonnement GitHub Pro (ou de rendre le dépôt public : le code ne contient aucune donnée personnelle).
+2. **Netlify, Cloudflare Pages…** (gratuits) : le zip `orbit-telephone-site`, téléchargeable dans l'onglet Actions de GitHub après chaque test, se dépose tel quel.
+
+Ensuite, sur le téléphone : ouvre l'adresse dans Chrome, puis ⋮ > « Installer l'application » (ou ☰ Plus > 📲 Installer).
+
+**Limites honnêtes** :
+- un téléphone endort les applis web : la fin d'un focus sonne si Orbit est ouvert (option « garder l'écran allumé ») et sinon au retour, avec une notification si tu les autorises ;
+- la dictée 🎙 utilise le service vocal du téléphone (Google sur Android) ; le micro du clavier marche aussi.
+
+**Tests** :
+- `node tests/pwa/unit.mjs` : la logique et les attaques ;
+- `node tests/pwa/static.mjs` : la sécurité du code ;
+- `node tests/pwa/e2e.cjs` : un parcours complet sur un Pixel 7 simulé, avec le temps accéléré, le hors-ligne, le partage, le glissement du doigt, l'import et l'export ;
+- `python tools/build_pwa.py` : régénère les blagues et la culture G du téléphone, et le cache hors ligne.
 
 ## Commandes
 

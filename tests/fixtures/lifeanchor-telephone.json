@@ -1,0 +1,41 @@
+{
+  "dump": [
+    {
+      "id": "3f9f0f8d153147958edcf5cb6490f792",
+      "text": "Idée notée sur le téléphone 🚀",
+      "created": "2026-10-07T19:40:38"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "cdfdf21e915f47fbb82e815fcae8613b",
+      "title": "Boire un verre d’eau",
+      "status": "todo",
+      "isRoutine": true,
+      "repeat": "daily",
+      "created": "2026-10-07T19:40:38",
+      "completedAt": "",
+      "lastDone": "2026-10-04",
+      "steps": []
+    },
+    {
+      "id": "2a69e93fbb5a4d13a495a615a36e033d",
+      "title": "Envoyer le devis",
+      "status": "todo",
+      "isRoutine": false,
+      "repeat": "",
+      "created": "2026-10-07T19:40:38",
+      "completedAt": "",
+      "lastDone": "",
+      "steps": []
+    }
+  ],
+  "wins": [
+    {
+      "id": "w1",
+      "title": "Débloqué : Ranger le bureau",
+      "kind": "unstick",
+      "at": "2026-10-04T10:00:00"
+    }
+  ]
+}

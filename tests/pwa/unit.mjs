@@ -103,6 +103,8 @@ check('mail : « Ouvre ta messagerie »', /messagerie/.test(steps[0]));
 check('compte-rendu = ecrire (pas la banque)', /fichier/.test(S.decompose('Faire mon compte-rendu', rules)[0]));
 check('tache inconnue : etapes generiques avec la tache', S.decompose('Réparer le vélo', rules)[0].includes('Réparer le vélo'));
 check('tache vide : rien', S.decompose('   ', rules).length === 0);
+const expected = JSON.parse(fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', 'unstick-expected.json'), 'utf8'));
+check('decoupage conforme au fichier de reference commun avec le PC', Object.entries(expected).every(([t, steps]) => JSON.stringify(S.decompose(t, rules)) === JSON.stringify(steps)));
 S.startUnstick(s, 'Ranger le bureau', rules);
 let res = '';
 for (let i = 0; i < 10 && res !== 'finished'; i++) res = S.unstickStepDone(s);

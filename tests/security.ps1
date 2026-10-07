@@ -71,7 +71,7 @@ Check 'Orbit relance : chemins fixes de Windows (conhost.exe, powershell.exe)' (
     $orb -match "\`$OrbitPowerShell = Join-Path \`$PSHOME 'powershell\.exe'")
 
 $xaml = @(Find-Code 'XamlReader\]::(Load|Parse)')
-$xamlBad = @($xaml | Where-Object { $_.Text -notmatch 'XmlNodeReader \$(xaml|panelXaml|settingsXaml|QuickNoteXaml|CtxNoteXaml|doc)\)' })
+$xamlBad = @($xaml | Where-Object { $_.Text -notmatch 'XmlNodeReader \$(xaml|panelXaml|settingsXaml|QuickNoteXaml|CtxNoteXaml|AnchorDumpXaml|AnchorFocusXaml|doc)\)' })
 Report $xamlBad
 Check "fenetres construites seulement a partir du programme ($($xaml.Count) endroits)" ($xamlBad.Count -eq 0)
 
@@ -93,6 +93,9 @@ $restore = [regex]::Match($cx, '(?s)function Restore-ContextWindow.*?\n}').Value
 Check "reprises : adresses web (http/https) et chemins verifies avant d'ouvrir ($($opens.Count) endroits)" (
     $restore -match '\$url = Get-SafeUrl \$w\.url' -and $restore -match 'Test-SafeOpenPath \$w\.path -Folder' -and
     $cx -match "if \(\`$u -match '\^https\?://" -and $cx -match '\$CtxOpenExt -(not)?contains')
+$an = [IO.File]::ReadAllText((Join-Path $Root 'anchor.ps1'))
+Check 'DopaList / Brain Dump : identifiants filtres a la lecture, aucun programme lance' ($an -match 'id = \(Get-SafeId \$x\.id\)' -and $an -match "Get-SafeId \`$v" -and $an -notmatch 'Start-Process')
+Check "decoupage Unstick Me : sur le PC (regles locales), aucun service d'IA" ($an -match '\$AnchorRulesFile = Join-Path \$PSScriptRoot' -and $an -notmatch '(?i)api\.openai|groq|anthropic|https?://(?!schemas\.microsoft\.com/)')
 Check 'reprises : identifiants filtres et captures nommees par Orbit' ($cx -match 'id = \(Get-SafeId \$c\.id\)' -and $cx -match "Join-Path \`$CtxShotDir \(\(Get-SafeId \`$id\)")
 Check "reprises : fenetres de navigation privee jamais lues" ($cx -match 'function Test-PrivateTitle' -and $cx -match "-not \`$w\.private -and \`$w\.hwnd")
 

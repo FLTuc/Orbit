@@ -61,7 +61,7 @@ export function findUrl(text) {
 
 const FOLD = { 'œ': 'oe', 'æ': 'ae', 'ß': 'ss' };
 export function searchKey(v) {
-  return String(v ?? '').toLowerCase().replace(/[œæß]/g, (c) => FOLD[c])
+  return String(v ?? '').toLowerCase().replace(/[œæß]/g, (c) => FOLD[c]).replace(/\u2019/g, "'")
     .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
 }
 export function matches(haystack, words) {

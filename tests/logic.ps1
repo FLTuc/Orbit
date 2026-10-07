@@ -417,6 +417,82 @@ foreach ($j in '', 'null', '{}', '[]', '[null]', '[1,2]', '"texte"', '[{"windows
 }
 Check 'reprises.json abime de 11 facons : jamais de plantage, jamais plus de 200 reprises' ($bad -eq 0)
 
+Section 'Brain Dump, DopaList, Unstick Me (les 3 modules anti-paralysie)'
+foreach ($def in Get-ScriptFunctions (Join-Path $Root 'anchor.ps1')) { . ([scriptblock]::Create($def)) }
+foreach ($a7 in Get-ScriptAssignments (Join-Path $Root 'anchor.ps1') '^\$Anchor(Repeats|WinIcons)?\s*=') { . ([scriptblock]::Create($a7)) }
+$AnchorFile = Join-Path $T 'lifeanchor.json'
+$AnchorRulesFile = Join-Path $Root 'unstick\rules.json'
+$d1 = Add-DumpItem 'Prendre RDV dentiste'
+$d2 = Add-DumpItem '  '
+$d3 = Add-DumpItem 'Idée cadeau pour Léa'
+$d4 = Add-DumpItem 'Payer la facture EDF'
+$d5 = Add-DumpItem 'Ranger le garage'
+Check 'capture sans tri (texte vide ignore)' ($Anchor.Dump.Count -eq 4 -and $null -eq $d2)
+[void](Invoke-DumpSort $d1.id 'dopa'); [void](Invoke-DumpSort $d3.id 'archive'); [void](Invoke-DumpSort $d4.id 'unstick'); [void](Invoke-DumpSort $d5.id 'card')
+Check 'tri a froid : action, archive, deblocage, carte' ($Anchor.Dump.Count -eq 0 -and @($Anchor.Tasks | Where-Object { $_.status -eq 'todo' }).Count -eq 2 -and
+    @($Anchor.Tasks | Where-Object { $_.status -eq 'archived' }).Count -eq 1 -and $Anchor.Unstick -and (Card 'Ranger le garage'))
+Check 'deblocage : decoupe tout de suite (banque)' ($Anchor.Unstick.steps[0].content -match 'application|site')
+$mon = Get-Date '2026-10-05T09:00:00'
+$rt = Add-DopaTask 'Prendre mes médicaments' 'daily'
+Check 'routine a faire aujourd''hui' (Test-RoutineDue $rt $mon)
+$w = Complete-DopaTask $rt.id $mon
+Check 'routine faite : victoire, plus a faire aujourd''hui' ($w.kind -eq 'routine' -and -not (Test-RoutineDue $rt $mon) -and @(Get-WinsOfDay $mon).Count -eq 1)
+Check 'et de nouveau a faire demain' (Test-RoutineDue $rt $mon.AddDays(1))
+Check 'pas deux victoires pour la meme routine le meme jour' ($null -eq (Complete-DopaTask $rt.id $mon))
+$we = Add-DopaTask 'Point equipe' 'weekdays'
+Check 'routine « en semaine » : pas le samedi' (-not (Test-RoutineDue $we $mon.AddDays(5)) -and (Test-RoutineDue $we $mon))
+$wk = Add-DopaTask 'Arroser' 'weekly'
+[void](Complete-DopaTask $wk.id $mon)
+Check 'routine hebdomadaire : revient 7 jours apres' (-not (Test-RoutineDue $wk $mon.AddDays(3)) -and (Test-RoutineDue $wk $mon.AddDays(7)))
+Undo-DopaTask $rt.id $mon
+Check 'annuler : la victoire disparait' (@(Get-WinsOfDay $mon | Where-Object { $_.title -eq 'Prendre mes médicaments' }).Count -eq 0 -and (Test-RoutineDue $rt $mon))
+[void](Complete-DopaTask $rt.id $mon.AddDays(-1)); [void](Complete-DopaTask $rt.id $mon)
+Check 'serie de jours avec une victoire' ((Get-WinStreak $mon) -eq 2)
+$v = Get-DopaView $mon
+Check 'DopaList : routines du jour et actions, jamais « en retard »' ($v.Routines.Count -ge 2 -and $v.Actions.Count -eq 2)
+# decoupage : le meme que sur le telephone
+$expected = ConvertFrom-Json ([IO.File]::ReadAllText((Join-Path $Root 'tests\fixtures\unstick-expected.json')))
+$diff = @()
+foreach ($p in $expected.PSObject.Properties) {
+    $got = @(Split-Task $p.Name)
+    if (($got -join '|') -ne (@($p.Value) -join '|')) { $diff += "$($p.Name) -> $($got[0])" }
+}
+Check "decoupage identique au telephone ($(@($expected.PSObject.Properties).Count) taches)" ($diff.Count -eq 0) ($diff -join ' / ')
+Check 'tache vide : rien a decouper' (@(Split-Task '   ').Count -eq 0)
+[void](Start-Unstick 'Ranger le bureau')
+$n0 = $Anchor.Unstick.steps.Count
+Split-UnstickStep
+Check '« encore plus petit » ajoute une etape de preparation' ($Anchor.Unstick.steps.Count -eq $n0 + 1 -and $Anchor.Unstick.steps[0].content -match 'Prépare-toi')
+$r = ''; for ($i = 0; $i -lt 20 -and $r -ne 'finished'; $i++) { $r = Complete-UnstickStep }
+Check 'toutes les etapes faites : victoire « Débloqué »' ($r -eq 'finished' -and -not $Anchor.Unstick -and @($Anchor.Wins | Where-Object { $_.title -eq 'Débloqué : Ranger le bureau' }).Count -eq 1)
+$pay = Add-DopaTask 'Payer le loyer'
+[void](Start-Unstick $pay.title $pay.id)
+while ($Anchor.Unstick) { [void](Complete-UnstickStep) }
+Check 'debloquer une action de la DopaList la termine' ((Find-DopaTask $pay.id).status -eq 'completed')
+Check 'la recherche trouve les actions de la DopaList' (@((Find-Everything 'medicaments').Dopa).Count -eq 1)
+# fichier : relu a l'identique, et fichier venu du telephone
+Load-Anchor
+Check 'lifeanchor.json relu (taches, victoires)' ($Anchor.Tasks.Count -ge 5 -and $Anchor.Wins.Count -ge 4 -and (Find-DopaTask $rt.id).lastDone -eq '2026-10-05')
+Copy-Item (Join-Path $Root 'tests\fixtures\lifeanchor-telephone.json') $AnchorFile -Force
+Load-Anchor
+Check 'fichier venu du telephone : lu par le PC' ($Anchor.Dump.Count -eq 1 -and $Anchor.Dump[0].text -match 'téléphone' -and @($Anchor.Tasks | Where-Object { $_.isRoutine }).Count -eq 1 -and $Anchor.Wins[0].kind -eq 'unstick')
+# victoires automatiques : carte terminee
+$NB.LastAddedId = ''; Add-Todo 'Carte a finir'; $cf = Find-Todo $NB.LastAddedId
+$nw = $Anchor.Wins.Count
+Set-TodoDone $cf.id $true
+Check 'carte terminee : victoire dans le journal' ($Anchor.Wins.Count -eq $nw + 1 -and $Anchor.Wins[$Anchor.Wins.Count - 1].kind -eq 'card')
+# fichiers trafiques
+[IO.File]::WriteAllText($AnchorFile, '{"dump":[{"id":"x''; calc #","text":"<b>a</b>"},null,5],"tasks":[{"id":"t1","title":"x","status":"hack","repeat":"tous les jours","steps":"pas une liste"}],"wins":[{"title":"w","kind":"<script>"}],"unstick":{"steps":[],"index":99}}')
+Load-Anchor
+Check 'fichier trafique : identifiants filtres, valeurs bornees, texte garde tel quel' ($Anchor.Dump.Count -eq 1 -and $Anchor.Dump[0].id -match '^[a-f0-9]{32}$' -and $Anchor.Dump[0].text -eq '<b>a</b>' -and
+    $Anchor.Tasks[0].status -eq 'todo' -and -not $Anchor.Tasks[0].isRoutine -and $Anchor.Wins[0].kind -eq 'script' -and $null -eq $Anchor.Unstick)
+$bad = 0
+foreach ($j in '', 'null', '[]', '{"dump":"x"}', '{"tasks":[{"steps":[{"content":"a","sec":"abc"}]}]}', '{"unstick":{"steps":[{"content":"a"}],"index":"-5"}}') {
+    [IO.File]::WriteAllText($AnchorFile, $j)
+    try { Load-Anchor } catch { $bad++ }
+}
+Check 'lifeanchor.json abime de 6 facons : jamais de plantage' ($bad -eq 0)
+
 Section 'Tests unitaires des petites fonctions'
 Check 'Limit-Prio : 0 -> 1, 11 -> 10, texte -> 5' ((Limit-Prio 0) -eq 1 -and (Limit-Prio 11) -eq 10 -and (Limit-Prio 'abc') -eq 5)
 Check 'Short-Text coupe proprement' ((Short-Text 'abcdefghij' 5).Length -le 5 -and (Short-Text 'court' 50) -eq 'court')

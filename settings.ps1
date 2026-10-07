@@ -93,6 +93,7 @@
 
           <TextBlock Style="{StaticResource Section}" Text="✋ Je m'interromps (reprendre là où j'en étais)"/>
           <CheckBox x:Name="SCtxButton" Content="Bouton ✋ à côté d'Orbit pendant un focus"/>
+          <CheckBox x:Name="SAnchorButton" Content="Bouton 📥 (Brain Dump) à côté d'Orbit"/>
           <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
             <TextBlock Text="Garder" VerticalAlignment="Center" Margin="0,0,6,0"/>
             <ComboBox x:Name="SCtxWindows" Width="250">
@@ -216,7 +217,7 @@ $DefaultSettings.quiet = $false; $DefaultSettings.wander = $true; $DefaultSettin
 $DefaultSettings.taskReminders = $true; $DefaultSettings.morningPlan = $true; $DefaultSettings.reminderEveryMin = 4; $DefaultSettings.motivationEveryMin = 9
 $DefaultSettings.jokes = $true; $DefaultSettings.breakContent = 'Both'; $DefaultSettings.jokeEveryMin = 2; $DefaultSettings.appComments = $true
 $DefaultSettings.skin = 'Satellite'; $DefaultSettings.sounds = $true; $DefaultSettings.droidSounds = $true; $DefaultSettings.droidVolume = 40; $DefaultSettings.bubbleSound = 'Droide'; $DefaultSettings.endSound = 'Carillon'; $DefaultSettings.idlePause = $true; $DefaultSettings.idleMinutes = 5
-$DefaultSettings.contextButton = $true; $DefaultSettings.contextWindows = 3; $DefaultSettings.contextScreenshot = $false; $DefaultSettings.contextRemind = $true; $DefaultSettings.contextRemindMin = 30
+$DefaultSettings.anchorButton = $true; $DefaultSettings.contextButton = $true; $DefaultSettings.contextWindows = 3; $DefaultSettings.contextScreenshot = $false; $DefaultSettings.contextRemind = $true; $DefaultSettings.contextRemindMin = 30
 
 function Fill-SettingsForm($d) {
     $sw.SR50.IsChecked = $d.rhythm -eq '50/10'
@@ -228,6 +229,7 @@ function Fill-SettingsForm($d) {
     $sw.SIdleMin.Text = $d.idleMinutes
     $sw.STasks.IsChecked = $d.taskReminders
     $sw.SCtxButton.IsChecked = $d.contextButton
+    $sw.SAnchorButton.IsChecked = $d.anchorButton
     Select-ComboTag $sw.SCtxWindows ([string]$d.contextWindows)
     $sw.SCtxShot.IsChecked = $d.contextScreenshot
     $sw.SCtxRemind.IsChecked = $d.contextRemind
@@ -304,7 +306,7 @@ function Save-SettingsForm {
         droidVolume = [int]$sw.SDroidVol.Value
         bubbleSound = [string]$sw.SBubbleSound.SelectedItem.Tag; bubbleSoundFiles = @($SF.BubbleFiles)
         endSound = [string]$sw.SEndSound.SelectedItem.Tag; endSoundFile = $SF.EndFile
-        contextButton = [bool]$sw.SCtxButton.IsChecked; contextWindows = $(if ($sw.SCtxWindows.SelectedItem) { [int]$sw.SCtxWindows.SelectedItem.Tag } else { 3 })
+        anchorButton = [bool]$sw.SAnchorButton.IsChecked; contextButton = [bool]$sw.SCtxButton.IsChecked; contextWindows = $(if ($sw.SCtxWindows.SelectedItem) { [int]$sw.SCtxWindows.SelectedItem.Tag } else { 3 })
         contextScreenshot = [bool]$sw.SCtxShot.IsChecked; contextRemind = [bool]$sw.SCtxRemind.IsChecked; contextRemindMin = [int]$ctxMin
     })
     Update-Pill
@@ -424,7 +426,7 @@ function Initialize-Settings {
     $script:settingsWin = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $settingsXaml))
     $script:sw = @{}
     foreach ($n in 'SHeader','SClose','SDefaults','SCancel','SSave','SError','SR50','SR25','SRPerso','SPersoFocus','SPersoBreak',
-                   'SIdle','SIdleMin','STasks','SCtxButton','SCtxWindows','SCtxShot','SCtxRemind','SCtxRemindMin','SMorning','SNudge','SJokes','SJokeMin','SBreakContent','SMotiv','SApps','SQuiet','SWander','SWanderMin',
+                   'SIdle','SIdleMin','STasks','SCtxButton','SAnchorButton','SCtxWindows','SCtxShot','SCtxRemind','SCtxRemindMin','SMorning','SNudge','SJokes','SJokeMin','SBreakContent','SMotiv','SApps','SQuiet','SWander','SWanderMin',
                    'SWanderMax','SSounds','SDroid','SDroidVol','SAuto','SBubbleSound','SBubbleTest','SMySounds','SSoundAdd','SSoundDel','SSoundPlay',
                    'SEndSound','SEndFile','SEndTest','SEndFileName','SSkinCustom','SImgPick','SImgName','SSkinSatellite','SSkinDroid','SSkinRobot','SSkinButler','SSkinBrain','SSkinHuman') {
         $sw[$n] = $settingsWin.FindName($n)

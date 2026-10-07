@@ -509,6 +509,7 @@ function Resume-Context([string]$id) {
     $ctx.status = 'done'; $ctx.doneAt = (Get-Date).ToString('s')
     Remove-ContextShot $ctx.id
     Save-Contexts
+    if (Get-Command Add-Win -ErrorAction SilentlyContinue) { [void](Add-Win "Repris : $(Get-ContextTitle $ctx 60)" 'reprise') }
     Render-Contexts; Update-Tabs
     $text = "▶ C'est reparti !"
     if ($ctx.next) { $text += "`n➡ Prochaine étape : $($ctx.next)" }
