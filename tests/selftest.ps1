@@ -193,9 +193,75 @@ try {
     Close-Notebook
 } catch { Check 'notes sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
 
+Section 'Je m''interromps (vraies fenetres)'
+try {
+    # une vraie fenetre de travail : le Bloc-notes avec un fichier
+    $npFile = Join-Path $appData 'note-de-test.txt'
+    [IO.File]::WriteAllText($npFile, 'test')
+    Start-Process notepad.exe -ArgumentList "`"$npFile`""
+    $npw = $null; $t0 = Get-Date
+    while (-not $npw -and ((Get-Date) - $t0).TotalSeconds -lt 20) {
+        Start-Sleep -Milliseconds 300
+        $wins = Get-CapturedWindows 5
+        $npw = @($wins | Where-Object { $_.title -match 'note-de-test' }) | Select-Object -First 1
+    }
+    Write-Host "  fenetres vues : $((@($wins) | ForEach-Object { "$($_.app) « $($_.title) »" }) -join ' | ')"
+    Check 'la fenetre de travail est trouvee (Bloc-notes)' ([bool]$npw)
+    Check 'son titre est nettoye (sans « - Bloc-notes »)' ($npw -and $npw.title -notmatch '(Bloc-notes|Notepad)$')
+    Check 'les fenetres d''Orbit ne sont jamais capturees' (-not (@($wins) | Where-Object { $_.pid -eq $PID }))
+    # interruption pendant un focus, avec capture d'ecran
+    $Config.ContextScreenshot = $true
+    Start-Focus
+    Start-Interruption
+    if ($script:CtxShotTimer -and $script:CtxShotTimer.IsEnabled) { $script:CtxShotTimer.Stop(); Complete-InterruptionShot }
+    Check 'le focus se met en pause' ($O.State -eq 'Focus' -and $O.Paused)
+    Check 'le post-it s''ouvre avec ce qui a ete garde' ($ctxWin.IsVisible -and $cx.CtxSummary.Text -match 'note-de-test')
+    $id = $script:CtxEdit.Ctx.id
+    $shot = Get-ContextShotPath $id
+    Check 'capture d''ecran gardee (JPEG)' ((Test-Path $shot) -and (Get-Item $shot).Length -gt 1000)
+    Check 'Orbit est revenu apres la capture' ($window.Opacity -eq 1)
+    $cx.CtxDoing.Text = 'test de reprise'; $cx.CtxNext.Text = 'ecrire la ligne 2'
+    Close-ContextEditor
+    $ctx = Find-Context $id
+    Check 'reprise enregistree' ($ctx -and $ctx.next -eq 'ecrire la ligne 2' -and @($ctx.windows).Count -ge 1)
+    $t1 = Get-Date
+    while (-not (Step-ContextProbe) -and ((Get-Date) - $t1).TotalSeconds -lt 8) { Start-Sleep -Milliseconds 100 }
+    Check 'lecture des adresses terminee sans bloquer Orbit' ($null -eq $script:CtxProbe)
+    Show-Status
+    Check 'clic sur Orbit : « Où j''en étais ? » avec la prochaine etape' ($ui.BubbleText.Text -match 'ecrire la ligne 2' -and $ui.BubbleButtons.Children.Count -ge 4)
+    Hide-Bubble
+    Open-Notebook 'Ctx'
+    Check 'onglet Reprises : la reprise et sa capture' ($pn.CtxList.Children.Count -ge 1 -and [string]$pn.TabCtx.Content -match '\(\d+\)' -and
+        @($pn.CtxList.Children | Where-Object { $_.Child -and @($_.Child.Children | Where-Object { $_ -is [Windows.Controls.Image] }).Count }).Count -ge 1)
+    Close-Notebook
+    $r = Find-Everything 'ecrire ligne'
+    Check 'la recherche globale trouve la reprise' (@($r.Contexts).Count -ge 1)
+    Resume-Context $id
+    Check 'reprendre : le focus repart' ($O.State -eq 'Focus' -and -not $O.Paused)
+    Check 'reprendre : terminee, capture effacee' ((Find-Context $id).status -eq 'done' -and -not (Test-Path $shot))
+    Check 'reprendre : la prochaine etape est rappelee' ($ui.BubbleText.Text -match 'ecrire la ligne 2')
+    Update-Pill
+    Check 'bouton ✋ a cote d''Orbit pendant un focus' ($ui.CtxBadge.Visibility -eq 'Visible')
+    $Config.ContextButton = $false; Update-Pill
+    Check 'et cache si desactive dans les reglages' ($ui.CtxBadge.Visibility -eq 'Collapsed')
+    $Config.ContextButton = $true
+    $n0 = $NB.Contexts.Count; $Config.ContextScreenshot = $false
+    Start-Interruption; Close-ContextEditor -Cancel
+    Check 'annuler : rien de garde, le focus continue' ($NB.Contexts.Count -eq $n0 -and -not $O.Paused)
+    Stop-Cycle
+    Open-Settings
+    Check 'reglages : section « Je m''interromps »' ([string]$sw.SCtxWindows.SelectedItem.Tag -eq [string]$Config.ContextWindows -and $sw.SCtxRemindMin.Text -eq [string]$Config.ContextRemindMin)
+    $settingsWin.Hide()
+} catch { Check 'scenario sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
+finally {
+    Get-Process -Name notepad -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+}
+
 Section 'Export vers un autre PC'
 try {
     $zip = Join-Path $appData 'export-test.zip'
+    New-Item -ItemType Directory -Force -Path $CtxShotDir | Out-Null
+    [IO.File]::WriteAllText((Join-Path $CtxShotDir 'privee.jpg'), 'capture')
     [void](Export-OrbitPackage $zip)
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $z = [IO.Compression.ZipFile]::OpenRead($zip)
@@ -206,6 +272,8 @@ try {
     Check 'et la culture G' (@($names | Where-Object { $_ -match 'culture[\\/].+\.txt$' }).Count -ge 5)
     Check 'et les tableaux' (@($names | Where-Object { $_ -match 'donnees[\\/]kanban\.json$' }).Count -eq 1)
     Check 'mais pas le code compile de ce PC' (@($names | Where-Object { $_ -match 'native-' }).Count -eq 0)
+    Check 'ni les captures d''ecran' (@($names | Where-Object { $_ -match 'captures[\\/]' }).Count -eq 0)
+    Check 'les reprises, oui (le texte)' (@($names | Where-Object { $_ -match 'donnees[\\/]reprises\.json$' }).Count -eq 1)
     Write-Host "  ($([math]::Round((Get-Item $zip).Length / 1KB)) Ko, $($names.Count) fichiers)"
 } catch { Check 'export sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
 

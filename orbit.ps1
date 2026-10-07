@@ -110,6 +110,11 @@ $Config = @{
     MorningPlan         = $true  # le matin, propose les 3 cartes les plus urgentes
     BreakContent        = 'Both' # pendant la pause : Jokes | Culture | Both (en alternance)
     NotesMirror         = ''     # dossier ou copier automatiquement les notes (vide = non)
+    ContextButton       = $true  # bouton ✋ « Je m'interromps » a cote d'Orbit pendant un focus
+    ContextWindows      = 3      # fenetres precedentes gardees en plus de la fenetre active (0 a 5)
+    ContextScreenshot   = $false # petite capture d'ecran a chaque interruption
+    ContextRemind       = $true  # relancer si la reprise attend
+    ContextRemindMin    = 30
 }
 # (tous ces reglages se modifient aussi depuis clic droit > Reglages)
 
@@ -273,6 +278,63 @@ public static class OrbitNative {
     [DllImport("user32.dll")] static extern bool GetLastInputInfo(ref LASTINPUTINFO info);
 
     [DllImport("user32.dll")] public static extern bool DestroyIcon(IntPtr h);
+
+    // ---- fenetres ouvertes (pour « Je m'interromps ») ----
+    delegate bool EnumProc(IntPtr h, IntPtr p);
+    [DllImport("user32.dll")] static extern bool EnumWindows(EnumProc cb, IntPtr p);
+    [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
+    [DllImport("user32.dll")] static extern bool IsWindow(IntPtr h);
+    [DllImport("user32.dll")] static extern bool IsIconic(IntPtr h);
+    [DllImport("user32.dll")] static extern IntPtr GetWindow(IntPtr h, uint cmd);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassName(IntPtr h, StringBuilder sb, int max);
+    [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr h);
+    [DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(IntPtr h, int attr, out int v, int size);
+
+    // Les fenetres de travail, de la plus recente a la plus ancienne (ordre d'empilement) :
+    // visibles, non reduites, ni bureau, ni barre des taches, ni fenetres d'Orbit.
+    // Chaque ligne : poignee|processus|classe|titre
+    public static string[] RecentWindows(int max, uint exceptPid) {
+        System.Collections.Generic.List<string> list = new System.Collections.Generic.List<string>();
+        EnumWindows(delegate (IntPtr h, IntPtr p) {
+            if (list.Count >= max) return false;
+            if (!IsWindowVisible(h) || IsIconic(h)) return true;
+            if (GetWindow(h, 4) != IntPtr.Zero) return true;                 // fenetre secondaire (boite de dialogue...)
+            int ex = GetWindowLong(h, -20);
+            if ((ex & 0x80) != 0 || (ex & 0x08) != 0) return true;           // fenetre outil, ou toujours au-dessus
+            int cloaked = 0;
+            if (DwmGetWindowAttribute(h, 14, out cloaked, 4) == 0 && cloaked != 0) return true;   // autre bureau virtuel...
+            StringBuilder cls = new StringBuilder(256);
+            GetClassName(h, cls, 256);
+            string c = cls.ToString();
+            if (c == "Progman" || c == "WorkerW" || c == "Shell_TrayWnd" || c == "Shell_SecondaryTrayWnd") return true;
+            StringBuilder sb = new StringBuilder(512);
+            GetWindowText(h, sb, 512);
+            if (sb.Length == 0) return true;
+            uint pid;
+            GetWindowThreadProcessId(h, out pid);
+            if (pid == exceptPid) return true;
+            list.Add(h.ToInt64() + "|" + pid + "|" + c + "|" + sb.ToString());
+            return true;
+        }, IntPtr.Zero);
+        return list.ToArray();
+    }
+
+    // La fenetre existe encore et appartient toujours au meme programme
+    public static bool WindowAlive(long hv, uint pid) {
+        IntPtr h = new IntPtr(hv);
+        if (hv == 0 || !IsWindow(h)) return false;
+        uint p;
+        GetWindowThreadProcessId(h, out p);
+        return p == pid;
+    }
+
+    // Remet une fenetre devant (et la restaure si elle a ete reduite)
+    public static bool BringToFront(long hv, uint pid) {
+        if (!WindowAlive(hv, pid)) return false;
+        IntPtr h = new IntPtr(hv);
+        if (IsIconic(h)) ShowWindow(h, 9);
+        return SetForegroundWindow(h);
+    }
     [DllImport("kernel32.dll")] static extern IntPtr GetCurrentProcess();
     [DllImport("kernel32.dll")] static extern bool SetProcessWorkingSetSize(IntPtr proc, IntPtr min, IntPtr max);
 
@@ -1155,6 +1217,13 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
       </Canvas>
 
     </Canvas>
+
+    <!-- bouton « Je m'interromps » : a cote d'Orbit pendant un focus (option des reglages) -->
+    <Border x:Name="CtxBadge" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,158,10"
+            Width="34" Height="34" CornerRadius="17" Background="#FFFDFBFF" BorderBrush="#1E1B3A" BorderThickness="2"
+            Cursor="Hand" Visibility="Collapsed" ToolTip="✋ Je m'interromps : je garde où tu en es (fenêtre, onglet, prochaine étape)">
+      <TextBlock Text="✋" FontSize="16" FontFamily="Segoe UI Emoji" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    </Border>
   </Grid>
 </Window>
 '@
@@ -1333,6 +1402,11 @@ function Get-SettingsSnapshot {
         idleMinutes        = $Config.IdleMinutes
         morningPlan        = $Config.MorningPlan
         notesMirror        = $Config.NotesMirror
+        contextButton      = $Config.ContextButton
+        contextWindows     = $Config.ContextWindows
+        contextScreenshot  = $Config.ContextScreenshot
+        contextRemind      = $Config.ContextRemind
+        contextRemindMin   = $Config.ContextRemindMin
     }
 }
 
@@ -1367,6 +1441,11 @@ function Apply-SettingsData($d) {
     if ($d.skin) { $O.Skin = [string]$d.skin }   # verifie par Set-Skin
     if (Has 'idlePause') { $Config.IdlePause = [bool]$d.idlePause }
     if (Has 'idleMinutes') { $Config.IdleMinutes = [int]$d.idleMinutes }
+    if (Has 'contextButton') { $Config.ContextButton = [bool]$d.contextButton }
+    if (Has 'contextWindows') { $Config.ContextWindows = [math]::Min(5, [math]::Max(0, [int]$d.contextWindows)) }
+    if (Has 'contextScreenshot') { $Config.ContextScreenshot = [bool]$d.contextScreenshot }
+    if (Has 'contextRemind') { $Config.ContextRemind = [bool]$d.contextRemind }
+    if (Has 'contextRemindMin') { $Config.ContextRemindMin = [math]::Min(480, [math]::Max(5, [int]$d.contextRemindMin)) }
     if ($Config.WanderMaxMin -le $Config.WanderMinMin) { $Config.WanderMaxMin = $Config.WanderMinMin + 1 }
 }
 
@@ -1956,6 +2035,9 @@ function Check-Idle {
         Write-Log "Absence detectee : focus mis en pause"
     } elseif ($O.AutoPaused -and $idleS -lt 3) {
         $O.AutoPaused = $false
+        # une reprise attend (« Je m'interromps ») : on propose directement de s'y remettre
+        $ctx = Get-LatestOpenContext -Hours 12
+        if ($ctx) { $script:CtxAwayId = ''; Show-ResumeBubble $ctx; return }
         $mins = [math]::Max(1, [math]::Round(($now - $O.AwaySince).TotalMinutes))
         Ensure-Visible
         $left = [math]::Ceiling($O.Remaining.TotalMinutes)
@@ -2082,6 +2164,8 @@ function Update-Pill {
     }
     $clock = $ui[$Skins[$O.Skin].Clock]
     if ($clock) { $clock.Text = $txt }
+    $badge = if ($Config.ContextButton -and $O.State -eq 'Focus' -and -not $O.Paused) { 'Visible' } else { 'Collapsed' }
+    if ($ui.CtxBadge.Visibility -ne $badge) { $ui.CtxBadge.Visibility = $badge }
     if ($script:tray) {
         $tip = "Orbit - $txt - $($O.FocusToday) focus aujourd'hui"
         $tip = Get-TextStart $tip 63
@@ -2103,6 +2187,7 @@ function Show-MorningPlan {
     Save-Stats
     $plan = @(Get-PlanCards 3)
     $hello = if ((Get-Date).Hour -lt 12) { '☀ Bonjour !' } else { '👋 Re-bonjour !' }
+    if (-not $plan.Count -and (Get-LatestOpenContext)) { Show-ResumeBubble (Get-LatestOpenContext); return }
     if (-not $plan.Count) {
         Show-Bubble "$hello Tes tableaux sont vides : note tes tâches du jour et je t'aiderai à les attaquer dans le bon ordre." -Force -AutoHide -Seconds 90 -Buttons @(
             $BtnTodo, @{ Label = '🚀 Focus quand même'; Action = { Start-Focus } }, $BtnLater)
@@ -2110,6 +2195,14 @@ function Show-MorningPlan {
     }
     $O.PlanIds = @($plan | ForEach-Object { $_.Card.id })
     $text = "$hello Mon plan pour ta journée :"
+    $ctx = Get-LatestOpenContext
+    $ctxBtn = @()
+    if ($ctx) {
+        $script:BubbleCtxId = $ctx.id
+        $text = "$hello ↩ Tu t'étais arrêté(e) $(Format-Ago $ctx.created) sur « $(Get-ContextTitle $ctx 50) »."
+        $text += "`n`nEnsuite, mon plan pour ta journée :"
+        $ctxBtn = @(@{ Label = '↩ Reprendre là'; Action = { Resume-Context $script:BubbleCtxId } })
+    }
     $i = 1
     foreach ($p in $plan) {
         $text += "`n$i. P$($p.Card.prio) « $(Short-Text $p.Card.text 45) »"
@@ -2119,11 +2212,11 @@ function Show-MorningPlan {
     $rest = @(Get-OpenTodos).Count - $plan.Count
     if ($rest -gt 0) { $text += "`n(+ $rest autre(s) carte(s) dans tes tableaux)" }
     $text += "`n`nOn s'y met ?"
-    Show-Bubble $text -Force -AutoHide -Seconds 180 -Buttons @(
+    Show-Bubble $text -Force -AutoHide -Seconds 180 -Buttons (@($ctxBtn) + @(
         @{ Label = '🎯 Go, focus sur ces cartes'; Action = { Accept-MorningPlan }; Primary = $true },
         @{ Label = '✏ Choisir autre chose'; Action = { Choose-FocusCards -Start -Preselect $O.PlanIds } },
         $BtnTodo,
-        @{ Label = 'Plus tard'; Action = { Show-Bubble "Ok ! Clic droit > ☀ Plan du jour pour le revoir." -Force -Seconds 4 } })
+        @{ Label = 'Plus tard'; Action = { Show-Bubble "Ok ! Clic droit > ☀ Plan du jour pour le revoir." -Force -Seconds 4 } }))
 }
 
 function Accept-MorningPlan {
@@ -2132,6 +2225,11 @@ function Accept-MorningPlan {
 }
 
 function Show-Status {
+    # une reprise recente attend : « Où j'en étais ? » (sauf pendant un focus qui tourne)
+    if ($O.State -eq 'Idle' -or ($O.State -in 'Focus', 'Break' -and $O.Paused)) {
+        $ctx = Get-LatestOpenContext -Hours 12
+        if ($ctx -and -not ($O.State -eq 'Idle' -and (Test-MorningPlanDue))) { Show-ResumeBubble $ctx; return }
+    }
     switch ($O.State) {
         'Idle'       {
             if (Test-MorningPlanDue) { Show-MorningPlan; return }
@@ -2562,6 +2660,8 @@ function On-Second {
     if ($script:TimerEnded) { Invoke-Safe { Update-Pill } 'chrono'; return }
     Invoke-Safe { Step-AwaitReminder $now } 'relance'
     if ($n % 2 -eq 0) { Invoke-Safe { Check-Idle } 'absence' }
+    if ($n % 2 -eq 1) { Invoke-Safe { Check-ContextReturn } 'reprise au retour' }
+    if ($n % 15 -eq 7) { Invoke-Safe { Check-ContextReminders $now } 'rappel de reprise' }
     if ($now -ge $O.NextTrim) { Invoke-Safe { Trim-Memory } 'memoire' }
     Invoke-Safe { Update-TrayIcon } 'icone'
     if ($n -eq 20) { Invoke-Safe { [void](Set-TrayPromoted $true -OnlyIfUnset) } 'epinglage' }
@@ -2670,6 +2770,14 @@ function Step-Autopilot($now) {
     if ($k % 9 -eq 0) { Show-QuickNote; $qn.QnText.Text = "autopilote $($now.ToString('HH:mm:ss'))"; Close-QuickNote }
     if ($k % 11 -eq 0) { Open-Notebook 'Todo'; Close-Notebook }
     if ($k % 13 -eq 0) { Tell-Fact -Force }
+    if ($k % 17 -eq 0 -and -not ($script:ctxWin -and $ctxWin.IsVisible)) {
+        # une interruption complete : capture, post-it, enregistrement, puis terminee
+        Start-Interruption
+        if ($script:ctxWin -and $ctxWin.IsVisible) { $cx.CtxNext.Text = "autopilote $($now.ToString('HH:mm:ss'))"; Close-ContextEditor }
+        $c = Get-LatestOpenContext
+        if ($c) { Complete-Context $c.id }
+        if ($O.State -eq 'Focus' -and $O.Paused) { Toggle-Pause }
+    }
     if ($k % 30 -eq 0) {
         $p = [Diagnostics.Process]::GetCurrentProcess()
         Write-Log ("Autopilote : etat {0}, focus {1}, memoire {2:N0} Mo, poignees {3}" -f $O.State, $O.FocusToday, ($p.PrivateMemorySize64 / 1MB), $p.HandleCount)
@@ -2730,6 +2838,7 @@ function Set-Mini([bool]$on) {
     $ui.BubbleWrap.Margin = if ($on) { '0,0,10,72' } else { '0,0,10,127' }
     $ui.SpeechTail.Margin = if ($on) { '0,-3.5,28,0' } else { '0,-3.5,61,0' }
     $ui.ThoughtTail.Margin = if ($on) { '0,3,26,0' } else { '0,3,59,0' }
+    $ui.CtxBadge.Margin = if ($on) { '0,0,92,4' } else { '0,0,158,10' }
     if ($on) { $O.Walking = $false }
     Fit-BubbleWindow
 }
@@ -2775,9 +2884,12 @@ function Quit-Orbit {
 # ---------------------------------------------------------------------------
 . (Join-Path $PSScriptRoot 'notebook.ps1')
 . (Join-Path $PSScriptRoot 'notes.ps1')
+. (Join-Path $PSScriptRoot 'context.ps1')
 . (Join-Path $PSScriptRoot 'settings.ps1')
 
 $menu = New-Object Windows.Controls.ContextMenu
+$miCtx    = New-MenuItem "✋  Je m'interromps (garder où j'en suis)" { Start-Interruption }
+$miCtxList = New-MenuItem "↩  Mes reprises" { Open-Notebook 'Ctx' }
 $miNote   = New-MenuItem "📝  Note rapide" { Show-QuickNote }
 $miFact   = New-MenuItem "🧠  Le saviez-vous ? (culture G)" { Ensure-Visible; Tell-Fact -Force }
 $miNotes  = New-MenuItem "📒  Mes notes" { Open-Notebook 'Notes' }
@@ -2827,7 +2939,8 @@ foreach ($k in $Skins.Keys) {
 [void]$miSkin.Items.Add((New-Object Windows.Controls.Separator))
 [void]$miSkin.Items.Add((New-MenuItem "🖼  Choisir une autre image…" { if (Choose-CustomImage) { Set-Skin 'Custom'; Save-Settings } }))
 
-foreach ($i in @($miNote, $miNotes, $miTodo, $miClip, $miSearch, (New-Object Windows.Controls.Separator),
+foreach ($i in @($miCtx, $miCtxList, (New-Object Windows.Controls.Separator),
+                 $miNote, $miNotes, $miTodo, $miClip, $miSearch, (New-Object Windows.Controls.Separator),
                  $miFocus, $miCards, $miPlan, $miBreak, $miPause, $miStop, $miRhythm, $miTasks, (New-Object Windows.Controls.Separator),
                  $miSkin, $miQuiet, $miWander, $miMini, $miHome, $miHide, $miAuto, (New-Object Windows.Controls.Separator),
                  $miFact, $miStats, $miMove, $miSettings, $miQuit)) { [void]$menu.Items.Add($i) }
@@ -2842,6 +2955,8 @@ $menu.Add_Opened({
     $miHome.IsEnabled = $O.Pinned -or $O.Walking
     $miAuto.IsChecked = Test-Path $StartupLink
     $miTasks.IsChecked = $O.TaskReminders
+    $nCtx = @(Get-OpenContexts).Count
+    $miCtxList.Header = if ($nCtx) { "↩  Mes reprises ($nCtx en attente)" } else { "↩  Mes reprises" }
     foreach ($k in $skinItems.Keys) { $skinItems[$k].IsChecked = ($k -eq $O.Skin) }
     foreach ($name in $rhythmItems.Keys) {
         $r = $Rhythms[$name]
@@ -2872,6 +2987,9 @@ $ui.Bot.Add_MouseLeftButtonDown({
         }
     }
 })
+
+# Le bouton ✋ a cote d'Orbit (pendant un focus)
+$ui.CtxBadge.Add_MouseLeftButtonUp({ param($s, $e) $e.Handled = $true; Invoke-Safe { Start-Interruption } })
 
 # ---------------------------------------------------------------------------
 #  Icone dans la zone de notification
@@ -2969,6 +3087,8 @@ try {
     [void]$cms.Items.Add('Prendre ma pause', $null, { Invoke-Safe { Ensure-Visible; Start-Break } })
     [void]$cms.Items.Add('Couper le chrono', $null, { Invoke-Safe { Stop-Cycle } })
     [void]$cms.Items.Add('-')
+    [void]$cms.Items.Add('✋ Je m''interromps', $null, { Invoke-Safe { Start-Interruption } })
+    [void]$cms.Items.Add('↩ Mes reprises', $null, { Invoke-Safe { Open-Notebook 'Ctx' } })
     [void]$cms.Items.Add('📝 Note rapide', $null, { Invoke-Safe { Show-QuickNote } })
     [void]$cms.Items.Add('Mes notes', $null, { Invoke-Safe { Open-Notebook 'Notes' } })
     [void]$cms.Items.Add('Mes tableaux', $null, { Invoke-Safe { Open-Notebook 'Todo' } })

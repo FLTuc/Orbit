@@ -6,6 +6,7 @@
 #     - le registre : seulement le reglage d'epinglage de l'icone, dans le compte de l'utilisateur
 #     - pas d'elevation de droits (administrateur)
 #     - seuls explorer.exe et powershell.exe (Orbit lui-meme) peuvent etre lances
+#     - « Je m'interromps » : seulement des adresses http(s), des dossiers et des documents verifies
 #     - les fenetres (XAML) ne sont construites qu'a partir de textes fixes du programme
 . (Join-Path $PSScriptRoot 'common.ps1')
 $files = @(Get-ChildItem -Path $Root -Filter '*.ps1' -File)
@@ -70,7 +71,7 @@ Check 'Orbit relance : chemins fixes de Windows (conhost.exe, powershell.exe)' (
     $orb -match "\`$OrbitPowerShell = Join-Path \`$PSHOME 'powershell\.exe'")
 
 $xaml = @(Find-Code 'XamlReader\]::(Load|Parse)')
-$xamlBad = @($xaml | Where-Object { $_.Text -notmatch 'XmlNodeReader \$(xaml|panelXaml|settingsXaml|QuickNoteXaml|doc)\)' })
+$xamlBad = @($xaml | Where-Object { $_.Text -notmatch 'XmlNodeReader \$(xaml|panelXaml|settingsXaml|QuickNoteXaml|CtxNoteXaml|doc)\)' })
 Report $xamlBad
 Check "fenetres construites seulement a partir du programme ($($xaml.Count) endroits)" ($xamlBad.Count -eq 0)
 
@@ -79,6 +80,22 @@ $dllBad = @($dll | Where-Object { $_.Text -notmatch 'Add-Type -Path \$dll' })
 Report $dllBad
 Check "seul le code natif compile par Orbit lui-meme est charge" ($dllBad.Count -eq 0)
 
+# code lance dans un fil a part : seulement le script fixe de lecture des adresses (« Je m'interromps »)
+$bg = @(Find-Code '\.AddScript\(|\.AddCommand\(|Start-Job|Start-ThreadJob')
+$bgBad = @($bg | Where-Object { $_.Text -notmatch '\.AddScript\(\$CtxProbeScript\.ToString\(\)\)' })
+Report $bgBad
+Check "code en arriere-plan : seulement un script fixe du programme ($($bg.Count) endroit)" ($bgBad.Count -eq 0)
+
+# « Je m'interromps » : on ne rouvre que des adresses web verifiees, des dossiers et des documents
+$cx = [IO.File]::ReadAllText((Join-Path $Root 'context.ps1'))
+$opens = @([regex]::Matches($cx, 'Start-Process explorer\.exe [^\r\n]*') | ForEach-Object Value)
+$restore = [regex]::Match($cx, '(?s)function Restore-ContextWindow.*?\n}').Value
+Check "reprises : adresses web (http/https) et chemins verifies avant d'ouvrir ($($opens.Count) endroits)" (
+    $restore -match '\$url = Get-SafeUrl \$w\.url' -and $restore -match 'Test-SafeOpenPath \$w\.path -Folder' -and
+    $cx -match "if \(\`$u -match '\^https\?://" -and $cx -match '\$CtxOpenExt -contains')
+Check 'reprises : identifiants filtres et captures nommees par Orbit' ($cx -match 'id = \(Get-SafeId \$c\.id\)' -and $cx -match "Join-Path \`$CtxShotDir \(\(Get-SafeId \`$id\)")
+Check "reprises : fenetres de navigation privee jamais lues" ($cx -match 'function Test-PrivateTitle' -and $cx -match "-not \`$w\.private -and \`$w\.hwnd")
+
 # les identifiants lus sur le disque passent tous par le filtre
 $nb = [IO.File]::ReadAllText((Join-Path $Root 'notebook.ps1'))
 $nt = [IO.File]::ReadAllText((Join-Path $Root 'notes.ps1'))
@@ -86,4 +103,5 @@ Check 'identifiants des cartes et notes filtres a la lecture' ($nb -match 'id = 
 $tr = [IO.File]::ReadAllText((Join-Path $Root 'transfer.ps1'))
 Check "import : fichiers de code et d'etat jamais copies" ($tr -match "'native-\*\.dll'" -and $tr -match "'etat\.json'")
 Check 'import : reglages nettoyes (chemins hors du dossier d''Orbit)' ($tr -match 'Protect-ImportedSettings \$set')
+Check "import : reprises sans chemins de fichiers, captures d'ecran jamais exportees" ($tr -match 'Protect-ImportedContexts' -and $tr -match "'captures'")
 Finish

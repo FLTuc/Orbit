@@ -263,6 +263,120 @@ Load-Notes
 Check 'notes.json abime : repris de la sauvegarde' ($NB.Notes.Count -ge 1 -and $NB.LoadNotice -match 'notes')
 Check 'et le fichier abime est garde a part' (@(Get-ChildItem $T -Filter 'notes-illisible-*').Count -eq 1)
 
+Section 'Je m''interromps : capture, reprise, rappels'
+foreach ($def in Get-ScriptFunctions (Join-Path $Root 'context.ps1')) { . ([scriptblock]::Create($def)) }
+foreach ($a6 in Get-ScriptAssignments (Join-Path $Root 'context.ps1') '^\$(Ctx|NB\.Ctx|NB\.Contexts)') { . ([scriptblock]::Create($a6)) }
+$Native = $false
+$Config.ContextRemind = $true; $Config.ContextRemindMin = 30; $Config.ContextWindows = 3; $Config.ContextScreenshot = $false
+function Ensure-Visible {}
+$script:Opened = @(); function Start-Process { $script:Opened += , @($args) }
+# adresses web
+Check 'adresse sans https:// (Edge, Chrome) : completee' ((Get-SafeUrl 'docs.google.com/spreadsheets/d/abc') -eq 'https://docs.google.com/spreadsheets/d/abc')
+Check 'adresse complete gardee, espaces encodes' ((Get-SafeUrl 'https://intra.local/a b?x=1') -eq 'https://intra.local/a%20b?x=1')
+Check 'refusees : javascript:, file:, chrome://, guillemets, texte de recherche' (
+    -not (Get-SafeUrl 'javascript:alert(1)') -and -not (Get-SafeUrl 'file:///C:/Windows/notepad.exe') -and -not (Get-SafeUrl 'chrome://settings') -and
+    -not (Get-SafeUrl 'https://x.fr/"onclick=1') -and -not (Get-SafeUrl 'recherche google') -and -not (Get-SafeUrl ''))
+# chemins
+$docx = Join-Path $T 'Budget T3.xlsx'; [IO.File]::WriteAllText($docx, 'x')
+$exe = Join-Path $T 'outil.exe'; [IO.File]::WriteAllText($exe, 'x')
+$bat = Join-Path $T 'script.bat'; [IO.File]::WriteAllText($bat, 'x')
+Check 'document existant : rouvrable' (Test-SafeOpenPath $docx)
+Check 'programme ou script : jamais rouvert' (-not (Test-SafeOpenPath $exe) -and -not (Test-SafeOpenPath $bat))
+Check 'dossier existant : rouvrable (et un fichier n''est pas un dossier)' ((Test-SafeOpenPath $T -Folder) -and -not (Test-SafeOpenPath $docx -Folder))
+Check 'chemin relatif, absent ou avec guillemet : refuse' (-not (Test-SafeOpenPath 'Budget T3.xlsx') -and -not (Test-SafeOpenPath (Join-Path $T 'absent.xlsx')) -and -not (Test-SafeOpenPath "$T`"x.xlsx"))
+# titres et applications
+Check 'titre nettoye : « - Excel » enleve' ((Get-CleanTitle 'Budget T3.xlsx - Excel') -eq 'Budget T3.xlsx')
+Check 'titre nettoye : Edge (autres pages, profil, espace invisible)' ((Get-CleanTitle ('Rapport et 2 autres pages - Profil 1 - Microsoft' + [char]0x200B + ' Edge')) -eq 'Rapport')
+Check 'titre nettoye : Chrome' ((Get-CleanTitle 'Boîte de réception - Gmail - Google Chrome') -eq 'Boîte de réception - Gmail')
+Check 'navigation privee reconnue' ((Test-PrivateTitle 'Nouvel onglet - [InPrivate] - Microsoft Edge') -and (Test-PrivateTitle 'Google - Google Chrome (Incognito)') -and -not (Test-PrivateTitle 'Budget - Excel'))
+Check 'applications connues et inconnues' ((Get-AppInfo 'EXCEL').Name -eq 'Excel' -and (Get-AppInfo 'msedge').Icon -eq '🌐' -and (Get-AppInfo 'monappli').Name -eq 'Monappli')
+Check 'Format-Ago : a l''instant, minutes, hier' ((Format-Ago (Get-Date).ToString('s')) -eq "à l'instant" -and (Format-Ago (Get-Date).AddMinutes(-25).ToString('s')) -eq 'il y a 25 min' -and (Format-Ago (Get-Date).Date.AddDays(-1).AddHours(15).ToString('s')) -eq 'hier à 15:00')
+# une reprise complete
+$O.State = 'Focus'; $O.Paused = $false; $O.EndsAt = (Get-Date).AddMinutes(20)
+$NB.LastAddedId = ''; Add-Todo 'Rapport trimestriel'; $rt = Find-Todo $NB.LastAddedId
+[void](Add-CardCheck $rt.id 'Verifier les totaux'); [void](Add-CardCheck $rt.id 'Envoyer a Julie')
+Set-CardCheck $rt.id 0 $true
+Set-FocusCards @($rt.id)
+Check 'prochaine etape proposee : 1re sous-tache pas cochee de la carte du focus' ((Get-SuggestedNext) -eq 'Envoyer a Julie')
+$c = New-Context
+$c.windows.Add((ConvertTo-CtxWindow ([pscustomobject]@{ app = 'msedge'; title = 'Budget partage'; url = 'sharepoint.com/sites/budget'; hwnd = 0; pid = 0 }))) | Out-Null
+$c.windows.Add((ConvertTo-CtxWindow ([pscustomobject]@{ app = 'excel'; title = 'Budget T3.xlsx'; path = $docx; hwnd = 0; pid = 0 }))) | Out-Null
+$c.doing = 'verifier les totaux du T3'; $c.next = 'corriger la cellule F12 puis envoyer a Julie'
+Add-Context $c
+Check 'reprise enregistree avec la carte du focus et un rappel' ((Test-Path $CtxFile) -and $c.focusCards -contains $rt.id -and $c.wasFocus -and $c.remindAt -gt (Get-Date).AddMinutes(25).ToString('s'))
+Check 'adresse completee a la capture' ($c.windows[0].url -eq 'https://sharepoint.com/sites/budget')
+Load-Contexts
+$c = Find-Context $c.id
+Check 'relue du disque a l''identique' ($c -and $c.next -match 'F12' -and $c.windows.Count -eq 2 -and $c.windows[1].path -eq $docx)
+Check 'la plus recente est proposee au retour' ((Get-LatestOpenContext -Hours 12).id -eq $c.id)
+Check 'texte de la bulle « Où j''en étais ? »' ((Get-ResumeText $c) -match 'Budget partage' -and (Get-ResumeText $c) -match 'Prochaine étape : corriger' -and (Get-ResumeText $c) -match '\+ 1 autre')
+Check 'pas de rappel avant l''heure' ($null -eq (Get-DueContext (Get-Date)))
+Check 'rappel a l''heure prevue' ((Get-DueContext (Get-Date).AddMinutes(31)).id -eq $c.id)
+$c.reminders = 3
+Check 'pas plus de 3 rappels' ($null -eq (Get-DueContext (Get-Date).AddMinutes(31)))
+$c.reminders = 0; $Config.ContextRemind = $false
+Check 'rappels desactives dans les reglages : aucun' ($null -eq (Get-DueContext (Get-Date).AddDays(1)))
+$Config.ContextRemind = $true
+Check 'la recherche trouve les reprises (adresse, note)' (@((Find-Everything 'sharepoint').Contexts).Count -eq 1 -and @((Find-Everything 'cellule f12').Contexts).Count -eq 1)
+# reprendre : la fenetre n'existe plus -> l'adresse et le document sont rouverts, le focus repart
+$O.State = 'Focus'; $O.Paused = $true; $O.Remaining = [timespan]::FromMinutes(12)
+$script:Opened = @()
+Resume-Context $c.id
+Check 'reprendre : adresse et document rouverts (fenetre fermee)' ($script:Opened.Count -eq 2 -and ($script:Opened | Where-Object { $_[1] -eq 'https://sharepoint.com/sites/budget' }) -and ($script:Opened | Where-Object { $_[1] -match 'Budget T3\.xlsx' }))
+Check 'reprendre : uniquement via explorer.exe' (-not ($script:Opened | Where-Object { $_[0] -ne 'explorer.exe' }))
+Check 'reprendre : le focus en pause repart' (-not $O.Paused -and [math]::Abs(($O.EndsAt - (Get-Date).AddMinutes(12)).TotalSeconds) -lt 5)
+Check 'reprendre : la prochaine etape est rappelee' ($script:Bubble.Text -match 'Prochaine étape : corriger la cellule F12')
+Check 'reprendre : la reprise passe en terminee' ((Find-Context $c.id).status -eq 'done' -and $null -eq (Get-LatestOpenContext))
+# reprendre sans focus en cours : un nouveau focus sur les memes cartes
+$c2 = New-Context; $c2.next = 'relire la conclusion'; $c2.wasFocus = $true; $c2.focusCards = @($rt.id); Add-Context $c2
+$O.State = 'Idle'; $NB.FocusCards.Clear()
+Resume-Context $c2.id
+Check 'reprendre apres un arret : nouveau focus sur la meme carte' ($O.State -eq 'Focus' -and $NB.FocusCards.Contains($rt.id))
+# en carte
+$c3 = New-Context; $c3.doing = 'lire le contrat'; $c3.next = 'appeler le juriste pour l''article 4'; Add-Context $c3
+$card = Convert-ContextToCard $c3.id
+Check 'en carte : titre = prochaine etape, description = le contexte' ($card.text -match 'appeler le juriste' -and $card.desc -match 'lire le contrat' -and (Find-Context $c3.id).status -eq 'done')
+# captures : effacees quand c'est repris, orphelines nettoyees
+New-Item -ItemType Directory -Force -Path $CtxShotDir | Out-Null
+$c4 = New-Context; Add-Context $c4
+[IO.File]::WriteAllText((Get-ContextShotPath $c4.id), 'jpg'); [IO.File]::WriteAllText((Join-Path $CtxShotDir 'orpheline.jpg'), 'jpg')
+Load-Contexts
+Check 'capture d''une reprise en attente gardee, orpheline effacee' ((Test-Path (Get-ContextShotPath $c4.id)) -and -not (Test-Path (Join-Path $CtxShotDir 'orpheline.jpg')))
+Complete-Context $c4.id
+Check 'capture effacee des que c''est repris' (-not (Test-Path (Get-ContextShotPath $c4.id)))
+# reprises terminees depuis plus de 14 jours : oubliees
+(Find-Context $c4.id).doneAt = (Get-Date).AddDays(-20).ToString('s'); Save-Contexts; Load-Contexts
+Check 'reprise terminee depuis 20 jours : oubliee' ($null -eq (Find-Context $c4.id) -and (Find-Context $c3.id))
+# fichier abime : repris de la copie du jour
+$NB.CtxBackupDay = ''; Save-Contexts; Save-Contexts
+[IO.File]::WriteAllText($CtxFile, '[{"id": "abc", ...')
+$NB.LoadNotice = ''
+Load-Contexts
+Check 'reprises.json abime : repris de la sauvegarde' ($NB.Contexts.Count -ge 1 -and $NB.LoadNotice -match 'reprises' -and @(Get-ChildItem $T -Filter 'reprises-illisible-*').Count -eq 1)
+
+Section 'Je m''interromps : fichiers trafiques (attaques)'
+$evil = '[{"id":"x''; Remove-Item C:\\ -Recurse #","status":"open","doing":"a","next":"b","created":"2026-01-01T10:00:00",' +
+        '"windows":[{"app":"msedge\";calc","title":"t","url":"javascript:alert(1)","hwnd":"12; calc","pid":"x"},' +
+        '{"app":"x","title":"y","url":"https://ok.fr/\" & calc","path":"C:\\Windows\\System32\\calc.exe"},' +
+        '{"app":"explorer","title":"z","url":"file://serveur/partage/x.lnk","path":"\\\\serveur\\partage\\outil.exe"}]}]'
+[IO.File]::WriteAllText($CtxFile, $evil)
+Load-Contexts
+$e1 = $NB.Contexts[0]
+Check 'identifiant pirate remplace' ($e1.id -match '^[a-f0-9]{32}$')
+Check 'adresses javascript:, file:, avec guillemets : effacees' (-not ($e1.windows | Where-Object { $_.url }))
+Check 'nom d''application et poignee nettoyes' ($e1.windows[0].app -eq 'msedgecalc' -and $e1.windows[0].hwnd -eq 0)
+$script:Opened = @()
+Resume-Context $e1.id
+Check 'reprendre : aucun programme lance (calc.exe, outil.exe sur un partage)' ($script:Opened.Count -eq 0)
+# import d'un export : chemins et fenetres de l'autre PC retires
+$imp = Join-Path $T 'reprises-import.json'
+[IO.File]::WriteAllText($imp, '[{"id":"a1","windows":[{"app":"excel","title":"Budget","path":"\\\\pc-inconnu\\partage\\budget.xlsx","hwnd":123,"pid":45,"url":"https://ok.fr"}]}]')
+foreach ($def in Get-ScriptFunctions (Join-Path $Root 'transfer.ps1') 'Protect-ImportedContexts') { . ([scriptblock]::Create($def)) }
+Protect-ImportedContexts $imp
+$ij = ConvertFrom-Json ([IO.File]::ReadAllText($imp))
+Check 'import : chemin reseau et fenetre de l''autre PC retires, adresse web gardee' ($ij[0].windows[0].path -eq '' -and $ij[0].windows[0].hwnd -eq 0 -and $ij[0].windows[0].url -eq 'https://ok.fr')
+$O.State = 'Idle'; $O.Paused = $false
+
 Section 'Tests unitaires des petites fonctions'
 Check 'Limit-Prio : 0 -> 1, 11 -> 10, texte -> 5' ((Limit-Prio 0) -eq 1 -and (Limit-Prio 11) -eq 10 -and (Limit-Prio 'abc') -eq 5)
 Check 'Short-Text coupe proprement' ((Short-Text 'abcdefghij' 5).Length -le 5 -and (Short-Text 'court' 50) -eq 'court')

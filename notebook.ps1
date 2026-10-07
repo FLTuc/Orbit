@@ -1203,13 +1203,16 @@ function Test-SearchMatch([string]$haystack, [string[]]$words) {
 
 function Find-Everything([string]$query) {
     $words = @((Get-SearchKey $query) -split '\s+' | Where-Object { $_ })
-    $r = @{ Cards = @(); Upcoming = @(); Clips = @(); Archives = @(); Notes = @() }
+    $r = @{ Cards = @(); Upcoming = @(); Clips = @(); Archives = @(); Notes = @(); Contexts = @() }
     if (-not $words.Count) { return $r }
     $r.Cards = @($NB.Todos | Where-Object {
             Test-SearchMatch ("$($_.text) $($_.desc) " + (($_.checks | ForEach-Object { $_.text }) -join ' ')) $words } |
         Sort-Object -Property @{ e = { [int][bool]$_.done } }, @{ e = { [int]$_.prio } })
     $r.Upcoming = @($NB.Upcoming | Where-Object { Test-SearchMatch "$($_.text) $($_.desc)" $words })
     $r.Notes = @($NB.Notes | Where-Object { $_ -and (Test-SearchMatch $_.text $words) })
+    $r.Contexts = @(@($NB.Contexts) | Where-Object {
+            $_ -and (Test-SearchMatch ("$($_.doing) $($_.next) " + ((@($_.windows) | ForEach-Object { "$($_.title) $($_.url) $($_.path)" }) -join ' ')) $words) } |
+        Sort-Object -Property @{ e = { [int]($_.status -ne 'open') } }, @{ e = { [string]$_.created }; Descending = $true })
     $seen = @{}
     $r.Clips = @(@($NB.Favs) + @($NB.Clips) | Where-Object {
             $_ -and -not $seen.ContainsKey($_.text) -and ($seen[$_.text] = $true) -and (Test-SearchMatch $_.text $words) } |
@@ -1295,6 +1298,16 @@ function Render-Search {
                         param($s, $e) Invoke-Safe { Show-QuickNote $s.Tag } }))
         }
     }
+    if ($r.Contexts.Count) {
+        [void]$pn.SearchList.Children.Add((New-SectionTitle "↩ Reprises ($($r.Contexts.Count))"))
+        foreach ($c in $r.Contexts) {
+            $w = Get-MainWindow $c
+            $sub = "$(if ($c.status -eq 'open') { '✋ en attente' } else { '✓ reprise' }) · $(Format-Ago $c.created)"
+            if ($w) { $sub += "`n$(Get-WindowLabel $w 70)" }
+            [void]$pn.SearchList.Children.Add((New-SearchResult (Get-ContextTitle $c 90) $sub 'Clic : voir mes reprises' $c.id {
+                        param($s, $e) Invoke-Safe { Select-Tab 'Ctx' } } ($c.status -ne 'open')))
+        }
+    }
     if ($r.Upcoming.Count) {
         [void]$pn.SearchList.Children.Add((New-SectionTitle "🔁 Cartes récurrentes à venir ($($r.Upcoming.Count))"))
         foreach ($u in $r.Upcoming) {
@@ -1318,7 +1331,7 @@ function Render-Search {
                         param($s, $e) Invoke-Safe { Copy-Clip $s.Tag } } $true))
         }
     }
-    $n = $r.Cards.Count + $r.Notes.Count + $r.Upcoming.Count + $r.Clips.Count + $r.Archives.Count
+    $n = $r.Cards.Count + $r.Notes.Count + $r.Contexts.Count + $r.Upcoming.Count + $r.Clips.Count + $r.Archives.Count
     if (-not $n) {
         $empty = New-Object Windows.Controls.TextBlock
         $empty.Text = "Rien trouvé pour « $q »"; $empty.Foreground = '#9A98B0'; $empty.Margin = '4,10,4,0'; $empty.TextAlignment = 'Center'
@@ -1370,17 +1383,19 @@ function Show-RevealedCard {
                 ToolTip="Fermer (Échap)"/>
       </Grid>
 
-      <!-- onglets -->
-      <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="14,4,14,8">
-        <Button x:Name="TabTodo" Padding="12,5" Margin="0,0,6,0" Cursor="Hand" BorderThickness="2"
+      <!-- onglets (ils passent a la ligne si la fenetre est etroite) -->
+      <WrapPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="14,4,14,4">
+        <Button x:Name="TabTodo" Padding="12,5" Margin="0,0,6,4" Cursor="Hand" BorderThickness="2"
                 BorderBrush="#1E1B3A" FontWeight="SemiBold"/>
-        <Button x:Name="TabClip" Padding="12,5" Cursor="Hand" BorderThickness="2"
+        <Button x:Name="TabClip" Padding="12,5" Margin="0,0,6,4" Cursor="Hand" BorderThickness="2"
                 BorderBrush="#1E1B3A" FontWeight="SemiBold"/>
-        <Button x:Name="TabNotes" Padding="12,5" Margin="6,0,0,0" Cursor="Hand" BorderThickness="2"
+        <Button x:Name="TabNotes" Padding="12,5" Margin="0,0,6,4" Cursor="Hand" BorderThickness="2"
                 BorderBrush="#1E1B3A" FontWeight="SemiBold"/>
-        <Button x:Name="TabSearch" Content="🔍" Padding="10,5" Margin="6,0,0,0" Cursor="Hand" BorderThickness="2"
+        <Button x:Name="TabCtx" Padding="12,5" Margin="0,0,6,4" Cursor="Hand" BorderThickness="2"
+                BorderBrush="#1E1B3A" FontWeight="SemiBold" ToolTip="Où j'en étais : mes interruptions à reprendre"/>
+        <Button x:Name="TabSearch" Content="🔍" Padding="10,5" Margin="0,0,6,4" Cursor="Hand" BorderThickness="2"
                 BorderBrush="#1E1B3A" FontWeight="SemiBold" ToolTip="Rechercher partout (Ctrl+F)"/>
-      </StackPanel>
+      </WrapPanel>
 
       <Grid>
         <!-- ===== Tableaux Kanban ===== -->
@@ -1465,12 +1480,25 @@ function Show-RevealedCard {
           </ScrollViewer>
         </DockPanel>
 
+        <!-- ===== Reprises (« Je m'interromps ») ===== -->
+        <DockPanel x:Name="CtxPanel" Margin="14,0,14,12" Visibility="Collapsed">
+          <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+            <Button x:Name="CtxNew" Content="✋ Je m'interromps maintenant" HorizontalAlignment="Left" Padding="12,5" Cursor="Hand"
+                    Background="#C9D6FF" BorderBrush="#1E1B3A" BorderThickness="2" FontWeight="SemiBold"
+                    ToolTip="Garder la fenêtre sur laquelle je travaillais, l'onglet et la prochaine étape"/>
+          </Grid>
+          <TextBlock x:Name="CtxCount" DockPanel.Dock="Bottom" Margin="0,8,0,0" Foreground="#6B6880" TextWrapping="Wrap"/>
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="CtxList"/>
+          </ScrollViewer>
+        </DockPanel>
+
         <!-- ===== Recherche globale ===== -->
         <DockPanel x:Name="SearchPanel" Margin="14,0,14,12" Visibility="Collapsed">
           <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
             <TextBox x:Name="SearchBox" Padding="8,6" BorderBrush="#1E1B3A" BorderThickness="2"
                      VerticalContentAlignment="Center"/>
-            <TextBlock x:Name="SearchHint" Text="🔍 Chercher dans les cartes, notes, copier-coller, archives…" Margin="12,0,0,0"
+            <TextBlock x:Name="SearchHint" Text="🔍 Chercher dans les cartes, notes, reprises, copier-coller…" Margin="12,0,0,0"
                        VerticalAlignment="Center" Foreground="#9A98B0" IsHitTestVisible="False"/>
           </Grid>
           <TextBlock x:Name="SearchCount" DockPanel.Dock="Bottom" Margin="0,8,0,0" Foreground="#6B6880"
@@ -1501,6 +1529,8 @@ function Update-Tabs {
     $pn.TabSearch.Background = if ($NB.Tab -eq 'Search') { $on } else { $off }
     $pn.TabNotes.Background = if ($NB.Tab -eq 'Notes') { $on } else { $off }
     $pn.TabNotes.Content = "📝 Notes ($(@($NB.Notes).Count))"
+    $pn.TabCtx.Background = if ($NB.Tab -eq 'Ctx') { $on } else { $off }
+    $pn.TabCtx.Content = "↩ Reprises ($(@($NB.Contexts | Where-Object { $_.status -eq 'open' }).Count))"
 }
 
 function Format-Day([string]$iso) {
@@ -2356,7 +2386,7 @@ function Fit-Notebook {
         $cols = (Get-CurrentBoard).columns.Count
         $want = if ($NB.KanbanW -gt 0) { $NB.KanbanW } else { 60 + ($KanbanColW + 10) * $cols + 180 }
         $panel.Width = [math]::Max(560, [math]::Min($want, $wa.R - $wa.L - 20))
-    } elseif ($NB.Tab -eq 'Search' -or $NB.Tab -eq 'Notes') {
+    } elseif ($NB.Tab -in 'Search', 'Notes', 'Ctx') {
         $panel.Width = 470
     } else {
         $panel.Width = 380
@@ -2373,8 +2403,10 @@ function Select-Tab([string]$tab) {
     $pn.ClipPanel.Visibility = if ($tab -eq 'Clip') { 'Visible' } else { 'Collapsed' }
     $pn.SearchPanel.Visibility = if ($tab -eq 'Search') { 'Visible' } else { 'Collapsed' }
     $pn.NotesPanel.Visibility = if ($tab -eq 'Notes') { 'Visible' } else { 'Collapsed' }
+    $pn.CtxPanel.Visibility = if ($tab -eq 'Ctx') { 'Visible' } else { 'Collapsed' }
     if ($tab -eq 'Clip') { Render-Clips; $pn.ClipSearch.Focus() | Out-Null }
     elseif ($tab -eq 'Notes') { Render-Notes }
+    elseif ($tab -eq 'Ctx') { Render-Contexts }
     elseif ($tab -eq 'Search') { Render-Search; $pn.SearchBox.Focus() | Out-Null; $pn.SearchBox.SelectAll() }
     else { Render-Todos; $pn.TodoInput.Focus() | Out-Null }
     Update-Tabs
@@ -2418,7 +2450,8 @@ function Initialize-Notebook {
                    'BoardPick','BoardAdd','BoardRename','BoardDel','BoardHistory','KanbanScroll',
                    'TodoClear','TodoList','ClipPanel','ClipSearch','ClipHint','ClipCount','ClipPause','ClipClear','ClipList',
                    'TabSearch','SearchPanel','SearchBox','SearchHint','SearchCount','SearchList',
-                   'TabNotes','NotesPanel','NotesAdd','NotesBackup','NotesCount','NotesList') {
+                   'TabNotes','NotesPanel','NotesAdd','NotesBackup','NotesCount','NotesList',
+                   'TabCtx','CtxPanel','CtxNew','CtxCount','CtxList') {
         $pn[$n] = $panel.FindName($n)
     }
 
@@ -2440,6 +2473,8 @@ function Initialize-Notebook {
     $pn.TabSearch.Add_Click({ Invoke-Safe { Select-Tab 'Search' } })
     $pn.TabNotes.Add_Click({ Invoke-Safe { Select-Tab 'Notes' } })
     $pn.NotesAdd.Add_Click({ Invoke-Safe { Show-QuickNote } })
+    $pn.TabCtx.Add_Click({ Invoke-Safe { Select-Tab 'Ctx' } })
+    $pn.CtxNew.Add_Click({ Invoke-Safe { Start-Interruption } })
     $pn.NotesBackup.Add_Click({ param($s, $e) Invoke-Safe { Show-NotesBackupMenu $s } })
     $NB.SearchTimer = New-Object Windows.Threading.DispatcherTimer
     $NB.SearchTimer.Interval = [timespan]::FromMilliseconds(250)

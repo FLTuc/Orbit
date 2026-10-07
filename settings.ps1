@@ -91,6 +91,28 @@
             </StackPanel>
           </CheckBox>
 
+          <TextBlock Style="{StaticResource Section}" Text="✋ Je m'interromps (reprendre là où j'en étais)"/>
+          <CheckBox x:Name="SCtxButton" Content="Bouton ✋ à côté d'Orbit pendant un focus"/>
+          <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+            <TextBlock Text="Garder" VerticalAlignment="Center" Margin="0,0,6,0"/>
+            <ComboBox x:Name="SCtxWindows" Width="250">
+              <ComboBoxItem Tag="0" Content="la fenêtre active seulement"/>
+              <ComboBoxItem Tag="2" Content="la fenêtre active + les 2 précédentes"/>
+              <ComboBoxItem Tag="3" Content="la fenêtre active + les 3 précédentes"/>
+              <ComboBoxItem Tag="5" Content="la fenêtre active + les 5 précédentes"/>
+            </ComboBox>
+          </StackPanel>
+          <CheckBox x:Name="SCtxShot" Margin="0,6,0,3">
+            <TextBlock TextWrapping="Wrap" Width="370" Text="📷 Prendre aussi une petite capture d'écran (elle reste sur ce PC, n'est jamais exportée, et s'efface quand tu as repris)"/>
+          </CheckBox>
+          <CheckBox x:Name="SCtxRemind">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="Me relancer si je n'ai pas repris après" VerticalAlignment="Center"/>
+              <TextBox x:Name="SCtxRemindMin"/>
+              <TextBlock Text="min (3 fois max)" VerticalAlignment="Center"/>
+            </StackPanel>
+          </CheckBox>
+
           <TextBlock Style="{StaticResource Section}" Text="🔔 Rappels"/>
           <CheckBox x:Name="STasks" Content="Rappeler mes tâches au début et à la fin du focus"/>
           <CheckBox x:Name="SMorning" Content="☀ Le matin, me proposer un plan (les 3 cartes les plus urgentes)" Margin="0,4,0,0"/>
@@ -194,6 +216,7 @@ $DefaultSettings.quiet = $false; $DefaultSettings.wander = $true; $DefaultSettin
 $DefaultSettings.taskReminders = $true; $DefaultSettings.morningPlan = $true; $DefaultSettings.reminderEveryMin = 4; $DefaultSettings.motivationEveryMin = 9
 $DefaultSettings.jokes = $true; $DefaultSettings.breakContent = 'Both'; $DefaultSettings.jokeEveryMin = 2; $DefaultSettings.appComments = $true
 $DefaultSettings.skin = 'Satellite'; $DefaultSettings.sounds = $true; $DefaultSettings.droidSounds = $true; $DefaultSettings.droidVolume = 40; $DefaultSettings.bubbleSound = 'Droide'; $DefaultSettings.endSound = 'Carillon'; $DefaultSettings.idlePause = $true; $DefaultSettings.idleMinutes = 5
+$DefaultSettings.contextButton = $true; $DefaultSettings.contextWindows = 3; $DefaultSettings.contextScreenshot = $false; $DefaultSettings.contextRemind = $true; $DefaultSettings.contextRemindMin = 30
 
 function Fill-SettingsForm($d) {
     $sw.SR50.IsChecked = $d.rhythm -eq '50/10'
@@ -204,6 +227,11 @@ function Fill-SettingsForm($d) {
     $sw.SIdle.IsChecked = $d.idlePause
     $sw.SIdleMin.Text = $d.idleMinutes
     $sw.STasks.IsChecked = $d.taskReminders
+    $sw.SCtxButton.IsChecked = $d.contextButton
+    Select-ComboTag $sw.SCtxWindows ([string]$d.contextWindows)
+    $sw.SCtxShot.IsChecked = $d.contextScreenshot
+    $sw.SCtxRemind.IsChecked = $d.contextRemind
+    $sw.SCtxRemindMin.Text = $d.contextRemindMin
     $sw.SMorning.IsChecked = $d.morningPlan
     $sw.SNudge.Text = $d.reminderEveryMin
     $sw.SJokes.IsChecked = $d.jokes
@@ -226,7 +254,7 @@ function Fill-SettingsForm($d) {
     Select-ComboTag $sw.SEndSound $d.endSound
     Update-FileLabels
     $sw.SError.Visibility = 'Collapsed'
-    foreach ($tb in 'SPersoFocus','SPersoBreak','SIdleMin','SNudge','SJokeMin','SMotiv','SWanderMin','SWanderMax') {
+    foreach ($tb in 'SPersoFocus','SPersoBreak','SIdleMin','SNudge','SJokeMin','SMotiv','SWanderMin','SWanderMax','SCtxRemindMin') {
         $sw[$tb].ClearValue([Windows.Controls.Control]::BorderBrushProperty)
     }
 }
@@ -256,6 +284,7 @@ function Save-SettingsForm {
     $motiv = Read-Number 'SMotiv' 1 120 ([ref]$errors)
     $wmin = Read-Number 'SWanderMin' 1 120 ([ref]$errors)
     $wmax = Read-Number 'SWanderMax' 1 240 ([ref]$errors)
+    $ctxMin = Read-Number 'SCtxRemindMin' 5 480 ([ref]$errors)
     if ($errors.Count) {
         $sw.SError.Text = "Certaines valeurs ne sont pas valides (en rouge). Corrige-les avant d'enregistrer."
         $sw.SError.Visibility = 'Visible'
@@ -275,7 +304,10 @@ function Save-SettingsForm {
         droidVolume = [int]$sw.SDroidVol.Value
         bubbleSound = [string]$sw.SBubbleSound.SelectedItem.Tag; bubbleSoundFiles = @($SF.BubbleFiles)
         endSound = [string]$sw.SEndSound.SelectedItem.Tag; endSoundFile = $SF.EndFile
+        contextButton = [bool]$sw.SCtxButton.IsChecked; contextWindows = $(if ($sw.SCtxWindows.SelectedItem) { [int]$sw.SCtxWindows.SelectedItem.Tag } else { 3 })
+        contextScreenshot = [bool]$sw.SCtxShot.IsChecked; contextRemind = [bool]$sw.SCtxRemind.IsChecked; contextRemindMin = [int]$ctxMin
     })
+    Update-Pill
     Apply-Rhythm
     $skin = 'Satellite'
     foreach ($k in 'Droid', 'Robot', 'Butler', 'Human', 'Brain', 'Custom') { if ($sw["SSkin$k"].IsChecked) { $skin = $k } }
@@ -303,6 +335,8 @@ function Open-Settings {
     if (-not $Native) {
         $sw.SIdle.IsEnabled = $false
         $sw.SIdle.ToolTip = "Indisponible : les fonctions système d'Orbit n'ont pas pu être chargées sur ce PC."
+        $sw.SCtxWindows.IsEnabled = $false
+        $sw.SCtxWindows.ToolTip = "Indisponible : sans les fonctions système, Orbit garde seulement ta note."
     }
     if ($settingsWin.Visibility -ne 'Visible') {
         $p = [System.Windows.Forms.Cursor]::Position
@@ -390,7 +424,7 @@ function Initialize-Settings {
     $script:settingsWin = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $settingsXaml))
     $script:sw = @{}
     foreach ($n in 'SHeader','SClose','SDefaults','SCancel','SSave','SError','SR50','SR25','SRPerso','SPersoFocus','SPersoBreak',
-                   'SIdle','SIdleMin','STasks','SMorning','SNudge','SJokes','SJokeMin','SBreakContent','SMotiv','SApps','SQuiet','SWander','SWanderMin',
+                   'SIdle','SIdleMin','STasks','SCtxButton','SCtxWindows','SCtxShot','SCtxRemind','SCtxRemindMin','SMorning','SNudge','SJokes','SJokeMin','SBreakContent','SMotiv','SApps','SQuiet','SWander','SWanderMin',
                    'SWanderMax','SSounds','SDroid','SDroidVol','SAuto','SBubbleSound','SBubbleTest','SMySounds','SSoundAdd','SSoundDel','SSoundPlay',
                    'SEndSound','SEndFile','SEndTest','SEndFileName','SSkinCustom','SImgPick','SImgName','SSkinSatellite','SSkinDroid','SSkinRobot','SSkinButler','SSkinBrain','SSkinHuman') {
         $sw[$n] = $settingsWin.FindName($n)

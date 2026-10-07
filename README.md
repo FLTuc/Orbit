@@ -63,8 +63,35 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
     - **💾 Enregistrer une copie** où tu veux, en .txt ou .md ;
     - si le fichier des notes est abîmé au démarrage, Orbit repart tout seul de la dernière sauvegarde ;
     - et toujours une copie lisible dans `%APPDATA%\Orbit\notes.md`.
+- **✋ Je m'interromps (savoir où tu t'es arrêté)** : quand on t'interrompt (collègue, appel, réunion), un clic suffit pour ne pas perdre le fil.
+  - **Où cliquer** : le bouton rond **✋** à côté d'Orbit pendant un focus, clic droit sur Orbit > ✋ Je m'interromps, ou l'icône près de l'horloge. Pas de raccourci clavier.
+  - **Ce qu'Orbit garde tout seul** :
+    - la fenêtre sur laquelle tu travaillais, et les 3 précédentes (réglable) ;
+    - l'**adresse de l'onglet** dans Edge, Chrome, Brave ou Opera (Firefox : au mieux) ;
+    - le **dossier ouvert** dans l'Explorateur ;
+    - le **fichier** Excel, Word ou PowerPoint ;
+    - les cartes de ton focus ;
+    - en option, une **petite capture d'écran**.
+  - **Le post-it** : deux lignes facultatives, « J'étais en train de… » et « ➡ Prochaine étape exacte ». Si ta carte du focus a des sous-tâches, la prochaine non cochée est déjà proposée. Entrée enregistre ; cliquer ailleurs enregistre aussi (c'est le principe d'une interruption).
+  - **Le focus se met en pause** pendant l'interruption.
+  - **Au retour** (après 2 min sans clavier ni souris, ou en cliquant sur Orbit), Orbit te montre « ↩ Tu t'étais arrêté(e) il y a 25 min sur… », avec ce que tu faisais et la prochaine étape. Les boutons de cette bulle :
+    - **▶ Reprendre** : remet les fenêtres devant, ou rouvre l'onglet, le dossier ou le document si tu les as fermés, relance le focus et te redit la prochaine étape ;
+    - **⏰ Plus tard** ;
+    - **🗂 En carte** : la prochaine étape devient le titre, le contexte la description ;
+    - **✓ Déjà fait**.
+  - **Onglet ↩ Reprises du carnet** (clic droit > ↩ Mes reprises) : toutes les interruptions en attente, avec titre, adresse, note, prochaine étape et capture, puis celles déjà reprises (14 jours).
+  - **Partout ailleurs** : les reprises sont aussi dans la recherche 🔍 et dans le plan du matin (« Tu t'étais arrêté(e) hier sur… »).
+  - **Réglages** (section ✋) :
+    - le bouton ✋ (oui/non) ;
+    - le nombre de fenêtres gardées (active seule, ou + 2, 3 ou 5 précédentes) ;
+    - la capture d'écran (non par défaut) ;
+    - le rappel si tu n'as pas repris (après 30 min par défaut, 3 fois au plus, jamais pendant un focus).
+  - **Vie privée** :
+    - les fenêtres de navigation privée (InPrivate, Incognito) ne sont jamais lues ;
+    - la capture d'écran reste sur ce PC, n'est jamais exportée et s'efface dès que tu as repris ;
+    - Orbit ne rouvre que des adresses web (http/https), des dossiers et des documents (Excel, Word, PDF…) qui existent, jamais un programme.
 - **☀️ Plan du matin** : à ta première apparition de la journée (à partir de 5 h), Orbit propose les 3 cartes les plus urgentes, tous tableaux confondus (en retard, à rendre aujourd'hui ou demain, rappel du jour, déjà commencées, puis priorité), avec la raison. « Go » les lie au focus et le lance ; « Choisir autre chose » ouvre la liste avec ces 3 cartes déjà cochées. À revoir quand tu veux : clic droit > ☀️ Plan du jour. Se désactive dans les réglages.
-- **🔍 Recherche partout** (onglet 🔍 du carnet, Ctrl+F, ou clic droit > Rechercher partout) : cartes de tous les tableaux (titre, description, sous-tâches), cartes récurrentes à venir, copier-coller et favoris, archives. Plusieurs mots : ils doivent tous y être ; accents et majuscules ignorés. Clic sur une carte : elle s'ouvre dans son tableau ; clic sur un copier-coller : il est recopié.
+- **🔍 Recherche partout** (onglet 🔍 du carnet, Ctrl+F, ou clic droit > Rechercher partout) : cartes de tous les tableaux (titre, description, sous-tâches), notes, reprises (✋), cartes récurrentes à venir, copier-coller et favoris, archives. Plusieurs mots : ils doivent tous y être ; accents et majuscules ignorés. Clic sur une carte : elle s'ouvre dans son tableau ; clic sur un copier-coller : il est recopié.
 - **📦 Changer de PC** (clic droit > 📦 Autre PC) : « Exporter » crée un seul fichier zip avec Orbit et tes données (réglages, tableaux, modèles, favoris, sons, image, sauvegardes). Sur l'autre PC, décompresse-le et double-clic sur `Orbit\Orbit.cmd` : tout est récupéré au premier lancement (les chemins de l'image et des sons sont adaptés). Si Orbit est déjà installé, « Importer un export… » fait la même chose et redémarre Orbit ; les données présentes sont gardées dans `avant-import-<date>`.
 - **L'historique des copier-coller du jour** (clic droit > 📋 Mes copier-coller du jour) :
   - chaque texte ou fichier copié (Ctrl+C) est noté avec l'heure ;
@@ -157,7 +184,8 @@ Si seule la compilation des fonctions natives est bloquée, Orbit fonctionne qua
 - **Aucun accès réseau** : Orbit ne contacte aucun serveur, rien ne sort de ton PC (sauf si tu choisis toi-même un dossier OneDrive/réseau pour la copie des notes).
 - **Aucun droit administrateur** : il n'écrit que dans ton profil (`%APPDATA%\Orbit`, ton dossier *Démarrage* si tu le demandes, et le réglage d'affichage de son icône dans ta partie du registre, HKCU).
 - **Tes données ne sont jamais exécutées** : le texte des cartes, notes, copier-coller et les fichiers lus sur le disque sont traités comme du texte, jamais comme du code. Les identifiants lus dans les fichiers sont filtrés (un fichier trafiqué ne peut pas glisser une commande).
-- **Import d'un export reçu de quelqu'un** : aucun fichier de code n'est copié (code compilé, état du chrono), et les réglages qui pointeraient hors du dossier d'Orbit (partage réseau pour la copie des notes, image ou sons distants) sont retirés. Les archives zip « piégées » (fichiers qui essaient de sortir du dossier) sont refusées.
+- **Import d'un export reçu de quelqu'un** : aucun fichier de code n'est copié (code compilé, état du chrono), et les réglages qui pointeraient hors du dossier d'Orbit (partage réseau pour la copie des notes, image ou sons distants) sont retirés. Les reprises (✋) importées perdent leurs chemins de fichiers et de dossiers : seuls le texte, les titres et les adresses web voyagent. Les archives zip « piégées » (fichiers qui essaient de sortir du dossier) sont refusées.
+- **Je m'interromps** : Orbit lit les fenêtres ouvertes et la barre d'adresse des navigateurs uniquement quand tu cliques sur ✋, jamais en continu. La lecture se fait à part (un navigateur ou Excel qui ne répond pas ne bloque pas Orbit). À la reprise, il ne rouvre que des adresses http/https et des dossiers ou documents existants (jamais un .exe, un script ou un raccourci), toujours via l'Explorateur de Windows.
 - **Copier-coller** : ce que les gestionnaires de mots de passe marquent « à ne pas enregistrer » est ignoré ; l'historique du jour n'est jamais inclus dans un export. Attention : un **favori** ⭐ que tu épingles, lui, est gardé et exporté.
 - **Vérifié automatiquement à chaque modification** (`tests\security.ps1` + attaques simulées dans `tests\logic.ps1`, voir plus bas).
 - Limite connue : quelqu'un qui a déjà accès à ta session Windows peut modifier les fichiers d'Orbit (comme n'importe quel programme ou document de ton profil).

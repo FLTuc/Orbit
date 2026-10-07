@@ -5,7 +5,8 @@
 # ---------------------------------------------------------------------------
 $ExportManifest = 'orbit-export.json'
 # ce qui ne voyage pas : propre a ce PC, temporaire ou prive
-$ExportSkip = @('native-*.dll', '*.log', 'etat.json', 'derniere-relance.txt', '*.tmp', 'clipboard', 'avant-import-*', 'kanban-illisible-*')
+$ExportSkip = @('native-*.dll', '*.log', 'etat.json', 'derniere-relance.txt', '*.tmp', 'clipboard', 'avant-import-*', 'kanban-illisible-*',
+                'captures', 'reprises-illisible-*')
 
 function Test-ExportSkip([string]$relative) {
     $first = $relative.Split('\/')[0]
@@ -105,6 +106,7 @@ function Import-OrbitData([string]$src, [switch]$NoConfirm) {
         Write-FileSafe $set $j
     }
     Protect-ImportedSettings $set
+    Protect-ImportedContexts (Join-Path $DataDir 'reprises.json')
     Write-Log "Import depuis $src (export du $when)"
     return $true
 }
@@ -139,6 +141,29 @@ function Protect-ImportedSettings([string]$set) {
         # reglages illisibles : on les ecarte plutot que de les appliquer a l'aveugle
         Remove-Item -LiteralPath $set -Force -ErrorAction SilentlyContinue
         Write-Log "Import : reglages illisibles ignores ($($_.Exception.Message))"
+    }
+}
+
+# Reprises (« Je m'interromps ») venues d'un autre PC : les fenetres n'existent pas ici, et un
+# chemin de fichier ou de dossier pourrait pointer n'importe ou (partage reseau inconnu...).
+# On ne garde que le texte, les titres et les adresses web.
+function Protect-ImportedContexts([string]$file) {
+    if (-not (Test-Path -LiteralPath $file)) { return }
+    try {
+        $data = ConvertFrom-Json ([IO.File]::ReadAllText($file))
+        $list = @()
+        foreach ($c in $data) {
+            if (-not $c) { continue }
+            foreach ($w in @($c.windows)) {
+                if (-not $w) { continue }
+                foreach ($k in 'path', 'hwnd', 'pid') { if ($w.PSObject.Properties[$k]) { $w.$k = $(if ($k -eq 'path') { '' } else { 0 }) } }
+            }
+            $list += $c
+        }
+        Write-FileSafe $file $(if ($list.Count) { ConvertTo-Json -InputObject @($list) -Depth 5 } else { '[]' })
+    } catch {
+        Remove-Item -LiteralPath $file -Force -ErrorAction SilentlyContinue
+        Write-Log "Import : reprises illisibles ignorees ($($_.Exception.Message))"
     }
 }
 
