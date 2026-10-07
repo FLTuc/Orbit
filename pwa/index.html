@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- Securite : rien ne vient d'ailleurs, aucun script en ligne, aucun envoi de donnees -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; font-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#1E1B3A">
+  <meta name="description" content="Orbit : Pomodoro, tableaux, notes, Brain Dump, DopaList et Unstick Me, hors ligne.">
+  <title>Orbit</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/app.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <button class="brand" id="goHome" type="button" aria-label="Accueil Orbit">🛰 Orbit</button>
+    <div class="topbar-actions">
+      <button id="openSearch" class="icon-btn" type="button" aria-label="Rechercher">🔍</button>
+      <button id="sosBtn" class="sos" type="button" aria-label="S.O.S déblocage immédiat">🚨 S.O.S</button>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- ====== Orbit : le compagnon et le chrono ====== -->
+    <section id="view-home" class="view" data-title="Orbit">
+      <div class="stage">
+        <div id="bubble" class="bubble hidden" role="status" aria-live="polite">
+          <p id="bubbleText"></p>
+          <div id="bubbleButtons" class="bubble-buttons"></div>
+        </div>
+        <div id="orbitBot" class="bot mood-Idle" aria-hidden="true">
+          <svg viewBox="0 0 240 200" width="220" height="183">
+            <ellipse class="ring" cx="120" cy="112" rx="104" ry="30" transform="rotate(-10 120 112)"/>
+            <g class="panels">
+              <rect x="6" y="84" width="58" height="42" rx="6"/><rect x="176" y="84" width="58" height="42" rx="6"/>
+              <line x1="64" y1="105" x2="76" y2="105"/><line x1="164" y1="105" x2="176" y2="105"/>
+            </g>
+            <line class="antenna" x1="120" y1="58" x2="120" y2="30"/>
+            <circle class="beacon" cx="120" cy="26" r="8"/>
+            <circle class="body" cx="120" cy="105" r="52"/>
+            <rect class="visor" x="82" y="86" width="76" height="34" rx="17"/>
+            <g class="eyes"><circle class="eye" id="eyeL" cx="104" cy="103" r="8"/><circle class="eye" id="eyeR" cx="136" cy="103" r="8"/></g>
+            <rect class="screen" x="88" y="128" width="64" height="20" rx="5"/>
+            <text id="botClock" class="clock" x="120" y="142" text-anchor="middle">▶ FOCUS</text>
+          </svg>
+        </div>
+        <button id="ctxBadge" class="ctx-badge hidden" type="button" aria-label="Je m'interromps">✋</button>
+      </div>
+      <div class="timer-panel">
+        <div id="bigClock" class="big-clock">--:--</div>
+        <div id="timerState" class="timer-state">Prêt quand tu l'es</div>
+        <div id="focusCardsLine" class="focus-cards"></div>
+        <div id="timerButtons" class="row wrap center"></div>
+      </div>
+      <div id="homeUnstick" class="panel hidden"></div>
+      <div id="homeToday" class="panel"></div>
+    </section>
+
+    <!-- ====== DopaList ====== -->
+    <section id="view-dopa" class="view hidden" data-title="DopaList">
+      <div class="view-head">
+        <h1>📋 DopaList</h1>
+        <button id="openJournal" class="chip" type="button"></button>
+      </div>
+      <form id="dopaForm" class="add-row" autocomplete="off">
+        <input id="dopaInput" type="text" maxlength="300" placeholder="Une action ou une routine…" aria-label="Nouvelle action">
+        <select id="dopaRepeat" aria-label="Répétition">
+          <option value="">Une fois</option><option value="daily">Chaque jour</option><option value="weekdays">En semaine</option><option value="weekly">Chaque semaine</option>
+        </select>
+        <button class="btn primary" type="submit">＋</button>
+      </form>
+      <h2 class="section">🔁 Routines du jour</h2>
+      <div id="dopaRoutines" class="cards-grid"></div>
+      <h2 class="section">⚡ Actions</h2>
+      <div id="dopaActions" class="cards-grid"></div>
+    </section>
+
+    <!-- ====== Journal des victoires ====== -->
+    <section id="view-journal" class="view hidden" data-title="Victoires">
+      <div class="view-head"><h1>🏆 Mes victoires</h1></div>
+      <p id="journalIntro" class="muted"></p>
+      <div id="journalToday" class="list"></div>
+      <h2 class="section">Les jours d'avant</h2>
+      <div id="journalPast" class="list"></div>
+    </section>
+
+    <!-- ====== Brain Dump ====== -->
+    <section id="view-dump" class="view hidden" data-title="Brain Dump">
+      <div class="view-head"><h1>📥 Brain Dump</h1></div>
+      <p class="muted">Vide ta tête ici, sans trier. Tu trieras plus tard, à froid.</p>
+      <form id="dumpForm" class="dump-form" autocomplete="off">
+        <textarea id="dumpInput" rows="3" maxlength="2000" placeholder="Ce qui te passe par la tête…" aria-label="Ce qui te passe par la tête"></textarea>
+        <div class="row">
+          <button id="dumpMic" class="btn" type="button" aria-label="Dicter">🎙 Dicter</button>
+          <button class="btn primary grow" type="submit">📥 Déposer</button>
+        </div>
+      </form>
+      <button id="sortStart" class="btn big soft" type="button"></button>
+      <div id="dumpList" class="list"></div>
+    </section>
+
+    <!-- ====== Tableaux Kanban ====== -->
+    <section id="view-kanban" class="view hidden" data-title="Tableaux">
+      <div class="view-head">
+        <select id="boardPick" aria-label="Tableau"></select>
+        <button id="boardMenu" class="icon-btn" type="button" aria-label="Gérer les tableaux">⋯</button>
+      </div>
+      <div id="columns" class="columns"></div>
+    </section>
+
+    <!-- ====== Plus ====== -->
+    <section id="view-more" class="view hidden" data-title="Plus">
+      <div class="view-head"><h1>☰ Plus</h1></div>
+      <div class="menu-grid">
+        <button class="tile" data-go="notes" type="button">📝<span>Notes</span></button>
+        <button class="tile" data-go="reprises" type="button">↩<span id="tileReprises">Reprises</span></button>
+        <button class="tile" data-go="journal" type="button">🏆<span>Victoires</span></button>
+        <button class="tile" data-go="search" type="button">🔍<span>Rechercher</span></button>
+        <button class="tile" data-go="settings" type="button">⚙<span>Réglages</span></button>
+        <button class="tile" data-go="transfer" type="button">💻<span>PC ↔ téléphone</span></button>
+      </div>
+      <button id="installBtn" class="btn big primary hidden" type="button">📲 Installer Orbit sur ce téléphone</button>
+      <p class="muted small">Tout reste sur ce téléphone, même sans réseau. Aucune donnée n'est envoyée.</p>
+    </section>
+
+    <!-- ====== Notes ====== -->
+    <section id="view-notes" class="view hidden" data-title="Notes">
+      <div class="view-head"><h1>📝 Notes</h1><button id="noteNew" class="btn primary" type="button">＋ Nouvelle</button></div>
+      <div id="notesList" class="list"></div>
+    </section>
+
+    <!-- ====== Reprises ====== -->
+    <section id="view-reprises" class="view hidden" data-title="Reprises">
+      <div class="view-head"><h1>↩ Reprises</h1><button id="ctxNew" class="btn primary" type="button">✋ Je m'interromps</button></div>
+      <div id="repriseList" class="list"></div>
+    </section>
+
+    <!-- ====== Recherche ====== -->
+    <section id="view-search" class="view hidden" data-title="Recherche">
+      <div class="view-head"><h1>🔍 Rechercher</h1></div>
+      <input id="searchInput" type="search" placeholder="Cartes, notes, reprises, actions…" aria-label="Rechercher">
+      <div id="searchResults" class="list"></div>
+    </section>
+
+    <!-- ====== Reglages ====== -->
+    <section id="view-settings" class="view hidden" data-title="Réglages">
+      <div class="view-head"><h1>⚙ Réglages</h1></div>
+      <form id="settingsForm" class="settings" autocomplete="off"></form>
+    </section>
+
+    <!-- ====== PC <-> telephone ====== -->
+    <section id="view-transfer" class="view hidden" data-title="PC ↔ téléphone">
+      <div class="view-head"><h1>💻 PC ↔ téléphone</h1></div>
+      <div class="panel">
+        <h2>📥 Recevoir depuis Orbit PC</h2>
+        <p class="muted">Sur le PC : clic droit sur Orbit &gt; 📦 Autre PC &gt; Exporter. Mets le zip sur ton téléphone (mail, OneDrive, câble), puis choisis-le ici. Tes tableaux, notes, reprises et DopaList du téléphone sont remplacés (une copie est gardée pour revenir en arrière).</p>
+        <label class="btn primary file-btn">Choisir le zip d'Orbit PC<input id="importZip" type="file" accept=".zip,application/zip"></label>
+        <button id="undoImport" class="btn hidden" type="button">↩ Revenir à avant l'import</button>
+      </div>
+      <div class="panel">
+        <h2>📤 Envoyer vers Orbit PC</h2>
+        <p class="muted">Crée un zip à ouvrir sur le PC : clic droit sur Orbit &gt; 📦 Autre PC &gt; Importer un export… (les données du PC sont gardées dans « avant-import »).</p>
+        <button id="exportZip" class="btn primary" type="button">Créer le zip pour le PC</button>
+      </div>
+      <p id="transferInfo" class="muted small"></p>
+    </section>
+  </main>
+
+  <button id="dumpFab" class="fab" type="button" aria-label="Capture rapide (Brain Dump)">📥</button>
+
+  <nav class="tabbar" aria-label="Navigation">
+    <button data-tab="home" type="button" class="active"><span>🛰</span>Orbit</button>
+    <button data-tab="dopa" type="button"><span>📋</span>DopaList</button>
+    <button data-tab="dump" type="button"><span>📥</span><b id="dumpCount"></b>Dump</button>
+    <button data-tab="kanban" type="button"><span>🗂</span>Tableaux</button>
+    <button data-tab="more" type="button"><span>☰</span>Plus</button>
+  </nav>
+
+  <!-- fenetres qui glissent du bas (contenu construit par app.js, jamais a partir de HTML) -->
+  <div id="sheetBackdrop" class="backdrop hidden"></div>
+  <div id="sheet" class="sheet hidden" role="dialog" aria-modal="true"></div>
+  <!-- plein ecran : tri a froid, Unstick Me -->
+  <div id="focusMode" class="focus-mode hidden" role="dialog" aria-modal="true"></div>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  <div id="confetti" class="confetti" aria-hidden="true"></div>
+</body>
+</html>
