@@ -44,6 +44,7 @@ Section 'Petites phrases pendant la pause'
 try {
     Hide-Bubble; Tell-BreakItem
     Check 'une petite phrase sympa s''affiche (bulle de pensee)' ($ui.BubbleText.Text -and $Lines.BreakLines -contains $ui.BubbleText.Text)
+    $script:BreakBag = $null   # nouveau tour complet
     $seen = @{}; for ($i = 0; $i -lt $Lines.BreakLines.Count; $i++) { $seen[(Get-NextBreakLine)] = 1 }
     Check 'chacune son tour : toutes passent avant de revenir' ($seen.Count -eq $Lines.BreakLines.Count)
     Hide-Bubble

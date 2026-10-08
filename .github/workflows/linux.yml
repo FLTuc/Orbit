@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        debian: [bullseye, bookworm]     # Debian 11 (Python 3.9) et 12 (Python 3.11)
+        debian: [bookworm, trixie]       # Debian 12 (Python 3.11) et 13 (Python 3.13) ; Debian 11 n'est plus mis a jour
     runs-on: ubuntu-latest
     container: debian:${{ matrix.debian }}
     timeout-minutes: 15
