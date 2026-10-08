@@ -78,6 +78,7 @@ function go(v, push = true) {
   for (const id of VIEWS) $(`view-${id}`).classList.toggle('hidden', id !== v);
   const tab = TAB_OF[v] || 'more';
   for (const b of document.querySelectorAll('.tabbar button')) b.classList.toggle('active', b.dataset.tab === tab);
+  $('noteFab').classList.toggle('on-home', v === 'home');   // sur l'accueil, le 📝 est colle a Orbit
   if (push) history.pushState({ v }, '', location.pathname);
   render();
   window.scrollTo(0, 0);
@@ -364,6 +365,7 @@ function renderClock() {
   Ob.setMood(bot, mood);
   document.title = (t.state === 'Focus' || t.state === 'Break') ? `${big} · Orbit` : 'Orbit';
   $('ctxBadge').classList.toggle('hidden', !(S.settings.ctxButton && t.state === 'Focus' && !t.paused));
+  $('dockReprises').classList.toggle('hidden', !St.openReprises(S).length);
 }
 
 function renderHome() {
@@ -404,7 +406,6 @@ function renderHome() {
   const row = h('div', { class: 'item-actions' });
   if (rep) row.append(btn(`↩ Où j'en étais`, () => showResumeBubble(rep)));
   row.append(btn(wins ? `🏆 ${wins} victoire${wins > 1 ? 's' : ''}` : '🏆 Mes victoires', () => go('journal')));
-  row.append(btn('☀ Plan du jour', () => showMorningPlan(true)));
   today.append(row);
 }
 
@@ -1046,6 +1047,10 @@ $('openSearch').addEventListener('click', () => go('search'));
 $('sosBtn').addEventListener('click', openSos);
 $('noteFab').addEventListener('click', () => openNote());
 $('ctxBadge').addEventListener('click', () => openInterrupt());
+$('dockNote').addEventListener('click', () => openNote());
+$('dockWins').addEventListener('click', () => go('journal'));
+$('dockReprises').addEventListener('click', () => go('reprises'));
+$('dockPlan').addEventListener('click', () => showMorningPlan(true));
 $('ctxNew').addEventListener('click', () => openInterrupt());
 $('noteNew').addEventListener('click', () => openNote());
 $('boardMenu').addEventListener('click', boardMenu);

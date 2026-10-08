@@ -447,7 +447,7 @@ function Close-QuickNote([switch]$ToCard) {
         if ($script:qnId) { Update-Note $script:qnId $text }
         elseif ($text) { $script:qnId = (Add-Note $text).id }
         if ($ToCard -and $script:qnId -and $text) { [void](Convert-NoteToCard $script:qnId) }
-        elseif ($isNew -and $text) { Show-Bubble "📝 Noté ! Tu la retrouves dans clic droit > 📝 Mes notes." -Force -Seconds 3 }
+        elseif ($isNew -and $text) { Show-Bubble "📝 Noté ! Tu la retrouves dans clic droit > 📒 Mes notes." -Force -Seconds 3 }
         $script:qnId = ''
         Render-Notes
         Update-Tabs

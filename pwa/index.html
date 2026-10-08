@@ -48,7 +48,14 @@
             <text id="botClock" class="clock" x="120" y="142" text-anchor="middle">▶ FOCUS</text>
           </svg>
         </div>
-        <button id="ctxBadge" class="ctx-badge hidden" type="button" aria-label="Je m'interromps">✋</button>
+        <!-- les boutons ronds colles a Orbit (le S.O.S et la recherche sont deja en haut) -->
+        <div class="dock">
+          <button id="dockNote" class="dock-btn note" type="button" aria-label="Note rapide" title="Note rapide">📝</button>
+          <button id="ctxBadge" class="dock-btn hidden" type="button" aria-label="Je m'interromps" title="Je m'interromps">✋</button>
+          <button id="dockReprises" class="dock-btn hidden" type="button" aria-label="Mes reprises" title="Mes reprises">↩</button>
+          <button id="dockWins" class="dock-btn" type="button" aria-label="Mes victoires" title="Mes victoires">🏆</button>
+          <button id="dockPlan" class="dock-btn" type="button" aria-label="Plan du jour" title="Plan du jour">☀</button>
+        </div>
       </div>
       <div class="timer-panel">
         <div id="bigClock" class="big-clock">--:--</div>

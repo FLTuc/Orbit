@@ -277,6 +277,13 @@ try {
     $qn.QnText.Text = 'Idee notee depuis le bouton'
     Close-QuickNote
     Check 'note gardee en 2 gestes' ($NB.Notes.Count -eq $n0 + 1 -and -not $qnWin.IsVisible)
+    $click = { param($b) $b.RaiseEvent((New-Object Windows.Input.MouseButtonEventArgs([Windows.Input.Mouse]::PrimaryDevice, 0, [Windows.Input.MouseButton]::Left) -Property @{ RoutedEvent = [Windows.UIElement]::MouseLeftButtonUpEvent })) }
+    Check 'boutons ronds 🚨 🗂 📒 colles a Orbit' ($ui.SosBadge.Visibility -eq 'Visible' -and $ui.BoardsBadge.Visibility -eq 'Visible' -and $ui.NotesBadge.Visibility -eq 'Visible' -and $ui.Dock.Margin.Right -lt 150)
+    & $click $ui.BoardsBadge
+    Check 'bouton 🗂 : ouvre les tableaux' ($NB.Tab -eq 'Todo' -and $panel.IsVisible)
+    & $click $ui.NotesBadge
+    Check 'bouton 📒 : ouvre les notes' ($NB.Tab -eq 'Notes')
+    Close-Notebook
     Start-UnstickFor 'Ranger le garage'
     Close-AnchorFocus
     Show-Unstick

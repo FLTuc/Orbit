@@ -115,7 +115,7 @@ $Config = @{
     ContextScreenshot   = $false # petite capture d'ecran a chaque interruption
     ContextRemind       = $true  # relancer si la reprise attend
     ContextRemindMin    = 30
-    AnchorButton        = $true  # bouton 📝 (note rapide) a cote d'Orbit
+    AnchorButton        = $true  # boutons ronds a cote d'Orbit (📝 🚨 🗂 📒 ↩)
 }
 # (tous ces reglages se modifient aussi depuis clic droit > Reglages)
 
@@ -1235,19 +1235,35 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
 
     </Canvas>
 
-    <!-- bouton « Note rapide » : noter une idee en 2 clics (option des reglages) -->
-    <Border x:Name="AnchorBadge" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,158,52"
-            Width="34" Height="34" CornerRadius="17" Background="#FF6C5CE7" BorderBrush="#1E1B3A" BorderThickness="2"
-            Cursor="Hand" ToolTip="📝 Note rapide : note ce qui te passe par la tête, tout de suite">
-      <TextBlock Text="📝" FontSize="15" FontFamily="Segoe UI Emoji" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-    </Border>
-
-    <!-- bouton « Je m'interromps » : a cote d'Orbit pendant un focus (option des reglages) -->
-    <Border x:Name="CtxBadge" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,158,10"
-            Width="34" Height="34" CornerRadius="17" Background="#FFFDFBFF" BorderBrush="#1E1B3A" BorderThickness="2"
-            Cursor="Hand" Visibility="Collapsed" ToolTip="✋ Je m'interromps : je garde où tu en es (fenêtre, onglet, prochaine étape)">
-      <TextBlock Text="✋" FontSize="16" FontFamily="Segoe UI Emoji" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-    </Border>
+    <!-- Les boutons ronds colles a Orbit (option des reglages) : 2 colonnes de 3, en partant d'Orbit.
+         Les boutons caches (✋ hors focus, ↩ sans reprise) laissent la place aux suivants. -->
+    <WrapPanel x:Name="Dock" Orientation="Vertical" FlowDirection="RightToLeft" Height="102"
+               HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,146,6">
+      <Border x:Name="AnchorBadge" Width="30" Height="30" CornerRadius="15" Margin="2" Background="#FF6C5CE7" BorderBrush="#1E1B3A" BorderThickness="2"
+              Cursor="Hand" FlowDirection="LeftToRight" ToolTip="📝 Note rapide : note ce qui te passe par la tête, tout de suite">
+        <TextBlock Text="📝" FontSize="14" FontFamily="Segoe UI Emoji" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      </Border>
+      <Border x:Name="CtxBadge" Width="30" Height="30" CornerRadius="15" Margin="2" Background="#FFFDFBFF" BorderBrush="#1E1B3A" BorderThickness="2"
+              Cursor="Hand" Visibility="Collapsed" FlowDirection="LeftToRight" ToolTip="✋ Je m'interromps : je garde où tu en es (fenêtre, onglet, prochaine étape)">
+        <TextBlock Text="✋" FontSize="14" FontFamily="Segoe UI Emoji" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      </Border>
+      <Border x:Name="SosBadge" Width="30" Height="30" CornerRadius="15" Margin="2" Background="#FFFFE3E3" BorderBrush="#1E1B3A" BorderThickness="2"
+              Cursor="Hand" FlowDirection="LeftToRight" ToolTip="🚨 S.O.S : je bloque, découpe-moi ça en toutes petites étapes">
+        <TextBlock Text="🚨" FontSize="14" FontFamily="Segoe UI Emoji" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      </Border>
+      <Border x:Name="BoardsBadge" Width="30" Height="30" CornerRadius="15" Margin="2" Background="#FFFFF4D6" BorderBrush="#1E1B3A" BorderThickness="2"
+              Cursor="Hand" FlowDirection="LeftToRight" ToolTip="🗂 Mes tableaux">
+        <TextBlock Text="🗂" FontSize="14" FontFamily="Segoe UI Emoji" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      </Border>
+      <Border x:Name="NotesBadge" Width="30" Height="30" CornerRadius="15" Margin="2" Background="#FFE6F7EE" BorderBrush="#1E1B3A" BorderThickness="2"
+              Cursor="Hand" FlowDirection="LeftToRight" ToolTip="📒 Mes notes">
+        <TextBlock Text="📒" FontSize="14" FontFamily="Segoe UI Emoji" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      </Border>
+      <Border x:Name="CtxListBadge" Width="30" Height="30" CornerRadius="15" Margin="2" Background="#FFE8F1FF" BorderBrush="#1E1B3A" BorderThickness="2"
+              Cursor="Hand" Visibility="Collapsed" FlowDirection="LeftToRight" ToolTip="↩ Mes reprises : là où tu t'es arrêté(e)">
+        <TextBlock Text="↩" FontSize="14" FontFamily="Segoe UI Emoji" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      </Border>
+    </WrapPanel>
   </Grid>
 </Window>
 '@
@@ -2194,8 +2210,10 @@ function Update-Pill {
     if ($clock) { $clock.Text = $txt }
     $badge = if ($Config.ContextButton -and $O.State -eq 'Focus' -and -not $O.Paused) { 'Visible' } else { 'Collapsed' }
     if ($ui.CtxBadge.Visibility -ne $badge) { $ui.CtxBadge.Visibility = $badge }
-    $dump = if ($Config.AnchorButton) { 'Visible' } else { 'Collapsed' }
-    if ($ui.AnchorBadge.Visibility -ne $dump) { $ui.AnchorBadge.Visibility = $dump }
+    $dock = if ($Config.AnchorButton) { 'Visible' } else { 'Collapsed' }
+    if ($ui.Dock.Visibility -ne $dock) { $ui.Dock.Visibility = $dock }
+    $back = if ($NB -and @($NB.Contexts | Where-Object { $_ -and $_.status -eq 'open' }).Count) { 'Visible' } else { 'Collapsed' }
+    if ($ui.CtxListBadge.Visibility -ne $back) { $ui.CtxListBadge.Visibility = $back }
     if ($script:tray) {
         $tip = "Orbit - $txt - $($O.FocusToday) focus aujourd'hui"
         $tip = Get-TextStart $tip 63
@@ -2890,8 +2908,7 @@ function Set-Mini([bool]$on) {
     $ui.BubbleWrap.Margin = if ($on) { '0,0,10,72' } else { '0,0,10,127' }
     $ui.SpeechTail.Margin = if ($on) { '0,-3.5,28,0' } else { '0,-3.5,61,0' }
     $ui.ThoughtTail.Margin = if ($on) { '0,3,26,0' } else { '0,3,59,0' }
-    $ui.CtxBadge.Margin = if ($on) { '0,0,92,4' } else { '0,0,158,10' }
-    $ui.AnchorBadge.Margin = if ($on) { '0,0,92,42' } else { '0,0,158,52' }
+    $ui.Dock.Margin = if ($on) { '0,0,86,2' } else { '0,0,146,6' }
     if ($on) { $O.Walking = $false }
     Fit-BubbleWindow
 }
@@ -3057,8 +3074,12 @@ $ui.Bot.Add_MouseLeftButtonDown({
 
 # Le bouton ✋ a cote d'Orbit (pendant un focus)
 $ui.CtxBadge.Add_MouseLeftButtonUp({ param($s, $e) $e.Handled = $true; Invoke-Safe { Start-Interruption } })
-# Le bouton 📝 : note rapide
+# Les autres boutons ronds a cote d'Orbit
 $ui.AnchorBadge.Add_MouseLeftButtonUp({ param($s, $e) $e.Handled = $true; Invoke-Safe { Show-QuickNote } })
+$ui.SosBadge.Add_MouseLeftButtonUp({ param($s, $e) $e.Handled = $true; Invoke-Safe { Show-Sos } })
+$ui.BoardsBadge.Add_MouseLeftButtonUp({ param($s, $e) $e.Handled = $true; Invoke-Safe { Open-Notebook 'Todo' } })
+$ui.NotesBadge.Add_MouseLeftButtonUp({ param($s, $e) $e.Handled = $true; Invoke-Safe { Open-Notebook 'Notes' } })
+$ui.CtxListBadge.Add_MouseLeftButtonUp({ param($s, $e) $e.Handled = $true; Invoke-Safe { Open-Notebook 'Ctx' } })
 
 # ---------------------------------------------------------------------------
 #  Icone dans la zone de notification

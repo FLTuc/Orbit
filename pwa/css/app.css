@@ -94,10 +94,15 @@ input:focus, textarea:focus, select:focus, button:focus-visible { outline: 3px s
 .bot .screen { fill: #14112B; stroke: var(--mood); stroke-width: 2; }
 .bot .clock { fill: #E8EEF5; font: 700 12px ui-monospace, Consolas, monospace; }
 .mood-Idle { --mood: #5FD3FF; } .mood-Focus { --mood: #4C8DFF; } .mood-Break { --mood: #3DDC84; } .mood-Await { --mood: #FF9F1C; }
-.ctx-badge {
-  position: absolute; right: 8%; bottom: 10px; width: 52px; height: 52px; border-radius: 50%; font-size: 24px;
+.dock { display: flex; justify-content: center; gap: 10px; margin-top: -6px; flex-wrap: wrap; }
+.dock-btn {
+  width: 48px; height: 48px; border-radius: 50%; font-size: 22px; padding: 0;
   background: var(--card); border: 2.5px solid var(--ink); box-shadow: var(--shadow);
 }
+.dock-btn.note { background: var(--accent); }
+.dock-btn.sos-btn { background: #FFE3E3; }
+.dock-btn:active { transform: scale(.94); }
+.fab.on-home { display: none; }
 .timer-panel { text-align: center; margin-top: 6px; }
 .big-clock { font: 800 52px/1.1 ui-monospace, Consolas, monospace; letter-spacing: 2px; }
 .timer-state { color: var(--muted); margin-bottom: 4px; }
