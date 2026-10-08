@@ -213,6 +213,8 @@ function ConvertTo-DisplayText([string]$text) {
     if (-not $text) { return '' }
     $t = $text -replace "`r`n?", "`n" -replace "`t", ' '
     $t = $t -replace $script:TextJunk, '' -replace $script:TextCompound, '' -replace $script:TextLone, ''
+    # guillemets « » : espaces insecables, pour qu'un « ne reste jamais seul en fin de ligne
+    $t = $t -replace '«[ ]+', "«$([char]0xA0)" -replace '[ ]+»', "$([char]0xA0)»"
     # symbole ou emoji absent de toutes les polices : un carre vide, on l'enleve
     if ($t -match $script:TextSymbol) {
         $t = [regex]::Replace($t, $script:TextSymbol, [Text.RegularExpressions.MatchEvaluator] {
@@ -3063,7 +3065,8 @@ $ui.Bot.Add_MouseLeftButtonDown({
         if ([math]::Abs($window.Left - $x0) + [math]::Abs($window.Top - $y0) -gt 6) {
             $O.Pinned = $true
             $O.Walking = $false
-            Show-Bubble "Ok, je reste ici. Clic droit > « Revenir en bas à droite » pour me libérer." -Seconds 5
+            Show-Bubble "Ok, je reste ici 📌" -AutoHide -Seconds 8 -Buttons @(
+                @{ Label = '🏠 Retourner en bas à droite'; Action = { $O.Pinned = $false; $O.Walking = $false } })
         } else {
             if ($ui.BubbleWrap.Visibility -eq 'Visible' -and $ui.BubbleButtons.Children.Count -eq 0 -and (Get-Random -Maximum 100) -lt 25) {
                 Show-Bubble (Pick $Lines.Poke) -Force -Seconds 3

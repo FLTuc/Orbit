@@ -194,7 +194,8 @@ let bubbleTimer = 0;
 let punch = null;
 function bubble(text, buttons = [], opts = {}) {
   const b = $('bubble');
-  clear($('bubbleText')).append(document.createTextNode(St.cleanText(text, 4000)));
+  // guillemets « » : espaces insecables, pour qu'un « ne reste jamais seul en fin de ligne
+  clear($('bubbleText')).append(document.createTextNode(St.cleanText(text, 4000).replace(/« +/g, '«\u00A0').replace(/ +»/g, '\u00A0»')));
   const box = clear($('bubbleButtons'));
   for (const x of buttons) {
     box.append(btn(x.label, () => { hideBubble(); x.run(); }, x.primary ? 'btn primary' : 'btn'));
