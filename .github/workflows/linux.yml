@@ -1,0 +1,48 @@
+name: Version Linux
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  debian:
+    strategy:
+      fail-fast: false
+      matrix:
+        debian: [bookworm, trixie]       # Debian 12 (Python 3.11) et 13 (Python 3.13) ; Debian 11 n'est plus mis a jour
+    runs-on: ubuntu-latest
+    container: debian:${{ matrix.debian }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ce qu'il faut sur un Debian de base (python3-tk) + un ecran virtuel pour le test
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3 python3-tk xvfb xauth >/dev/null
+          python3 --version
+
+      - name: Logique (chrono, tableaux, S.O.S identique au PC, sons, fichiers abimes, zip)
+        run: python3 -W error tests/linux/test_core.py
+
+      - name: Vraie interface sous un ecran virtuel, temps accelere, memoire mesuree
+        env:
+          ORBIT_SELFTEST: '1'
+          ORBIT_RSS_MAX_MB: '60'
+        run: |
+          export ORBIT_DATA=$(mktemp -d) XDG_RUNTIME_DIR=$(mktemp -d)
+          xvfb-run -a -s "-screen 0 1280x800x24" python3 linux/orbit.py
+
+      - name: Installation sans droits administrateur
+        run: |
+          export HOME=$(mktemp -d)
+          sh linux/install.sh --autostart
+          test -f "$HOME/.local/share/orbit-app/orbit.py"
+          test -f "$HOME/.local/share/orbit-app/unstick/rules.json"
+          test -f "$HOME/.config/autostart/orbit.desktop"
+          sh linux/install.sh --remove
+          test ! -e "$HOME/.local/share/orbit-app"

@@ -18,7 +18,7 @@ jobs:
         with:
           node-version: 22
 
-      - name: Fichiers generes a jour (blagues, culture G, decoupeur, cache hors ligne)
+      - name: Fichiers generes a jour (decoupeur du S.O.S, cache hors ligne)
         run: python3 tools/build_pwa.py --check
 
       - name: Securite du code

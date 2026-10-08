@@ -152,6 +152,11 @@ function pcZip(entries) {
     await page.click('#bubbleButtons >> text=☕ Je prends ma pause');
     st = await state();
     check('pause lancee', st.timer.state === 'Break');
+    await page.evaluate(() => document.getElementById('bubble').classList.add('hidden'));
+    await page.clock.fastForward('02:30');
+    await page.waitForTimeout(200);
+    const breakLine = await page.textContent('#bubbleText');
+    check('pendant la pause : une petite phrase sympa (ni blague ni quiz)', breakLine.length > 5 && !/Quiz|🤔|👉/.test(breakLine), breakLine);
 
     section('Partager une page vers Orbit (depuis Chrome)');
     await page.goto(base + '?share_title=Article%20utile&share_text=A%20lire&share_url=https%3A%2F%2Fexemple.fr%2Farticle');

@@ -8,7 +8,7 @@ $DataDir = $T
 foreach ($def in Get-ScriptFunctions (Join-Path $Root 'notebook.ps1')) { . ([scriptblock]::Create($def)) }
 $want = 'Write-FileSafe', 'Short-Text', 'Format-Min', 'Start-Focus', 'Ask-Break', 'Complete-FocusTask', 'Complete-FocusMessage',
         'Ask-Focus', 'Get-AwaitBreakButtons', 'Save-State', 'Restore-State', 'Get-StateMood',
-        'Get-TextStart', 'Read-TextLines', 'Test-Glyph', 'ConvertTo-DisplayText'
+        'Get-TextStart', 'Test-Glyph', 'ConvertTo-DisplayText'
 foreach ($def in Get-ScriptFunctions (Join-Path $Root 'orbit.ps1') $want) { . ([scriptblock]::Create($def)) }
 foreach ($a in Get-ScriptAssignments (Join-Path $Root 'orbit.ps1') '^\$(script:Text|script:Glyph|BubbleFonts)') { . ([scriptblock]::Create($a)) }
 foreach ($a in Get-ScriptAssignments (Join-Path $Root 'orbit.ps1') '^\$Btn(TaskDone|CardsDone|Break|Stop|Again|PickCards)\s') { . ([scriptblock]::Create($a)) }
@@ -626,7 +626,7 @@ $set = [ordered]@{ customImage = (Join-Path $T 'mon-image.png'); bubbleSoundFile
 [IO.File]::WriteAllText((Join-Path $T 'settings.json'), (ConvertTo-Json -InputObject $set))
 $stage = Join-Path $T 'paquet'
 $app = New-OrbitPackageFolder $stage $Root
-Check 'le paquet contient le programme' ((Test-Path (Join-Path $app 'orbit.ps1')) -and (Test-Path (Join-Path $app 'Orbit.cmd')) -and (Test-Path (Join-Path $app 'jokes')))
+Check 'le paquet contient le programme' ((Test-Path (Join-Path $app 'orbit.ps1')) -and (Test-Path (Join-Path $app 'Orbit.cmd')) -and (Test-Path (Join-Path $app 'unstick\rules.json')))
 Check 'le paquet contient les donnees' ((Test-Path (Join-Path $app 'donnees/kanban.json')) -and (Test-Path (Join-Path $app 'donnees/sons/bip.wav')))
 Check 'mais pas le journal ni le code compile de ce PC' (-not (Test-Path (Join-Path $app 'donnees/orbit.log')) -and -not (Test-Path (Join-Path $app 'donnees/native-1234.dll')))
 $OldData = $DataDir
@@ -760,16 +760,6 @@ Check 'moitie d''emoji et caractere invalide enleves' ((ConvertTo-DisplayText ('
 Check 'controles et marques invisibles (titres de fenetres) enleves' ((ConvertTo-DisplayText ([char]0x200E + 'Teams' + [char]0x0007 + [char]0x202C + " - chat`t1")) -eq 'Teams - chat 1')
 Check 'retours a la ligne gardes, CRLF normalise' ((ConvertTo-DisplayText "a`r`nb`n`nc") -eq "a`nb`n`nc")
 Check 'texte vide ou nul : pas d''erreur' ((ConvertTo-DisplayText $null) -eq '' -and (Get-TextStart '' 5) -eq '')
-$f = Join-Path $T 'txt.txt'
-[IO.File]::WriteAllText($f, "# c`r`nCafé|été`r`n", (New-Object Text.UTF8Encoding($true)))
-$l1 = Read-TextLines $f
-[IO.File]::WriteAllText($f, "Café|été`n", (New-Object Text.UTF8Encoding($false)))
-$l2 = Read-TextLines $f
-[IO.File]::WriteAllBytes($f, [byte[]](0x43, 0x61, 0x66, 0xE9, 0x7C, 0xE9, 0x74, 0xE9))   # "Café|été" en ANSI
-$l3 = Read-TextLines $f
-Check 'fichier texte UTF-8 avec BOM' ($l1[1] -eq 'Café|été' -and $l1[0] -eq '# c')
-Check 'fichier texte UTF-8 sans BOM' ($l2[0] -eq 'Café|été')
-Check 'fichier texte en ANSI (ancien Bloc-notes) : accents corrects' ($l3[0] -eq 'Café|été')
 
 Remove-Item -Recurse -Force $T -ErrorAction SilentlyContinue
 Finish

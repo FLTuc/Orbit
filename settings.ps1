@@ -128,25 +128,20 @@
             <TextBlock Text="min, me proposer 2-3 cartes qui attendent" VerticalAlignment="Center"/>
           </StackPanel>
 
-          <TextBlock Style="{StaticResource Section}" Text="😄 Blagues et commentaires"/>
-          <CheckBox x:Name="SJokes">
+          <TextBlock Style="{StaticResource Section}" Text="💬 Petites phrases"/>
+          <CheckBox x:Name="SBreakLines">
             <StackPanel Orientation="Horizontal">
-              <TextBlock Text="Pendant la pause, environ toutes les" VerticalAlignment="Center"/>
-              <TextBox x:Name="SJokeMin"/>
-              <TextBlock Text="min :" VerticalAlignment="Center"/>
+              <TextBlock Text="Pendant la pause, une petite phrase sympa environ toutes les" VerticalAlignment="Center"/>
+              <TextBox x:Name="SBreakLineMin"/>
+              <TextBlock Text="min" VerticalAlignment="Center"/>
             </StackPanel>
           </CheckBox>
-          <ComboBox x:Name="SBreakContent" Margin="22,4,0,0" Width="300" HorizontalAlignment="Left">
-            <ComboBoxItem Tag="Both" Content="😄 + 🧠  Blagues et culture G, en alternance"/>
-            <ComboBoxItem Tag="Jokes" Content="😄  Des blagues"/>
-            <ComboBoxItem Tag="Culture" Content="🧠  De la culture G (anecdotes et quiz)"/>
-          </ComboBox>
           <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
             <TextBlock Text="Une phrase de motivation toutes les" VerticalAlignment="Center"/>
             <TextBox x:Name="SMotiv"/>
             <TextBlock Text="min de focus" VerticalAlignment="Center"/>
           </StackPanel>
-          <CheckBox x:Name="SApps" Content="Commentaires sur l'application sous ma souris"/>
+          <CheckBox x:Name="SApps" Content="Pendant un focus, me rappeler gentiment la pause si j'ouvre YouTube, Netflix…"/>
           <CheckBox x:Name="SQuiet" Content="Mode silencieux (Orbit ne parle que pour l'essentiel)"/>
 
           <TextBlock Style="{StaticResource Section}" Text="🚶 Balades"/>
@@ -227,7 +222,7 @@ $DefaultSettings = Get-SettingsSnapshot
 $DefaultSettings.rhythm = '50/10'; $DefaultSettings.customFocus = 40; $DefaultSettings.customBreak = 8
 $DefaultSettings.quiet = $false; $DefaultSettings.wander = $true; $DefaultSettings.wanderMin = 4; $DefaultSettings.wanderMax = 9
 $DefaultSettings.taskReminders = $true; $DefaultSettings.morningPlan = $true; $DefaultSettings.idleNudge = $true; $DefaultSettings.idleNudgeMin = 45; $DefaultSettings.tickSound = $true; $DefaultSettings.tickZoneMin = 5; $DefaultSettings.urgencyBar = $true; $DefaultSettings.reminderEveryMin = 4; $DefaultSettings.motivationEveryMin = 9
-$DefaultSettings.jokes = $true; $DefaultSettings.breakContent = 'Both'; $DefaultSettings.jokeEveryMin = 2; $DefaultSettings.appComments = $true
+$DefaultSettings.breakLines = $true; $DefaultSettings.breakLineEveryMin = 2; $DefaultSettings.appComments = $true
 $DefaultSettings.skin = 'Satellite'; $DefaultSettings.sounds = $true; $DefaultSettings.droidSounds = $true; $DefaultSettings.droidVolume = 40; $DefaultSettings.bubbleSound = 'Droide'; $DefaultSettings.endSound = 'Carillon'; $DefaultSettings.idlePause = $true; $DefaultSettings.idleMinutes = 5
 $DefaultSettings.anchorButton = $true; $DefaultSettings.contextButton = $true; $DefaultSettings.contextWindows = 3; $DefaultSettings.contextScreenshot = $false; $DefaultSettings.contextRemind = $true; $DefaultSettings.contextRemindMin = 30
 
@@ -253,9 +248,8 @@ function Fill-SettingsForm($d) {
     $sw.STickZone.Text = $d.tickZoneMin
     $sw.SUrgencyBar.IsChecked = $d.urgencyBar
     $sw.SNudge.Text = $d.reminderEveryMin
-    $sw.SJokes.IsChecked = $d.jokes
-    $sw.SJokeMin.Text = $d.jokeEveryMin
-    Select-ComboTag $sw.SBreakContent $(if ($d.breakContent) { [string]$d.breakContent } else { 'Both' })
+    $sw.SBreakLines.IsChecked = $d.breakLines
+    $sw.SBreakLineMin.Text = $d.breakLineEveryMin
     $sw.SMotiv.Text = $d.motivationEveryMin
     $sw.SApps.IsChecked = $d.appComments
     $sw.SQuiet.IsChecked = $d.quiet
@@ -272,7 +266,7 @@ function Fill-SettingsForm($d) {
     Select-ComboTag $sw.SEndSound $d.endSound
     Update-FileLabels
     $sw.SError.Visibility = 'Collapsed'
-    foreach ($tb in 'SPersoFocus','SPersoBreak','SIdleMin','SNudge','SIdleNudgeMin','STickZone','SJokeMin','SMotiv','SWanderMin','SWanderMax','SCtxRemindMin') {
+    foreach ($tb in 'SPersoFocus','SPersoBreak','SIdleMin','SNudge','SIdleNudgeMin','STickZone','SBreakLineMin','SMotiv','SWanderMin','SWanderMax','SCtxRemindMin') {
         $sw[$tb].ClearValue([Windows.Controls.Control]::BorderBrushProperty)
     }
 }
@@ -300,7 +294,7 @@ function Save-SettingsForm {
     $nudge = Read-Number 'SNudge' 1 60 ([ref]$errors)
     $idleNudgeMin = Read-Number 'SIdleNudgeMin' 10 240 ([ref]$errors)
     $tickZone = Read-Number 'STickZone' 1 15 ([ref]$errors)
-    $joke = Read-Number 'SJokeMin' 0.5 30 ([ref]$errors)
+    $breakEvery = Read-Number 'SBreakLineMin' 0.5 30 ([ref]$errors)
     $motiv = Read-Number 'SMotiv' 1 120 ([ref]$errors)
     $wmin = Read-Number 'SWanderMin' 1 120 ([ref]$errors)
     $wmax = Read-Number 'SWanderMax' 1 240 ([ref]$errors)
@@ -317,7 +311,7 @@ function Save-SettingsForm {
         rhythm = $rhythm; customFocus = $pf; customBreak = $pb
         idlePause = [bool]$sw.SIdle.IsChecked; idleMinutes = [int]$idle
         taskReminders = [bool]$sw.STasks.IsChecked; reminderEveryMin = [int]$nudge; morningPlan = [bool]$sw.SMorning.IsChecked; idleNudge = [bool]$sw.SIdleNudge.IsChecked; idleNudgeMin = [int]$idleNudgeMin; tickSound = [bool]$sw.STickSound.IsChecked; tickZoneMin = [int]$tickZone; urgencyBar = [bool]$sw.SUrgencyBar.IsChecked
-        jokes = [bool]$sw.SJokes.IsChecked; jokeEveryMin = $joke; breakContent = $(if ($sw.SBreakContent.SelectedItem) { [string]$sw.SBreakContent.SelectedItem.Tag } else { 'Both' }); motivationEveryMin = [int]$motiv
+        breakLines = [bool]$sw.SBreakLines.IsChecked; breakLineEveryMin = $breakEvery; motivationEveryMin = [int]$motiv
         appComments = [bool]$sw.SApps.IsChecked; quiet = [bool]$sw.SQuiet.IsChecked
         wander = [bool]$sw.SWander.IsChecked; wanderMin = [int]$wmin; wanderMax = [int]$wmax
         sounds = [bool]$sw.SSounds.IsChecked; droidSounds = [bool]$sw.SDroid.IsChecked
@@ -454,7 +448,7 @@ function Initialize-Settings {
     $script:settingsWin = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $settingsXaml))
     $script:sw = @{}
     foreach ($n in 'SHeader','SClose','SDefaults','SCancel','SSave','SError','SR50','SR25','SRPerso','SPersoFocus','SPersoBreak',
-                   'SIdle','SIdleMin','STasks','SCtxButton','SAnchorButton','SCtxWindows','SCtxShot','SCtxRemind','SCtxRemindMin','SMorning','SIdleNudge','SIdleNudgeMin','STickSound','STickZone','SUrgencyBar','SNudge','SJokes','SJokeMin','SBreakContent','SMotiv','SApps','SQuiet','SWander','SWanderMin',
+                   'SIdle','SIdleMin','STasks','SCtxButton','SAnchorButton','SCtxWindows','SCtxShot','SCtxRemind','SCtxRemindMin','SMorning','SIdleNudge','SIdleNudgeMin','STickSound','STickZone','SUrgencyBar','SNudge','SBreakLines','SBreakLineMin','SMotiv','SApps','SQuiet','SWander','SWanderMin',
                    'SWanderMax','SSounds','SDroid','SDroidVol','SAuto','SBubbleSound','SBubbleTest','SMySounds','SSoundAdd','SSoundDel','SSoundPlay','SSoundDir',
                    'SEndSound','SEndFile','SEndTest','SEndFileName','SSkinCustom','SImgPick','SImgName','SSkinSatellite','SSkinDroid','SSkinRobot','SSkinButler','SSkinBrain','SSkinHuman') {
         $sw[$n] = $settingsWin.FindName($n)

@@ -131,6 +131,13 @@ export const LINES = {
   breakStart: ['Pause ! Lève-toi, bois un verre d’eau 💧', "Pause bien méritée ☕ Je m'occupe du temps.", 'Respire un grand coup 🌬 La pause commence.'],
   breakEnd: ['Fin de la pause ! On repart ?', 'La pause est finie 🙂 Prêt(e) pour la suite ?'],
   motivation: ['Tu avances, même si ça ne se voit pas encore 🌱', 'Une petite étape, puis la suivante 👣', "Pas besoin que ce soit parfait, juste que ce soit commencé ✨", 'Je suis là, on continue ensemble 🛰'],
+  // pendant la pause : de petites phrases sympas (ni blagues ni culture G)
+  breakLines: ['Lève-toi et étire-toi un peu, ton dos te dira merci 🙆', 'Un verre d’eau ? Ton cerveau adore ça 💧',
+    'Regarde au loin quelques secondes, tes yeux respirent 👀', 'Trois respirations lentes… voilà, c’est tout 🌬',
+    'Fais rouler tes épaules, ça détend 😌', 'Ouvre la fenêtre une minute, un peu d’air frais 🌿', 'Profite, tu as bien bossé 🙌',
+    'Desserre la mâchoire, relâche les épaules 😊', 'Pense à un truc qui t’a fait sourire aujourd’hui 🙂',
+    'Tu avances bien, sois fier(e) de toi ✨', 'Rien à faire pendant la pause, c’est le principe 😌',
+    'Envoie un petit message sympa à quelqu’un ? 💌', 'Bouge un peu les mains et les poignets 🙌'],
   win: ['Bravo ! 🎉', 'Une victoire de plus 🏆', 'Yes ! ✨', 'Bien joué 💪', 'Et hop, fait ✅'],
 };
 export function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
