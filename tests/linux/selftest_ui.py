@@ -250,15 +250,21 @@ def scenario(app):
     check('export / import (meme zip que le PC et le telephone)', len(s3.kanban['cards']) == 3 and s3.notes)
 
     section('Memoire')
-    for _ in range(3):
+
+    def cycle():
         app.open_boards()
         app.open_notes()
         app.open_settings()
+        app.open_search()
         r.update()
         for k in list(app.windows):
             app.windows[k].destroy()
         r.update()
+    cycle()                                  # 1re ouverture de chaque fenetre : cout unique (polices, images)
+    warm = rss_mb()
+    for _ in range(10):
+        cycle()
     rss1 = rss_mb()
-    print('  (memoire apres avoir tout ouvert et ferme 3 fois : %.1f Mo)' % rss1)
+    print('  (memoire : %.1f Mo au demarrage, %.1f Mo apres usage, %.1f Mo apres 10 tours de plus)' % (rss0, warm, rss1))
     check(f'reste sous {RSS_MAX_MB:.0f} Mo apres usage', rss1 < RSS_MAX_MB, '%.1f Mo' % rss1)
-    check('pas de fuite (moins de 8 Mo de plus qu\'au demarrage)', rss1 - rss0 < 8, '+%.1f Mo' % (rss1 - rss0))
+    check('pas de fuite : ouvrir et fermer 10 fois toutes les fenetres ne fait pas grossir Orbit', rss1 - warm < 2, '+%.1f Mo' % (rss1 - warm))
