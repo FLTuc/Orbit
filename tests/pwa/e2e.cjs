@@ -140,8 +140,12 @@ function pcZip(entries) {
     st = await state();
     check('… et peut aller dans les notes', st.notes.some((n) => /exemple\.fr/.test(n.text)));
 
-    section('📝 Note rapide (bouton rond)');
-    await page.click('#noteFab');
+    section('📝 Note rapide et boutons ronds colles a Orbit');
+    await tab('home');
+    check('accueil : 📝 🏆 ☀ colles a Orbit, pas de bouton flottant en double', await visible('#dockNote') && await visible('#dockWins') && await visible('#dockPlan') && !(await visible('#noteFab')));
+    const bb = await page.locator('#orbitBot').boundingBox(), nb = await page.locator('#dockNote').boundingBox();
+    check('le 📝 est juste sous Orbit (moins de 30 px)', nb.y - (bb.y + bb.height) < 30, `${Math.round(nb.y - (bb.y + bb.height))} px`);
+    await page.click('#dockNote');
     await page.fill('#sheet textarea', 'Payer la facture EDF');
     await page.click('#sheet >> text=✓ OK');
     st = await state();
@@ -230,6 +234,8 @@ function pcZip(entries) {
     await ctx.setOffline(false);
 
     section('Bouton retour d\'Android');
+    await tab('kanban');
+    check('ailleurs : le bouton rond 📝 reste en bas', await visible('#noteFab'));
     await page.click('#noteFab');
     await page.goBack();
     check('retour : ferme la fenetre sans quitter l\'appli', !(await visible('#sheet')) && page.url().startsWith(base));
