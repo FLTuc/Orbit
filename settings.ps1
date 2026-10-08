@@ -186,6 +186,12 @@
             </StackPanel>
           </Grid>
 
+          <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+            <CheckBox x:Name="STickSound" Content="⏳ Compte à rebours sonore : un tic doux qui s'accélère les" VerticalAlignment="Center"/>
+            <TextBox x:Name="STickZone"/>
+            <TextBlock Text="dernières min du focus" VerticalAlignment="Center"/>
+          </StackPanel>
+          <CheckBox x:Name="SUrgencyBar" Margin="0,4,0,0" Content="⏳ Barre de compte à rebours à côté d'Orbit (bleu, jaune, orange, puis rouge qui pulse)"/>
           <CheckBox x:Name="SSounds" Margin="0,8,0,3" Content="Un son à la fin des sessions et pour les rappels"/>
           <StackPanel Orientation="Horizontal" Margin="22,3,0,0">
             <ComboBox x:Name="SEndSound" Width="150">
@@ -220,7 +226,7 @@ $sw = @{}
 $DefaultSettings = Get-SettingsSnapshot
 $DefaultSettings.rhythm = '50/10'; $DefaultSettings.customFocus = 40; $DefaultSettings.customBreak = 8
 $DefaultSettings.quiet = $false; $DefaultSettings.wander = $true; $DefaultSettings.wanderMin = 4; $DefaultSettings.wanderMax = 9
-$DefaultSettings.taskReminders = $true; $DefaultSettings.morningPlan = $true; $DefaultSettings.idleNudge = $true; $DefaultSettings.idleNudgeMin = 45; $DefaultSettings.reminderEveryMin = 4; $DefaultSettings.motivationEveryMin = 9
+$DefaultSettings.taskReminders = $true; $DefaultSettings.morningPlan = $true; $DefaultSettings.idleNudge = $true; $DefaultSettings.idleNudgeMin = 45; $DefaultSettings.tickSound = $true; $DefaultSettings.tickZoneMin = 5; $DefaultSettings.urgencyBar = $true; $DefaultSettings.reminderEveryMin = 4; $DefaultSettings.motivationEveryMin = 9
 $DefaultSettings.jokes = $true; $DefaultSettings.breakContent = 'Both'; $DefaultSettings.jokeEveryMin = 2; $DefaultSettings.appComments = $true
 $DefaultSettings.skin = 'Satellite'; $DefaultSettings.sounds = $true; $DefaultSettings.droidSounds = $true; $DefaultSettings.droidVolume = 40; $DefaultSettings.bubbleSound = 'Droide'; $DefaultSettings.endSound = 'Carillon'; $DefaultSettings.idlePause = $true; $DefaultSettings.idleMinutes = 5
 $DefaultSettings.anchorButton = $true; $DefaultSettings.contextButton = $true; $DefaultSettings.contextWindows = 3; $DefaultSettings.contextScreenshot = $false; $DefaultSettings.contextRemind = $true; $DefaultSettings.contextRemindMin = 30
@@ -243,6 +249,9 @@ function Fill-SettingsForm($d) {
     $sw.SMorning.IsChecked = $d.morningPlan
     $sw.SIdleNudge.IsChecked = $d.idleNudge
     $sw.SIdleNudgeMin.Text = $d.idleNudgeMin
+    $sw.STickSound.IsChecked = $d.tickSound
+    $sw.STickZone.Text = $d.tickZoneMin
+    $sw.SUrgencyBar.IsChecked = $d.urgencyBar
     $sw.SNudge.Text = $d.reminderEveryMin
     $sw.SJokes.IsChecked = $d.jokes
     $sw.SJokeMin.Text = $d.jokeEveryMin
@@ -263,7 +272,7 @@ function Fill-SettingsForm($d) {
     Select-ComboTag $sw.SEndSound $d.endSound
     Update-FileLabels
     $sw.SError.Visibility = 'Collapsed'
-    foreach ($tb in 'SPersoFocus','SPersoBreak','SIdleMin','SNudge','SIdleNudgeMin','SJokeMin','SMotiv','SWanderMin','SWanderMax','SCtxRemindMin') {
+    foreach ($tb in 'SPersoFocus','SPersoBreak','SIdleMin','SNudge','SIdleNudgeMin','STickZone','SJokeMin','SMotiv','SWanderMin','SWanderMax','SCtxRemindMin') {
         $sw[$tb].ClearValue([Windows.Controls.Control]::BorderBrushProperty)
     }
 }
@@ -290,6 +299,7 @@ function Save-SettingsForm {
     $idle = Read-Number 'SIdleMin' 1 120 ([ref]$errors)
     $nudge = Read-Number 'SNudge' 1 60 ([ref]$errors)
     $idleNudgeMin = Read-Number 'SIdleNudgeMin' 10 240 ([ref]$errors)
+    $tickZone = Read-Number 'STickZone' 1 15 ([ref]$errors)
     $joke = Read-Number 'SJokeMin' 0.5 30 ([ref]$errors)
     $motiv = Read-Number 'SMotiv' 1 120 ([ref]$errors)
     $wmin = Read-Number 'SWanderMin' 1 120 ([ref]$errors)
@@ -306,7 +316,7 @@ function Save-SettingsForm {
     Apply-SettingsData ([pscustomobject]@{
         rhythm = $rhythm; customFocus = $pf; customBreak = $pb
         idlePause = [bool]$sw.SIdle.IsChecked; idleMinutes = [int]$idle
-        taskReminders = [bool]$sw.STasks.IsChecked; reminderEveryMin = [int]$nudge; morningPlan = [bool]$sw.SMorning.IsChecked; idleNudge = [bool]$sw.SIdleNudge.IsChecked; idleNudgeMin = [int]$idleNudgeMin
+        taskReminders = [bool]$sw.STasks.IsChecked; reminderEveryMin = [int]$nudge; morningPlan = [bool]$sw.SMorning.IsChecked; idleNudge = [bool]$sw.SIdleNudge.IsChecked; idleNudgeMin = [int]$idleNudgeMin; tickSound = [bool]$sw.STickSound.IsChecked; tickZoneMin = [int]$tickZone; urgencyBar = [bool]$sw.SUrgencyBar.IsChecked
         jokes = [bool]$sw.SJokes.IsChecked; jokeEveryMin = $joke; breakContent = $(if ($sw.SBreakContent.SelectedItem) { [string]$sw.SBreakContent.SelectedItem.Tag } else { 'Both' }); motivationEveryMin = [int]$motiv
         appComments = [bool]$sw.SApps.IsChecked; quiet = [bool]$sw.SQuiet.IsChecked
         wander = [bool]$sw.SWander.IsChecked; wanderMin = [int]$wmin; wanderMax = [int]$wmax
@@ -444,7 +454,7 @@ function Initialize-Settings {
     $script:settingsWin = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $settingsXaml))
     $script:sw = @{}
     foreach ($n in 'SHeader','SClose','SDefaults','SCancel','SSave','SError','SR50','SR25','SRPerso','SPersoFocus','SPersoBreak',
-                   'SIdle','SIdleMin','STasks','SCtxButton','SAnchorButton','SCtxWindows','SCtxShot','SCtxRemind','SCtxRemindMin','SMorning','SIdleNudge','SIdleNudgeMin','SNudge','SJokes','SJokeMin','SBreakContent','SMotiv','SApps','SQuiet','SWander','SWanderMin',
+                   'SIdle','SIdleMin','STasks','SCtxButton','SAnchorButton','SCtxWindows','SCtxShot','SCtxRemind','SCtxRemindMin','SMorning','SIdleNudge','SIdleNudgeMin','STickSound','STickZone','SUrgencyBar','SNudge','SJokes','SJokeMin','SBreakContent','SMotiv','SApps','SQuiet','SWander','SWanderMin',
                    'SWanderMax','SSounds','SDroid','SDroidVol','SAuto','SBubbleSound','SBubbleTest','SMySounds','SSoundAdd','SSoundDel','SSoundPlay','SSoundDir',
                    'SEndSound','SEndFile','SEndTest','SEndFileName','SSkinCustom','SImgPick','SImgName','SSkinSatellite','SSkinDroid','SSkinRobot','SSkinButler','SSkinBrain','SSkinHuman') {
         $sw[$n] = $settingsWin.FindName($n)

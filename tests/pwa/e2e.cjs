@@ -123,7 +123,28 @@ function pcZip(entries) {
     await popup.close();
     st = await state();
     check('reprendre : le focus repart, reprise terminee, victoire', !st.timer.paused && st.reprises[0].status === 'done' && st.anchor.wins.some((w) => w.kind === 'reprise'));
-    await page.clock.fastForward('31:00');
+    section('⏳ Zone finale : barre de couleur et tic qui s\'accelere');
+    check('barre de compte a rebours visible pendant le focus', await visible('#urgency') && /lv-(calm|mid)/.test(await page.getAttribute('#urgency', 'class')));
+    const leftMs = await page.evaluate(() => window.__orbit.state().timer.endsAt - Date.now());
+    await page.clock.fastForward(leftMs - 6 * 60000);
+    await page.waitForTimeout(150);
+    check('a 6 min de la fin : orange, pas encore de tic', /lv-high/.test(await page.getAttribute('#urgency', 'class')));
+    await page.evaluate(() => {   // on compte les sons fabriques (aucun son n'est joue dans le test)
+      window.__tones = 0;
+      const orig = AudioContext.prototype.createOscillator;
+      AudioContext.prototype.createOscillator = function () { window.__tones++; return orig.call(this); };
+    });
+    for (let i = 0; i < 59; i++) { await page.clock.fastForward(1000); }   // jusqu'a 5:01 de la fin
+    const zone0 = await page.evaluate(() => window.__tones);
+    for (let i = 0; i < 60; i++) { await page.clock.fastForward(1000); }   // 1re minute de la zone finale
+    const zone1 = await page.evaluate(() => window.__tones) - zone0;
+    for (let i = 0; i < 60 * 3 + 50; i++) { await page.clock.fastForward(1000); }   // jusqu'a 0:11 de la fin
+    const zone2 = await page.evaluate(() => window.__tones) - zone0 - zone1;
+    check('avant les 5 dernieres minutes : aucun tic', zone0 === 0, `${zone0}`);
+    check('5 dernieres minutes : le tic commence, lentement (toutes les 20 s)', zone1 >= 2 && zone1 <= 4, `${zone1} tics la 1re minute`);
+    check('puis il s\'accelere (beaucoup plus de tics a la fin)', zone2 >= 25, `${zone2} tics les 3 min 50 suivantes`);
+    check('derniere minute : barre rouge qui pulse, gros chrono rouge', /lv-final/.test(await page.getAttribute('#urgency', 'class')) && /final/.test(await page.getAttribute('#bigClock', 'class')));
+    await page.clock.fastForward('01:00');
     await page.waitForTimeout(300);
     st = await state();
     check('fin du focus : question de pause, 🍅 sur la carte', st.timer.state === 'AwaitBreak' && st.kanban.cards.find((c) => c.id === rc.id).pomos === 1);

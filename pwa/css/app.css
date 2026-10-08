@@ -106,6 +106,16 @@ input:focus, textarea:focus, select:focus, button:focus-visible { outline: 3px s
 .timer-panel { text-align: center; margin-top: 6px; }
 .big-clock { font: 800 52px/1.1 ui-monospace, Consolas, monospace; letter-spacing: 2px; }
 .timer-state { color: var(--muted); margin-bottom: 4px; }
+/* compte a rebours : la barre se vide et change de couleur, puis pulse la derniere minute */
+.urgency { width: min(320px, 82%); height: 12px; margin: 4px auto 6px; border-radius: 999px; background: var(--line); border: 2px solid var(--ink); overflow: hidden; }
+.urgency > div { height: 100%; border-radius: 999px; transition: width 1s linear, background-color .8s; }
+.urgency.lv-calm > div { background: #4C8DFF; } .urgency.lv-mid > div { background: #FFC93C; } .urgency.lv-high > div { background: #FF8A1C; }
+.urgency.lv-final > div { background: #FF4D4D; } .urgency.lv-break > div { background: #3DDC84; } .urgency.lv-paused > div { background: #8A8FA3; }
+.urgency.lv-final { animation: pulse .9s ease-in-out infinite; }
+.urgency.lv-final.fast { animation-duration: .45s; }
+.big-clock.final { color: #E03131; }
+@keyframes pulse { 50% { opacity: .45; transform: scaleY(1.25); } }
+@media (prefers-reduced-motion: reduce) { .urgency.lv-final { animation: none; } }
 .focus-cards { margin: 6px 0 10px; font-weight: 600; }
 .panel { background: var(--card); border: 2px solid var(--line); border-radius: var(--radius); padding: 12px 14px; margin: 12px 0; }
 
