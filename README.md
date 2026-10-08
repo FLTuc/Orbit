@@ -37,7 +37,14 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   - **à la fin de la pause**, il rappelle la prochaine tâche au programme.
 - **Pause automatique si tu t'absentes** : si tu ne touches ni la souris ni le clavier pendant 5 min en plein focus, Orbit met le chrono en pause au moment où tu es parti (le temps d'absence ne compte pas). À ton retour, il te dit combien de temps tu as été absent et te propose de reprendre.
 - **Des blagues pendant la pause** : environ une toutes les 2 minutes, piochées parmi **plus de 1000 blagues** (combles, devinettes, « Monsieur et Madame… », bureau, informatique, espace…). Orbit pose la question, puis donne la chute quelques secondes plus tard. Il retient où il en est, même après un redémarrage : aucune blague ne revient tant que toutes ne sont pas passées.
-- **Des bulles de BD** : tout ce que dit Orbit apparaît dans une bulle de bande dessinée avec un « pop », accompagné d'un **petit son au choix** : droïde doux, carillon, marimba, pop, bip, **tes propres sons** (ajoute autant de fichiers que tu veux, en WAV, MP3, M4A ou WMA ; un est joué au hasard à chaque bulle, sans répéter deux fois de suite le même), ou 🎲 **aléatoire** parmi tous les sons. Les sons sont générés par Orbit lui-même et montent légèrement quand il te pose une question. Le son de fin de session et des rappels se choisit aussi (carillon, son de Windows ou ton fichier WAV/MP3).
+- **Des bulles de BD** : tout ce que dit Orbit apparaît dans une bulle de bande dessinée avec un « pop », accompagné d'un **petit son au choix** : droïde doux, carillon, marimba, pop, bip, **tes propres sons** (choix « 📁 Mes sons » : voir ci-dessous), ou 🎲 **aléatoire** parmi tous les sons. Les sons sont générés par Orbit lui-même et montent légèrement quand il te pose une question. Le son de fin de session et des rappels se choisit aussi (carillon, son de Windows ou ton fichier WAV/MP3).
+- **🎵 Mes sons = un dossier** : `%APPDATA%\Orbit\sons`. Tout fichier **.wav, .mp3, .m4a ou .wma** posé dedans fait partie de tes sons, sans rien régler. Pour le remplir :
+  - dans les réglages (section 🔊), **＋ Ajouter…** copie les fichiers choisis dans ce dossier ;
+  - **📂 Dossier** l'ouvre dans l'Explorateur : glisse-y tes sons, ou supprime ceux qui ne te plaisent plus ;
+  - **－ Retirer** envoie le son sélectionné à la corbeille de Windows (récupérable) ;
+  - **▶ Écouter** joue le son sélectionné (ou le suivant de la liste).
+
+  Les sons passent **chacun leur tour, dans un ordre au hasard** : Orbit mélange la liste, joue chaque son une fois, puis remélange (jamais deux fois de suite le même). Le dossier part avec l'export vers un autre PC. Les sons choisis avec une ancienne version d'Orbit sont rangés tout seuls dans ce dossier au premier lancement.
   - Bulle de **parole** (avec une pointe) quand il te parle : questions, chrono, indications.
   - Bulle de **pensée** (avec des petits ronds) pour ses réflexions et ses commentaires sur tes applis.
 - **Des petits commentaires** : de la motivation pendant le focus (mi-parcours, 5 dernières minutes…) et des blagues selon l'application sous ta souris (Excel, Outlook, Teams, PowerPoint, VS Code…). Pendant le focus, il te taquine si tu passes sur YouTube, Netflix, Reddit…
@@ -96,6 +103,7 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
     - les fenêtres de navigation privée (InPrivate, Incognito) ne sont jamais lues ;
     - la capture d'écran reste sur ce PC, n'est jamais exportée et s'efface dès que tu as repris ;
     - Orbit ne rouvre que des adresses web (http/https), des dossiers et des documents (Excel, Word, PDF…) qui existent, jamais un programme.
+- **👀 « Tu attends quoi ? »** : si aucun focus n'a été lancé depuis **45 minutes** (réglable) alors que des cartes attendent, Orbit sort une bulle : « Tu as des tâches en cours, qu'est-ce que tu attends ? » avec **2 ou 3 cartes proposées** (les plus urgentes, avec la raison). Un clic sur une carte lance le focus dessus ; **⏰ Plus tard** le redemande dans 45 min ; **🌙 Pas aujourd'hui** le fait taire jusqu'au lendemain. Jamais pendant un focus ou une pause, jamais si tu n'es pas devant l'écran (il attend ton retour), jamais par-dessus une autre question, ni quand Orbit est caché ou réduit. Aussi sur le téléphone (quand l'appli est ouverte). Réglages : case « 👀 Sans focus depuis … min ».
 - **☀️ Plan du matin** : à ta première apparition de la journée (à partir de 5 h), Orbit propose les 3 cartes les plus urgentes, tous tableaux confondus (en retard, à rendre aujourd'hui ou demain, rappel du jour, déjà commencées, puis priorité), avec la raison. « Go » les lie au focus et le lance ; « Choisir autre chose » ouvre la liste avec ces 3 cartes déjà cochées. À revoir quand tu veux : clic droit > ☀️ Plan du jour. Se désactive dans les réglages.
 - **🔍 Recherche partout** (onglet 🔍 du carnet, Ctrl+F, ou clic droit > ☰ Plus > Rechercher partout) : cartes de tous les tableaux (titre, description, sous-tâches), notes, reprises (✋), cartes récurrentes à venir, copier-coller et favoris, archives. Plusieurs mots : ils doivent tous y être ; accents et majuscules ignorés. Clic sur une carte : elle s'ouvre dans son tableau ; clic sur un copier-coller : il est recopié.
 - **📦 Changer de PC** (clic droit > ☰ Plus > 📦 Autre PC) : « Exporter » crée un seul fichier zip avec Orbit et tes données (réglages, tableaux, modèles, favoris, sons, image, sauvegardes). Sur l'autre PC, décompresse-le et double-clic sur `Orbit\Orbit.cmd` : tout est récupéré au premier lancement (les chemins de l'image et des sons sont adaptés). Si Orbit est déjà installé, « Importer un export… » fait la même chose et redémarre Orbit ; les données présentes sont gardées dans `avant-import-<date>`.
@@ -111,7 +119,7 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   - rappels de tâches, et fréquence des relances quand Orbit attend ta réponse ;
   - blagues de pause (oui/non et fréquence), phrases de motivation, commentaires sur les applis, mode silencieux ;
   - apparence (satellite, droïde, robot, majordome robot ou humain, cerveau humain) ;
-  - balades (oui/non et fréquence), sons (style, fichiers perso WAV ou MP3, volume, bouton ▶ pour écouter), lancement au démarrage de Windows.
+  - balades (oui/non et fréquence), sons (style, dossier « Mes sons » avec ＋ Ajouter / － Retirer / 📂 Dossier, volume, bouton ▶ pour écouter), lancement au démarrage de Windows.
 
 ## 📱 Orbit sur ton téléphone (Android, iPhone)
 
@@ -146,6 +154,7 @@ Ensuite, sur le téléphone : ouvre l'adresse dans Chrome, puis ⋮ > « Install
 - `node tests/pwa/unit.mjs` : la logique et les attaques ;
 - `node tests/pwa/static.mjs` : la sécurité du code ;
 - `node tests/pwa/e2e.cjs` : un parcours complet sur un Pixel 7 simulé, avec le temps accéléré, le hors-ligne, le partage, le glissement du doigt, l'import et l'export ;
+- `node tests/pwa/monkey.cjs 500 1` : le test « chaos » : 500 gestes au hasard (boutons, saisies, retour d'Android, temps qui passe, rechargements), sans aucune erreur permise ;
 - `python tools/build_pwa.py` : régénère les blagues et la culture G du téléphone, et le cache hors ligne.
 
 ## Commandes
@@ -180,7 +189,7 @@ Tout est enregistré dans `%APPDATA%\Orbit\` :
 | `clipboard\AAAA-MM-JJ.json` | les copier-coller du jour |
 | `clipboard-favoris.json` | les copier-coller mis en favori ⭐ (conservés) |
 | `settings.json` | tes réglages |
-| `sons\` | les sons que tu as ajoutés (copiés ici) |
+| `sons\` | **tes sons** : tout fichier .wav, .mp3, .m4a ou .wma posé ici est joué, chacun son tour, au hasard |
 | `stats.json`, `orbit.log` | statistiques et petit journal d'erreurs |
 
 Attention : l'historique des copier-coller est stocké en clair dans ton profil. Si tu copies des données sensibles, utilise la case **Pause** ou le bouton **Tout effacer**.

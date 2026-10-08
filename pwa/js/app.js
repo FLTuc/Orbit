@@ -325,7 +325,7 @@ function loop() {
     bubble(Ob.pick(Ob.LINES.motivation), [], { seconds: 7 });
   }
   if (punch && now >= punch.at) { const p = punch; punch = null; if (!$('bubble').classList.contains('hidden')) bubble(p.full, [], { seconds: 12, silent: true }); }
-  if (now - lastReminderCheck > 15000) { lastReminderCheck = now; checkRepriseReminder(); checkMorningPlan(); }
+  if (now - lastReminderCheck > 15000) { lastReminderCheck = now; checkRepriseReminder(); checkMorningPlan(); checkIdleNudge(); }
   renderClock();
   renderRunnerTimer();
 }
@@ -425,6 +425,29 @@ function chooseFocusCards() {
       btn('Enregistrer', () => { S.kanban.focus = [...chosen]; commit(); closeModal(); }),
       btn('🚀 Lancer le focus', () => { S.kanban.focus = [...chosen]; save(); closeModal(); startFocus(); }, 'btn primary')));
   });
+}
+
+// --- relance « Tu attends quoi ? » : aucun focus depuis 45 min alors que des cartes attendent ---
+let lastBusy = Date.now();
+const NUDGE_OFF_KEY = 'orbit.relance-off';
+function nudgeOffDay() { try { return localStorage.getItem(NUDGE_OFF_KEY) || ''; } catch { return ''; } }
+function checkIdleNudge() {
+  const now = Date.now();
+  if (S.timer.state !== 'Idle') { lastBusy = now; return; }
+  if (!St.idleNudgeDue(S.settings, S.timer.state, lastBusy, new Date(now), nudgeOffDay())) return;
+  // jamais par-dessus une autre question, ni en arrachant l'utilisateur a un autre ecran
+  if (view !== 'home' || modal || bubbleHasQuestion() || document.visibilityState !== 'visible') return;
+  lastBusy = now;   // prochaine relance dans 45 min au plus tot
+  const plan = St.planCards(S, 3);
+  if (!plan.length) return;
+  let text = `${Ob.pick(["Tiens ! Ça fait un moment qu'on n'a pas lancé de focus 👀", 'Psst… tes tâches t’attendent 👀', 'Hé, on se lance ? Il y a du monde qui attend 😄'])}\nTu as des tâches en cours, qu'est-ce que tu attends ? Je te propose :`;
+  plan.forEach((p, i) => { text += `\n${i + 1}. « ${St.shortText(p.card.text, 45)} »${p.why ? ` (${p.why})` : ''}`; });
+  text += '\nOn lance un focus sur l’une d’elles ?';
+  const btns = plan.map((p, i) => ({ label: `🎯 ${i + 1}. ${St.shortText(p.card.text, 22)}`, primary: i === 0,
+    run: () => { if (!St.findCard(S, p.card.id)) { toast('Cette carte n’existe plus 🤔'); return; } S.kanban.focus = [p.card.id]; save(); startFocus(); } }));
+  btns.push({ label: '⏰ Plus tard', run: () => { lastBusy = Date.now(); } });
+  btns.push({ label: '🌙 Pas aujourd’hui', run: () => { try { localStorage.setItem(NUDGE_OFF_KEY, St.dayString()); } catch { /* tant pis */ } toast('Ok, je ne te relance plus aujourd’hui 🌙'); } });
+  bubble(text, btns, { seconds: 300 });
 }
 
 // --- plan du matin ---------------------------------------------------------------------
@@ -925,7 +948,7 @@ function renderSearch() {
 const SETTINGS_FORM = [
   ['⏱ Rythme', [['rhythm', 'select', 'Rythme', [['50/10', '50 min / 10 min'], ['25/5', '25 min / 5 min'], ['Perso', 'Perso']]], ['customFocus', 'number', 'Focus perso (min)', 1, 240], ['customBreak', 'number', 'Pause perso (min)', 1, 120]]],
   ['😄 Pendant la pause', [['jokes', 'bool', 'Blagues ou culture G'], ['breakContent', 'select', 'Contenu', [['Both', 'Les deux, en alternance'], ['Jokes', 'Des blagues'], ['Culture', 'De la culture G']]], ['motivation', 'bool', 'Petites phrases de motivation pendant le focus']]],
-  ['🔔 Sons et rappels', [['sounds', 'bool', 'Sons doux (jamais stridents)'], ['vibrate', 'bool', 'Vibrations'], ['notifications', 'bool', 'Notification à la fin d’une session', "Tant que l'appli est ouverte ou en arrière-plan récent."], ['wakeLock', 'bool', 'Garder l’écran allumé pendant un focus', "Pour que le chrono sonne à coup sûr."], ['taskReminders', 'bool', 'Proposer ma carte la plus urgente au début du focus'], ['morningPlan', 'bool', 'Plan du matin']]],
+  ['🔔 Sons et rappels', [['sounds', 'bool', 'Sons doux (jamais stridents)'], ['vibrate', 'bool', 'Vibrations'], ['notifications', 'bool', 'Notification à la fin d’une session', "Tant que l'appli est ouverte ou en arrière-plan récent."], ['wakeLock', 'bool', 'Garder l’écran allumé pendant un focus', "Pour que le chrono sonne à coup sûr."], ['taskReminders', 'bool', 'Proposer ma carte la plus urgente au début du focus'], ['morningPlan', 'bool', 'Plan du matin'], ['idleNudge', 'bool', '👀 Sans focus depuis un moment : me proposer 2-3 cartes qui attendent'], ['idleNudgeMin', 'number', 'Au bout de (minutes)', 10, 240]]],
   ["✋ Je m'interromps", [['ctxButton', 'bool', 'Bouton ✋ à côté d’Orbit pendant un focus'], ['ctxRemind', 'bool', 'Me relancer si je n’ai pas repris (3 fois max)'], ['ctxRemindMin', 'number', 'Après (minutes)', 5, 480]]],
 ];
 function renderSettings() {

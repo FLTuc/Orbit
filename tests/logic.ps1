@@ -176,6 +176,33 @@ $plan = @(Get-PlanCards 3)
 Check 'le plan propose 3 cartes' ($plan.Count -eq 3)
 Check 'ordre : en retard, puis pour aujourd''hui, puis la plus prioritaire' ($plan[0].Card.text -eq 'En retard' -and $plan[1].Card.text -eq 'Pour aujourd hui' -and $plan[2].Card.text -eq 'Tres prioritaire')
 Check 'avec la raison' ($plan[0].Why -match 'retard' -and $plan[1].Why -match "aujourd'hui")
+
+# relance « Tu attends quoi ? » apres 45 min sans focus
+foreach ($def in Get-ScriptFunctions (Join-Path $Root 'orbit.ps1') @('Test-IdleNudgeDue', 'Show-IdleNudge', 'Start-NudgeCard')) { . ([scriptblock]::Create($def)) }
+function Ensure-Visible {}
+$Config.IdleNudge = $true; $Config.IdleNudgeMin = 45
+$t0 = Get-Date '2026-10-05T10:00:00'
+$O.State = 'Focus'
+Check 'relance : jamais pendant un focus' (-not (Test-IdleNudgeDue $t0) -and $O.LastBusy -eq $t0)
+$O.State = 'Idle'; $O.NudgeOffDay = ''
+Check 'relance : pas avant 45 min sans focus' (-not (Test-IdleNudgeDue $t0.AddMinutes(44)))
+Check 'relance : oui a 45 min' (Test-IdleNudgeDue $t0.AddMinutes(45))
+Check 'relance : pas si tu n''es pas devant l''ecran (attend ton retour)' (-not (Test-IdleNudgeDue $t0.AddMinutes(60) 300000))
+$script:Bubble = $null
+Check 'bulle : 3 cartes proposees + Plus tard + Pas aujourd''hui' ((Show-IdleNudge $t0.AddMinutes(45)) -and $script:Bubble.Buttons.Count -eq 5 -and $script:Bubble.Text -match 'qu''est-ce que tu attends' -and $script:Bubble.Text -match 'En retard') ($script:Bubble.Buttons -join ' | ')
+Check 'apres la bulle : prochaine relance 45 min plus tard' (-not (Test-IdleNudgeDue $t0.AddMinutes(80)) -and (Test-IdleNudgeDue $t0.AddMinutes(90)))
+$nudgeActions = $script:Bubble.Actions
+& $nudgeActions[4]
+$d0 = (Get-Date).Date; $O.LastBusy = $d0
+Check '« Pas aujourd''hui » : plus de relance ce jour-la, mais demain oui' (-not (Test-IdleNudgeDue $d0.AddHours(15)) -and (Test-IdleNudgeDue $d0.AddDays(1).AddHours(9)))
+$O.NudgeOffDay = ''
+& $nudgeActions[1]
+Check 'un clic sur une carte : focus lance sur cette carte' ($O.State -eq 'Focus' -and @($NB.FocusCards).Count -eq 1 -and $NB.FocusCards[0] -eq $plan[1].Card.id)
+$O.State = 'Idle'
+$Config.IdleNudge = $false
+Check 'relance desactivee dans les reglages : jamais' (-not (Test-IdleNudgeDue $t0.AddHours(5)))
+$NB.Todos.Clear()
+Check 'aucune carte : pas de bulle' (-not (Show-IdleNudge $t0.AddHours(6)))
 $NB.Todos.Clear(); foreach ($x in $saved) { [void]$NB.Todos.Add($x) }
 
 Section 'Recherche globale'
@@ -653,6 +680,36 @@ Check 'etat Idle : rien a reprendre' (-not (Test-Path $StateFile))
 [IO.File]::WriteAllText($StateFile, (ConvertTo-Json @{ state = 'Focus'; paused = $false; endsAt = (Get-Date).AddMinutes(5).ToString('o'); remainingSec = 0; sessionMin = 50; savedAt = (Get-Date).AddHours(-6).ToString('o') }))
 $O.State = 'Idle'; [void](Restore-State)
 Check 'etat trop ancien (6 h) : ignore' ($O.State -eq 'Idle')
+
+Section 'Mes sons : le dossier « sons », chacun son tour au hasard'
+foreach ($def in Get-ScriptFunctions (Join-Path $Root 'orbit.ps1') @('Get-MySounds', 'Pick-NotLast', 'Copy-ToSoundsDir', 'Move-OldSoundList', 'Play-Chirp')) { . ([scriptblock]::Create($def)) }
+$SoundsDir = Join-Path $T 'sons-du-test'; $SoundExt = @('.wav', '.mp3', '.m4a', '.wma')
+Check 'pas de dossier : aucun son, pas d''erreur' (@(Get-MySounds).Count -eq 0)
+$oldDir = Join-Path $T 'anciens-sons'; New-Item -ItemType Directory -Force -Path $oldDir | Out-Null
+foreach ($n in 'a.wav', 'b.mp3', 'c.m4a', 'lisez-moi.txt') { [IO.File]::WriteAllText((Join-Path $oldDir $n), $n) }
+$saved = 0; function Save-Settings { $script:saved++ }
+$Config.BubbleSoundFiles = @((Join-Path $oldDir 'a.wav'), (Join-Path $oldDir 'b.mp3'), (Join-Path $oldDir 'c.m4a'), (Join-Path $oldDir 'lisez-moi.txt'), 'C:\introuvable\x.wav')
+Move-OldSoundList
+$mine = @(Get-MySounds)
+Check 'ancienne liste rangee une fois dans le dossier « sons » (sons seulement)' ($mine.Count -eq 3 -and @($Config.BubbleSoundFiles).Count -eq 0 -and $saved -eq 1)
+[IO.File]::WriteAllText((Join-Path $SoundsDir 'd.wma'), 'd'); [IO.File]::WriteAllText((Join-Path $SoundsDir 'notes.txt'), 'x')
+Check 'un fichier pose dans le dossier est pris tout de suite (pas les autres fichiers)' (@(Get-MySounds).Count -eq 4)
+Check 'meme nom, contenu different : copie sans ecraser' ((Split-Path -Leaf (Copy-ToSoundsDir (Join-Path $oldDir 'lisez-moi.txt'))) -eq 'lisez-moi.txt' -and (Split-Path -Leaf (Copy-ToSoundsDir (Join-Path $oldDir 'a.wav'))) -eq 'a.wav')
+[IO.File]::WriteAllText((Join-Path $oldDir 'a.wav'), 'autre contenu plus long')
+Check 'homonyme different : renomme « (2) »' ((Split-Path -Leaf (Copy-ToSoundsDir (Join-Path $oldDir 'a.wav'))) -eq 'a (2).wav')
+Remove-Item -LiteralPath (Join-Path $SoundsDir 'a (2).wav'), (Join-Path $SoundsDir 'lisez-moi.txt')
+$played = New-Object System.Collections.ArrayList
+function Play-AudioFile($p) { [void]$played.Add([IO.Path]::GetFileName($p)); $true }
+function Build-Chirps {}
+$SoundStyles = @{}; $Config.DroidSounds = $true; $Config.DroidVolume = 50; $Config.BubbleSound = 'Fichier'; $script:ChirpKey = 'Fichier|50'
+for ($i = 0; $i -lt 40; $i++) { Play-Chirp -Force }
+$rounds = for ($r = 0; $r -lt 10; $r++) { (@($played[($r * 4)..($r * 4 + 3)] | Sort-Object) -join ',') }
+Check 'chaque tour joue les 4 sons une fois (pas toujours le premier)' (@($rounds | Where-Object { $_ -ne 'a.wav,b.mp3,c.m4a,d.wma' }).Count -eq 0) ($played -join ' ')
+$twice = 0; for ($i = 1; $i -lt $played.Count; $i++) { if ($played[$i] -eq $played[$i - 1]) { $twice++ } }
+Check 'jamais deux fois de suite le meme son' ($twice -eq 0)
+$orders = foreach ($r in 0..9) { $played[($r * 4)..($r * 4 + 3)] -join ',' }
+Check 'l''ordre change d''un tour a l''autre (hasard)' (@($orders | Select-Object -Unique).Count -gt 1)
+Check 'un seul son : toujours lui' ((Pick-NotLast @('seul.wav')) -eq 'seul.wav' -and (Pick-NotLast @('seul.wav')) -eq 'seul.wav')
 
 Section 'Texte des bulles : pas de caractere bizarre'
 $E = { param($cp) [char]::ConvertFromUtf32($cp) }

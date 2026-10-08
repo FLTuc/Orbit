@@ -307,6 +307,12 @@ try {
     Check '🏆 mes victoires : le deblocage y est' ($ui.BubbleText.Text -match 'Débloqué')
     Open-Settings
     Check 'reglages : bouton 📝' ($sw.SAnchorButton.IsChecked -eq $Config.AnchorButton)
+    Check 'reglages : relance sans focus (case + minutes)' ($sw.SIdleNudge.IsChecked -eq $Config.IdleNudge -and [int]$sw.SIdleNudgeMin.Text -eq $Config.IdleNudgeMin)
+    New-Item -ItemType Directory -Force -Path $SoundsDir | Out-Null
+    [IO.File]::WriteAllBytes((Join-Path $SoundsDir 'test-orbit.wav'), [byte[]](1..10))
+    Update-SoundList; Update-FileLabels
+    Check 'reglages : « Mes sons » = les fichiers du dossier sons, bouton 📂' ($sw.SSoundDir -and @($SF.BubbleFiles | Where-Object { $_ -match 'test-orbit\.wav$' }).Count -eq 1 -and $sw.SMySounds.Items.Count -ge 1)
+    Remove-Item -LiteralPath (Join-Path $SoundsDir 'test-orbit.wav') -ErrorAction SilentlyContinue
     $settingsWin.Hide()
 } catch { Check 'scenario sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
 

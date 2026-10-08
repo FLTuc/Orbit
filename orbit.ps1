@@ -101,13 +101,15 @@ $Config = @{
     DroidSounds         = $true  # petits bips de droide a chaque bulle
     DroidVolume         = 40     # volume des sons, de 0 a 100
     BubbleSound         = 'Droide'   # Droide | Carillon | Marimba | Pop | Bip | Fichier | Aleatoire
-    BubbleSoundFiles    = @()        # mes sons (.wav, .mp3, .m4a, .wma), joues au hasard
+    BubbleSoundFiles    = @()        # ancienne liste de sons : copiee une fois dans le dossier « sons »
     EndSound            = 'Carillon' # Carillon | Windows | Fichier  (fin de session et rappels)
     EndSoundFile        = ''
     CustomImage         = ''         # apparence "Mon image"
     IdlePause           = $true  # met le focus en pause si tu t'absentes
     IdleMinutes         = 5
     MorningPlan         = $true  # le matin, propose les 3 cartes les plus urgentes
+    IdleNudge           = $true  # aucun focus depuis un moment : Orbit propose 2-3 cartes qui attendent
+    IdleNudgeMin        = 45     # ... au bout de combien de minutes sans focus
     BreakContent        = 'Both' # pendant la pause : Jokes | Culture | Both (en alternance)
     NotesMirror         = ''     # dossier ou copier automatiquement les notes (vide = non)
     ContextButton       = $true  # bouton ✋ « Je m'interromps » a cote d'Orbit pendant un focus
@@ -130,6 +132,9 @@ $DataDir = Join-Path $env:APPDATA 'Orbit'
 $StatsFile = Join-Path $DataDir 'stats.json'
 $SettingsFile = Join-Path $DataDir 'settings.json'
 $LogFile = Join-Path $DataDir 'orbit.log'
+# Mes sons : tous les fichiers audio poses dans ce dossier (%APPDATA%\Orbit\sons)
+$SoundsDir = Join-Path $DataDir 'sons'
+$SoundExt = @('.wav', '.mp3', '.m4a', '.wma')
 $StateFile = Join-Path $DataDir 'etat.json'
 if (-not (Test-Path $DataDir)) { New-Item -ItemType Directory -Path $DataDir | Out-Null }
 
@@ -1329,6 +1334,9 @@ function Remove-OtherSkins([string]$keep) {
 # ---------------------------------------------------------------------------
 $O = @{
     State        = 'Idle'      # Idle | Focus | AwaitBreak | Break | AwaitFocus
+    LastBusy     = [datetime]::Now   # dernier moment avec un focus ou une pause en cours (ou derniere relance)
+    NudgeOffDay  = ''          # « Pas aujourd'hui » : plus de relance ce jour-la
+    NudgeIds     = @()
     EndsAt       = [datetime]::MinValue
     Paused       = $false
     Remaining    = [timespan]::Zero
@@ -1443,6 +1451,8 @@ function Get-SettingsSnapshot {
         idlePause          = $Config.IdlePause
         idleMinutes        = $Config.IdleMinutes
         morningPlan        = $Config.MorningPlan
+        idleNudge          = $Config.IdleNudge
+        idleNudgeMin       = $Config.IdleNudgeMin
         notesMirror        = $Config.NotesMirror
         contextButton      = $Config.ContextButton
         contextWindows     = $Config.ContextWindows
@@ -1465,6 +1475,8 @@ function Apply-SettingsData($d) {
     if (Has 'wanderMax') { $Config.WanderMaxMin = [int]$d.wanderMax }
     if (Has 'taskReminders') { $O.TaskReminders = [bool]$d.taskReminders }
     if (Has 'morningPlan') { $Config.MorningPlan = [bool]$d.morningPlan }
+    if (Has 'idleNudge') { $Config.IdleNudge = [bool]$d.idleNudge }
+    if (Has 'idleNudgeMin') { $Config.IdleNudgeMin = [math]::Min(240, [math]::Max(10, [int]$d.idleNudgeMin)) }
     if (Has 'notesMirror') { $Config.NotesMirror = [string]$d.notesMirror }
     if (Has 'reminderEveryMin') { $Config.ReminderEveryMin = [int]$d.reminderEveryMin }
     if (Has 'motivationEveryMin') { $Config.MotivationEveryMin = [int]$d.motivationEveryMin }
@@ -1981,16 +1993,59 @@ function Get-StyleBank([int]$style) {
     return $script:StyleBanks[$style]
 }
 
-function Get-MySounds { @($Config.BubbleSoundFiles | Where-Object { $_ -and (Test-Path -LiteralPath $_) }) }
+# Mes sons = les fichiers audio du dossier « sons » d'Orbit (on peut en ajouter ou en retirer
+# directement dans l'Explorateur : la liste suit le dossier)
+function Get-MySounds {
+    if (-not (Test-Path -LiteralPath $SoundsDir)) { return @() }
+    @(Get-ChildItem -LiteralPath $SoundsDir -File -ErrorAction SilentlyContinue |
+        Where-Object { $SoundExt -contains $_.Extension.ToLowerInvariant() } | Sort-Object Name | ForEach-Object { $_.FullName })
+}
 
-# tire au hasard un element different du precedent quand c'est possible
+# copie un son dans le dossier « sons » (sans ecraser un autre son du meme nom) ; renvoie son chemin
+function Copy-ToSoundsDir([string]$f) {
+    if (-not (Test-Path -LiteralPath $SoundsDir)) { New-Item -ItemType Directory -Path $SoundsDir -Force | Out-Null }
+    $full = [IO.Path]::GetFullPath($f)
+    if ([IO.Path]::GetDirectoryName($full) -eq [IO.Path]::GetFullPath($SoundsDir).TrimEnd('\', '/')) { return $full }
+    $dest = Join-Path $SoundsDir ([IO.Path]::GetFileName($f))
+    $i = 2
+    while ((Test-Path -LiteralPath $dest) -and ((Get-Item -LiteralPath $dest).Length -ne (Get-Item -LiteralPath $f).Length)) {
+        $dest = Join-Path $SoundsDir ("{0} ({1}){2}" -f [IO.Path]::GetFileNameWithoutExtension($f), $i, [IO.Path]::GetExtension($f)); $i++
+    }
+    if (-not (Test-Path -LiteralPath $dest)) { Copy-Item -LiteralPath $f -Destination $dest }
+    return $dest
+}
+
+# ancienne version : la liste de sons etait dans les reglages -> on les range une fois dans le dossier
+function Move-OldSoundList {
+    $old = @($Config.BubbleSoundFiles | Where-Object { $_ })
+    if (-not $old.Count) { return }
+    foreach ($f in $old) {
+        try { if ((Test-Path -LiteralPath $f) -and $SoundExt -contains [IO.Path]::GetExtension($f).ToLowerInvariant()) { [void](Copy-ToSoundsDir $f) } }
+        catch { Write-Log "Son $f : $($_.Exception.Message)" }
+    }
+    $Config.BubbleSoundFiles = @()
+    Save-Settings
+    Write-Log "Sons : $($old.Count) son(s) ranges dans le dossier $SoundsDir"
+}
+
+# Chacun son tour, dans un ordre au hasard : on melange la liste, on la joue en entier,
+# puis on remelange (sans rejouer tout de suite le dernier son entendu).
 function Pick-NotLast([object[]]$items) {
-    if ($items.Count -le 1) { return $items[0] }
-    do { $it = $items[(Get-Random -Maximum $items.Count)] } while ("$it" -eq "$($script:LastSoundPick)")
+    $items = @($items | Where-Object { $_ })
+    if ($items.Count -le 1) { $script:LastSoundPick = $items[0]; return $items[0] }
+    $key = ($items | ForEach-Object { "$_" }) -join '|'
+    if ($script:SoundBagKey -ne $key -or -not $script:SoundBag -or $script:SoundBag.Count -eq 0) {
+        $script:SoundBagKey = $key
+        $mixed = @($items | Sort-Object { Get-Random })
+        if ("$($mixed[0])" -eq "$($script:LastSoundPick)") { $mixed = @($mixed[1..($mixed.Count - 1)]) + @($mixed[0]) }
+        $script:SoundBag = New-Object System.Collections.Queue (, $mixed)
+    }
+    $it = $script:SoundBag.Dequeue()
     $script:LastSoundPick = $it
     return $it
 }
 Build-Chirps
+Move-OldSoundList
 
 # joue un son choisi par l'utilisateur (renvoie $false s'il est introuvable ou illisible)
 #  - .wav : lecteur simple de Windows
@@ -2267,6 +2322,62 @@ function Show-MorningPlan {
         @{ Label = '✏ Choisir autre chose'; Action = { Choose-FocusCards -Start -Preselect $O.PlanIds } },
         $BtnTodo,
         @{ Label = 'Plus tard'; Action = { Show-Bubble "Ok ! Clic droit > ☰ Plus > ☀ Plan du jour pour le revoir." -Force -Seconds 4 } }))
+}
+
+# ---------------------------------------------------------------------------
+#  Relance « Tu attends quoi ? » : aucun focus depuis 45 min (reglable) alors que des
+#  cartes attendent -> 2 ou 3 propositions, un clic lance le focus sur l'une d'elles.
+#  Jamais pendant un focus ou une pause, ni si tu n'es pas devant l'ecran, ni par-dessus
+#  une autre question, ni quand Orbit est cache ou reduit ; « Plus tard » = dans 45 min, « Pas aujourd'hui » = jusqu'a demain.
+# ---------------------------------------------------------------------------
+function Test-IdleNudgeDue([datetime]$now, [double]$idleMs = 0) {
+    if (-not $Config.IdleNudge) { return $false }
+    if ($O.State -ne 'Idle') { $O.LastBusy = $now; return $false }
+    if ($O.NudgeOffDay -eq $now.ToString('yyyy-MM-dd')) { return $false }
+    if (($now - $O.LastBusy).TotalMinutes -lt $Config.IdleNudgeMin) { return $false }
+    if ($idleMs -gt 120000) { return $false }   # pas devant l'ecran : on attend ton retour
+    return $true
+}
+
+function Show-IdleNudge([datetime]$now = (Get-Date)) {
+    $plan = @(Get-PlanCards 3)
+    $O.LastBusy = $now   # prochaine relance dans 45 min au plus tot
+    if (-not $plan.Count) { return $false }
+    $O.NudgeIds = @($plan | ForEach-Object { $_.Card.id })
+    $text = (Pick @("Tiens ! Ça fait un moment qu'on n'a pas lancé de focus 👀", "Psst… tes tâches t'attendent 👀", "Hé, on se lance ? Il y a du monde qui attend 😄")) +
+        "`nTu as des tâches en cours, qu'est-ce que tu attends ? Je te propose :"
+    $i = 1
+    foreach ($p in $plan) {
+        $text += "`n$i. « $(Short-Text $p.Card.text 45) »$(if ($p.Why) { " ($($p.Why))" })"
+        $i++
+    }
+    $text += "`nOn lance un focus sur l'une d'elles ?"
+    $buttons = @(
+        @{ Label = "🎯 1. $(Short-Text $plan[0].Card.text 22)"; Action = { Start-NudgeCard 0 }; Primary = $true }
+    )
+    if ($plan.Count -ge 2) { $buttons += @{ Label = "🎯 2. $(Short-Text $plan[1].Card.text 22)"; Action = { Start-NudgeCard 1 } } }
+    if ($plan.Count -ge 3) { $buttons += @{ Label = "🎯 3. $(Short-Text $plan[2].Card.text 22)"; Action = { Start-NudgeCard 2 } } }
+    $buttons += @{ Label = '⏰ Plus tard'; Action = { $O.LastBusy = Get-Date } }
+    $buttons += @{ Label = "🌙 Pas aujourd'hui"; Action = { $O.NudgeOffDay = (Get-Date).ToString('yyyy-MM-dd'); Show-Bubble "Ok, je ne te relance plus aujourd'hui 🌙" -Seconds 4 } }
+    Ensure-Visible
+    Show-Bubble $text -Force -AutoHide -Seconds 300 -Buttons $buttons
+    return $true
+}
+
+function Start-NudgeCard([int]$i) {
+    $id = @($O.NudgeIds)[$i]
+    if (-not $id -or -not (Find-Todo $id)) { Show-Bubble "Cette carte n'existe plus 🤔" -Force -Seconds 4; return }
+    Set-FocusCards @($id)
+    Start-Focus
+}
+
+function Check-IdleNudge([datetime]$now) {
+    $idle = if ($Native) { [OrbitNative]::IdleMs() } else { 0 }
+    if (-not (Test-IdleNudgeDue $now $idle)) { return }
+    # pas par-dessus une autre question, ni quand Orbit est cache, ni avant le plan du matin
+    # (ni en mode « Réduire », ou Orbit a promis de se taire)
+    if (-not $window.IsVisible -or $O.Mini -or $ui.BubbleButtons.Children.Count -or (Test-MorningPlanDue)) { return }
+    [void](Show-IdleNudge $now)
 }
 
 function Accept-MorningPlan {
@@ -2730,6 +2841,7 @@ function On-Second {
         if ($sig -ne $script:StateSig) { $script:StateSig = $sig; Save-State }
     } 'etat'
     if ($n % 10 -eq 0) { Invoke-Safe { Check-TaskReminders } 'rappels' }
+    if ($n % 15 -eq 11) { Invoke-Safe { Check-IdleNudge $now } 'relance sans focus' }
     if ($Native -or $n % 2 -eq 0) { Invoke-Safe { Check-Clipboard } 'presse-papiers' }
     if ($n % 2 -eq 0 -and $window.Visibility -eq 'Visible') { Invoke-Safe { Check-App } 'appli' }
     if ($n % 5 -eq 0 -and $Native -and $O.Hwnd -ne [IntPtr]::Zero -and $window.Visibility -eq 'Visible') {

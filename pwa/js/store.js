@@ -145,7 +145,7 @@ export function defaultSettings() {
     rhythm: '50/10', customFocus: 40, customBreak: 8,
     jokes: true, breakContent: 'Both', motivation: true,
     sounds: true, vibrate: true, wakeLock: false, notifications: false,
-    taskReminders: true, morningPlan: true,
+    taskReminders: true, morningPlan: true, idleNudge: true, idleNudgeMin: 45,
     ctxButton: true, ctxRemind: true, ctxRemindMin: 30,
   };
 }
@@ -179,6 +179,7 @@ export function sanitizeSettings(s) {
   out.customBreak = num(s.customBreak, 1, 120, d.customBreak);
   if (['Both', 'Jokes', 'Culture'].includes(s.breakContent)) out.breakContent = s.breakContent;
   out.ctxRemindMin = num(s.ctxRemindMin, 5, 480, d.ctxRemindMin);
+  out.idleNudgeMin = num(s.idleNudgeMin, 10, 240, d.idleNudgeMin);
   return out;
 }
 
@@ -704,6 +705,14 @@ export function winStreak(s, now = new Date()) {
 
 // --- ancien Brain Dump / DopaList : rien n'est perdu ------------------------------------
 // idees -> notes rapides, actions -> cartes, routines -> cartes qui se repetent (comme sur le PC)
+// relance « Tu attends quoi ? » : aucun focus ni pause depuis idleNudgeMin minutes
+// (« Pas aujourd'hui » = offDay, la date du jour ou on ne relance plus)
+export function idleNudgeDue(settings, timerState, lastBusyMs, now = new Date(), offDay = '') {
+  if (!settings.idleNudge || timerState !== 'Idle') return false;
+  if (offDay === dayString(now)) return false;
+  return now.getTime() - lastBusyMs >= settings.idleNudgeMin * 60000;
+}
+
 export function migrateAnchor(s) {
   let notes = 0, cards = 0;
   for (const d of s.anchor.dump) if (addNote(s, d.text)) notes++;

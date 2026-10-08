@@ -122,6 +122,11 @@
             <TextBox x:Name="SNudge"/>
             <TextBlock Text="min quand Orbit attend ma réponse" VerticalAlignment="Center"/>
           </StackPanel>
+          <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+            <CheckBox x:Name="SIdleNudge" Content="👀 Sans focus depuis" VerticalAlignment="Center"/>
+            <TextBox x:Name="SIdleNudgeMin"/>
+            <TextBlock Text="min, me proposer 2-3 cartes qui attendent" VerticalAlignment="Center"/>
+          </StackPanel>
 
           <TextBlock Style="{StaticResource Section}" Text="😄 Blagues et commentaires"/>
           <CheckBox x:Name="SJokes">
@@ -164,19 +169,20 @@
               <ComboBoxItem Content="🎵 Marimba" Tag="Marimba"/>
               <ComboBoxItem Content="🎈 Pop" Tag="Pop"/>
               <ComboBoxItem Content="📟 Bip" Tag="Bip"/>
-              <ComboBoxItem Content="📁 Mes sons (au hasard)" Tag="Fichier"/>
+              <ComboBoxItem Content="📁 Mes sons (chacun son tour)" Tag="Fichier"/>
               <ComboBoxItem Content="🎲 Aléatoire (tous les sons)" Tag="Aleatoire"/>
             </ComboBox>
             <Button x:Name="SBubbleTest" Content="▶" Padding="8,2" Margin="6,0,0,0" Background="#EEEEF5" BorderThickness="0" Cursor="Hand" ToolTip="Écouter"/>
           </StackPanel>
-          <TextBlock Margin="22,6,0,2" Text="Mes sons (.wav, .mp3…) — un est choisi au hasard à chaque bulle :" Foreground="#4A4766" FontSize="12"/>
+          <TextBlock Margin="22,6,0,2" Text="Mes sons : ceux du dossier « sons » d'Orbit (.wav, .mp3…), chacun son tour, au hasard :" Foreground="#4A4766" FontSize="12"/>
           <Grid Margin="22,0,0,0">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-            <ListBox x:Name="SMySounds" Height="72" SelectionMode="Extended" FontSize="12"/>
+            <ListBox x:Name="SMySounds" Height="108" SelectionMode="Extended" FontSize="12"/>
             <StackPanel Grid.Column="1" Margin="6,0,0,0">
               <Button x:Name="SSoundAdd" Content="＋ Ajouter…" Padding="8,2" Margin="0,0,0,4" Background="#EEEEF5" BorderThickness="0" Cursor="Hand"/>
               <Button x:Name="SSoundDel" Content="－ Retirer" Padding="8,2" Margin="0,0,0,4" Background="#EEEEF5" BorderThickness="0" Cursor="Hand"/>
-              <Button x:Name="SSoundPlay" Content="▶ Écouter" Padding="8,2" Background="#EEEEF5" BorderThickness="0" Cursor="Hand" ToolTip="Écouter le son sélectionné"/>
+              <Button x:Name="SSoundPlay" Content="▶ Écouter" Padding="8,2" Margin="0,0,0,4" Background="#EEEEF5" BorderThickness="0" Cursor="Hand" ToolTip="Écouter le son sélectionné (sinon le suivant)"/>
+              <Button x:Name="SSoundDir" Content="📂 Dossier" Padding="8,2" Background="#EEEEF5" BorderThickness="0" Cursor="Hand" ToolTip="Ouvrir le dossier de tes sons : tout fichier .wav, .mp3, .m4a ou .wma posé dedans est joué"/>
             </StackPanel>
           </Grid>
 
@@ -214,7 +220,7 @@ $sw = @{}
 $DefaultSettings = Get-SettingsSnapshot
 $DefaultSettings.rhythm = '50/10'; $DefaultSettings.customFocus = 40; $DefaultSettings.customBreak = 8
 $DefaultSettings.quiet = $false; $DefaultSettings.wander = $true; $DefaultSettings.wanderMin = 4; $DefaultSettings.wanderMax = 9
-$DefaultSettings.taskReminders = $true; $DefaultSettings.morningPlan = $true; $DefaultSettings.reminderEveryMin = 4; $DefaultSettings.motivationEveryMin = 9
+$DefaultSettings.taskReminders = $true; $DefaultSettings.morningPlan = $true; $DefaultSettings.idleNudge = $true; $DefaultSettings.idleNudgeMin = 45; $DefaultSettings.reminderEveryMin = 4; $DefaultSettings.motivationEveryMin = 9
 $DefaultSettings.jokes = $true; $DefaultSettings.breakContent = 'Both'; $DefaultSettings.jokeEveryMin = 2; $DefaultSettings.appComments = $true
 $DefaultSettings.skin = 'Satellite'; $DefaultSettings.sounds = $true; $DefaultSettings.droidSounds = $true; $DefaultSettings.droidVolume = 40; $DefaultSettings.bubbleSound = 'Droide'; $DefaultSettings.endSound = 'Carillon'; $DefaultSettings.idlePause = $true; $DefaultSettings.idleMinutes = 5
 $DefaultSettings.anchorButton = $true; $DefaultSettings.contextButton = $true; $DefaultSettings.contextWindows = 3; $DefaultSettings.contextScreenshot = $false; $DefaultSettings.contextRemind = $true; $DefaultSettings.contextRemindMin = 30
@@ -235,6 +241,8 @@ function Fill-SettingsForm($d) {
     $sw.SCtxRemind.IsChecked = $d.contextRemind
     $sw.SCtxRemindMin.Text = $d.contextRemindMin
     $sw.SMorning.IsChecked = $d.morningPlan
+    $sw.SIdleNudge.IsChecked = $d.idleNudge
+    $sw.SIdleNudgeMin.Text = $d.idleNudgeMin
     $sw.SNudge.Text = $d.reminderEveryMin
     $sw.SJokes.IsChecked = $d.jokes
     $sw.SJokeMin.Text = $d.jokeEveryMin
@@ -249,14 +257,13 @@ function Fill-SettingsForm($d) {
     $sw.SDroid.IsChecked = $d.droidSounds
     $sw.SDroidVol.Value = [math]::Max(5, [double]$d.droidVolume)
     foreach ($k in 'Satellite', 'Droid', 'Robot', 'Butler', 'Human', 'Brain', 'Custom') { $sw["SSkin$k"].IsChecked = ($d.skin -eq $k) }
-    $SF.BubbleFiles = New-Object System.Collections.ArrayList
-    foreach ($f in @($d.bubbleSoundFiles)) { if ($f) { [void]$SF.BubbleFiles.Add([string]$f) } }
+    Update-SoundList
     $SF.EndFile = [string]$d.endSoundFile
     Select-ComboTag $sw.SBubbleSound $d.bubbleSound
     Select-ComboTag $sw.SEndSound $d.endSound
     Update-FileLabels
     $sw.SError.Visibility = 'Collapsed'
-    foreach ($tb in 'SPersoFocus','SPersoBreak','SIdleMin','SNudge','SJokeMin','SMotiv','SWanderMin','SWanderMax','SCtxRemindMin') {
+    foreach ($tb in 'SPersoFocus','SPersoBreak','SIdleMin','SNudge','SIdleNudgeMin','SJokeMin','SMotiv','SWanderMin','SWanderMax','SCtxRemindMin') {
         $sw[$tb].ClearValue([Windows.Controls.Control]::BorderBrushProperty)
     }
 }
@@ -282,6 +289,7 @@ function Save-SettingsForm {
     $pb = Read-Number 'SPersoBreak' 1 120 ([ref]$errors)
     $idle = Read-Number 'SIdleMin' 1 120 ([ref]$errors)
     $nudge = Read-Number 'SNudge' 1 60 ([ref]$errors)
+    $idleNudgeMin = Read-Number 'SIdleNudgeMin' 10 240 ([ref]$errors)
     $joke = Read-Number 'SJokeMin' 0.5 30 ([ref]$errors)
     $motiv = Read-Number 'SMotiv' 1 120 ([ref]$errors)
     $wmin = Read-Number 'SWanderMin' 1 120 ([ref]$errors)
@@ -298,13 +306,13 @@ function Save-SettingsForm {
     Apply-SettingsData ([pscustomobject]@{
         rhythm = $rhythm; customFocus = $pf; customBreak = $pb
         idlePause = [bool]$sw.SIdle.IsChecked; idleMinutes = [int]$idle
-        taskReminders = [bool]$sw.STasks.IsChecked; reminderEveryMin = [int]$nudge; morningPlan = [bool]$sw.SMorning.IsChecked
+        taskReminders = [bool]$sw.STasks.IsChecked; reminderEveryMin = [int]$nudge; morningPlan = [bool]$sw.SMorning.IsChecked; idleNudge = [bool]$sw.SIdleNudge.IsChecked; idleNudgeMin = [int]$idleNudgeMin
         jokes = [bool]$sw.SJokes.IsChecked; jokeEveryMin = $joke; breakContent = $(if ($sw.SBreakContent.SelectedItem) { [string]$sw.SBreakContent.SelectedItem.Tag } else { 'Both' }); motivationEveryMin = [int]$motiv
         appComments = [bool]$sw.SApps.IsChecked; quiet = [bool]$sw.SQuiet.IsChecked
         wander = [bool]$sw.SWander.IsChecked; wanderMin = [int]$wmin; wanderMax = [int]$wmax
         sounds = [bool]$sw.SSounds.IsChecked; droidSounds = [bool]$sw.SDroid.IsChecked
         droidVolume = [int]$sw.SDroidVol.Value
-        bubbleSound = [string]$sw.SBubbleSound.SelectedItem.Tag; bubbleSoundFiles = @($SF.BubbleFiles)
+        bubbleSound = [string]$sw.SBubbleSound.SelectedItem.Tag; bubbleSoundFiles = @()
         endSound = [string]$sw.SEndSound.SelectedItem.Tag; endSoundFile = $SF.EndFile
         anchorButton = [bool]$sw.SAnchorButton.IsChecked; contextButton = [bool]$sw.SCtxButton.IsChecked; contextWindows = $(if ($sw.SCtxWindows.SelectedItem) { [int]$sw.SCtxWindows.SelectedItem.Tag } else { 3 })
         contextScreenshot = [bool]$sw.SCtxShot.IsChecked; contextRemind = [bool]$sw.SCtxRemind.IsChecked; contextRemindMin = [int]$ctxMin
@@ -352,7 +360,11 @@ function Open-Settings {
 
 # choix des fichiers en attente d'enregistrement
 $SF = @{ BubbleFiles = (New-Object System.Collections.ArrayList); EndFile = '' }
-$SoundsDir = Join-Path $DataDir 'sons'
+# la liste « Mes sons » = le contenu du dossier $SoundsDir (relu a chaque ouverture)
+function Update-SoundList {
+    $SF.BubbleFiles = New-Object System.Collections.ArrayList
+    foreach ($f in (Get-MySounds)) { [void]$SF.BubbleFiles.Add([string]$f) }
+}
 
 function Select-ComboTag($combo, [string]$tag) {
     foreach ($it in $combo.Items) { if ($it.Tag -eq $tag) { $combo.SelectedItem = $it; return } }
@@ -367,7 +379,7 @@ function Update-FileLabels {
         $it.Tag = $f
         [void]$sw.SMySounds.Items.Add($it)
     }
-    if (-not $SF.BubbleFiles.Count) { [void]$sw.SMySounds.Items.Add('Aucun son pour l''instant : clique sur « Ajouter… »') }
+    if (-not $SF.BubbleFiles.Count) { [void]$sw.SMySounds.Items.Add('Aucun son : clique sur « Ajouter… » ou pose tes fichiers dans le dossier') }
     $sw.SEndFileName.Text = if ($SF.EndFile) { '📁 ' + [IO.Path]::GetFileName($SF.EndFile) } else { '' }
     $sw.SImgName.Text = if ($Config.CustomImage) { [IO.Path]::GetFileName($Config.CustomImage) } else { 'aucune image pour l''instant' }
 }
@@ -381,38 +393,44 @@ function Pick-WavFile([switch]$Multi) {
     return $null
 }
 
-# ajoute des sons : copies dans le dossier d'Orbit pour rester disponibles
+# ajoute des sons : copies dans le dossier « sons » d'Orbit (la liste = ce dossier)
 function Add-MySounds {
     $files = Pick-WavFile -Multi
     if (-not $files) { return }
-    if (-not (Test-Path $SoundsDir)) { New-Item -ItemType Directory -Path $SoundsDir | Out-Null }
     foreach ($f in $files) {
-        try {
-            $name = [IO.Path]::GetFileName($f)
-            $dest = Join-Path $SoundsDir $name
-            $i = 2
-            while ((Test-Path -LiteralPath $dest) -and ((Get-Item -LiteralPath $dest).Length -ne (Get-Item -LiteralPath $f).Length)) {
-                $dest = Join-Path $SoundsDir ("{0} ({1}){2}" -f [IO.Path]::GetFileNameWithoutExtension($f), $i, [IO.Path]::GetExtension($f)); $i++
-            }
-            if ($f -ne $dest) { Copy-Item -LiteralPath $f -Destination $dest -Force }
-            if ($SF.BubbleFiles -notcontains $dest) { [void]$SF.BubbleFiles.Add($dest) }
-        } catch { Write-Log "Ajout son : $($_.Exception.Message)" }
+        try { [void](Copy-ToSoundsDir $f) } catch { Write-Log "Ajout son : $($_.Exception.Message)" }
     }
     if ([string]$sw.SBubbleSound.SelectedItem.Tag -notin 'Fichier', 'Aleatoire') { Select-ComboTag $sw.SBubbleSound 'Fichier' }
+    Update-SoundList
     Update-FileLabels
 }
 
+# retire des sons : ils partent a la corbeille de Windows (recuperables)
 function Remove-MySounds {
-    foreach ($it in @($sw.SMySounds.SelectedItems)) { if ($it.Tag) { $SF.BubbleFiles.Remove([string]$it.Tag) } }
+    foreach ($it in @($sw.SMySounds.SelectedItems)) {
+        $f = [string]$it.Tag
+        if (-not $f -or -not (Test-Path -LiteralPath $f)) { continue }
+        try {
+            Add-Type -AssemblyName Microsoft.VisualBasic
+            [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile($f, 'OnlyErrorDialogs', 'SendToRecycleBin')
+        } catch { Write-Log "Retrait son : $($_.Exception.Message)" }
+    }
+    Update-SoundList
     Update-FileLabels
+}
+
+# ouvre le dossier des sons dans l'Explorateur (on peut y deposer ou supprimer des fichiers)
+function Open-SoundsDir {
+    if (-not (Test-Path -LiteralPath $SoundsDir)) { New-Item -ItemType Directory -Path $SoundsDir -Force | Out-Null }
+    Start-Process explorer.exe "`"$SoundsDir`""
 }
 
 # ecoute d'un son avec les choix de la fenetre, sans enregistrer
 function Test-SoundChoice([switch]$End) {
     $keep = @{}
-    foreach ($k in 'DroidVolume', 'DroidSounds', 'Sounds', 'BubbleSound', 'BubbleSoundFiles', 'EndSound', 'EndSoundFile') { $keep[$k] = $Config[$k] }
+    foreach ($k in 'DroidVolume', 'DroidSounds', 'Sounds', 'BubbleSound', 'EndSound', 'EndSoundFile') { $keep[$k] = $Config[$k] }
     $Config.DroidVolume = [int]$sw.SDroidVol.Value; $Config.DroidSounds = $true; $Config.Sounds = $true
-    $Config.BubbleSound = [string]$sw.SBubbleSound.SelectedItem.Tag; $Config.BubbleSoundFiles = @($SF.BubbleFiles)
+    $Config.BubbleSound = [string]$sw.SBubbleSound.SelectedItem.Tag
     $Config.EndSound = [string]$sw.SEndSound.SelectedItem.Tag; $Config.EndSoundFile = $SF.EndFile
     if ($End) { Play-Sound -Force } else { Play-Chirp -Force -Question:((Get-Random -Maximum 2) -eq 1) }
     foreach ($k in $keep.Keys) { $Config[$k] = $keep[$k] }
@@ -426,8 +444,8 @@ function Initialize-Settings {
     $script:settingsWin = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $settingsXaml))
     $script:sw = @{}
     foreach ($n in 'SHeader','SClose','SDefaults','SCancel','SSave','SError','SR50','SR25','SRPerso','SPersoFocus','SPersoBreak',
-                   'SIdle','SIdleMin','STasks','SCtxButton','SAnchorButton','SCtxWindows','SCtxShot','SCtxRemind','SCtxRemindMin','SMorning','SNudge','SJokes','SJokeMin','SBreakContent','SMotiv','SApps','SQuiet','SWander','SWanderMin',
-                   'SWanderMax','SSounds','SDroid','SDroidVol','SAuto','SBubbleSound','SBubbleTest','SMySounds','SSoundAdd','SSoundDel','SSoundPlay',
+                   'SIdle','SIdleMin','STasks','SCtxButton','SAnchorButton','SCtxWindows','SCtxShot','SCtxRemind','SCtxRemindMin','SMorning','SIdleNudge','SIdleNudgeMin','SNudge','SJokes','SJokeMin','SBreakContent','SMotiv','SApps','SQuiet','SWander','SWanderMin',
+                   'SWanderMax','SSounds','SDroid','SDroidVol','SAuto','SBubbleSound','SBubbleTest','SMySounds','SSoundAdd','SSoundDel','SSoundPlay','SSoundDir',
                    'SEndSound','SEndFile','SEndTest','SEndFileName','SSkinCustom','SImgPick','SImgName','SSkinSatellite','SSkinDroid','SSkinRobot','SSkinButler','SSkinBrain','SSkinHuman') {
         $sw[$n] = $settingsWin.FindName($n)
     }
@@ -441,10 +459,12 @@ function Initialize-Settings {
     $sw.SEndTest.Add_Click({ Invoke-Safe { Test-SoundChoice -End } })
     $sw.SSoundAdd.Add_Click({ Invoke-Safe { Add-MySounds } })
     $sw.SSoundDel.Add_Click({ Invoke-Safe { Remove-MySounds } })
+    $sw.SSoundDir.Add_Click({ Invoke-Safe { Open-SoundsDir } })
     $sw.SSoundPlay.Add_Click({
         Invoke-Safe {
             $it = $sw.SMySounds.SelectedItem
-            $f = if ($it -and $it.Tag) { [string]$it.Tag } elseif ($SF.BubbleFiles.Count) { $SF.BubbleFiles[0] } else { $null }
+            # rien de selectionne : le suivant de la liste (chacun son tour, au hasard), pas toujours le premier
+            $f = if ($it -and $it.Tag) { [string]$it.Tag } elseif ($SF.BubbleFiles.Count) { Pick-NotLast @($SF.BubbleFiles) } else { $null }
             if ($f -and -not (Play-AudioFile $f)) { [Windows.MessageBox]::Show($settingsWin, "Impossible de lire ce fichier. Vérifie que c'est bien un fichier .wav, .mp3, .m4a ou .wma.", 'Orbit') | Out-Null }
         }
     })
