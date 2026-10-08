@@ -53,7 +53,7 @@ if (migrated) save();
 // une autre fenetre d'Orbit a modifie les donnees
 window.addEventListener('storage', (e) => { if (e.key === St.STORAGE_KEY) { S = load(); render(); } });
 
-// --- donnees chargees a la demande (blagues, culture G, decoupeur) -----------------------
+// --- donnees chargees a la demande (decoupeur du S.O.S) -----------------------------------
 const cache = {};
 async function data(name) {
   if (!cache[name]) {
@@ -191,7 +191,6 @@ function celebrate(el, big = false) {
 
 // --- la bulle d'Orbit --------------------------------------------------------------------
 let bubbleTimer = 0;
-let punch = null;
 function bubble(text, buttons = [], opts = {}) {
   const b = $('bubble');
   // guillemets « » : espaces insecables, pour qu'un « ne reste jamais seul en fin de ligne
@@ -209,7 +208,7 @@ function bubble(text, buttons = [], opts = {}) {
   // un message important arrive quand on est sur un autre ecran : petit rappel
   if (opts.important && view !== 'home') toast(St.shortText(text, 60), { label: 'Voir', run: () => go('home') }, 8);
 }
-function hideBubble() { $('bubble').classList.add('hidden'); clearTimeout(bubbleTimer); punch = null; }
+function hideBubble() { $('bubble').classList.add('hidden'); clearTimeout(bubbleTimer); }
 function bubbleHasQuestion() { return !$('bubble').classList.contains('hidden') && $('bubbleButtons').children.length > 0; }
 
 // --- notifications (fin de session) ----------------------------------------------------
@@ -237,7 +236,7 @@ async function updateWakeLock() {
 //  Chrono
 // =========================================================================================
 const fmtClock = (ms) => { const s = Math.ceil(ms / 1000); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
-let nextJoke = 0;
+let nextBreakLine = 0;
 let nextMotivation = 0;
 let endTimer = 0;
 
@@ -267,7 +266,7 @@ function startFocus() {
 }
 function startBreak() {
   St.startBreak(S);
-  nextJoke = Date.now() + 40000;
+  nextBreakLine = Date.now() + 40000;
   commit();
   scheduleEnd();
   updateWakeLock();
@@ -317,34 +316,24 @@ function loop() {
   const now = Date.now();
   const t = S.timer;
   if (document.visibilityState === 'visible') stepTicks(now);
-  if (t.state === 'Break' && !t.paused && S.settings.jokes && now >= nextJoke && St.timeLeft(S) > 20000 && view === 'home' && !bubbleHasQuestion()) {
-    nextJoke = now + 120000;
+  if (t.state === 'Break' && !t.paused && S.settings.breakLines && now >= nextBreakLine && St.timeLeft(S) > 20000 && view === 'home' && !bubbleHasQuestion()) {
+    nextBreakLine = now + 120000;
     tellBreakItem();
   }
   if (t.state === 'Focus' && !t.paused && S.settings.motivation && now >= nextMotivation && view === 'home' && !bubbleHasQuestion()) {
     nextMotivation = now + 9 * 60000;
     bubble(Ob.pick(Ob.LINES.motivation), [], { seconds: 7 });
   }
-  if (punch && now >= punch.at) { const p = punch; punch = null; if (!$('bubble').classList.contains('hidden')) bubble(p.full, [], { seconds: 12, silent: true }); }
   if (now - lastReminderCheck > 15000) { lastReminderCheck = now; checkRepriseReminder(); checkMorningPlan(); checkIdleNudge(); }
   renderClock();
   renderRunnerTimer();
 }
 
-let breakAlt = 0;
-async function tellBreakItem() {
-  const mode = S.settings.breakContent;
-  const culture = mode === 'Culture' || (mode === 'Both' && (breakAlt++ % 2 === 1));
-  const list = await data(culture ? 'culture' : 'jokes');
-  const item = St.nextItem(list, S.stats, culture ? 'factSeed' : 'jokeSeed', culture ? 'factPos' : 'jokePos');
-  save();
-  if (!item) return;
-  const [q, a] = item.split('|');
-  const head = culture ? '🧠 ' : '😄 ';
-  if (a) {
-    bubble(`${head}${culture ? 'Quiz : ' : ''}${q} 🤔`, [], { seconds: culture ? 20 : 16 });
-    punch = { at: Date.now() + (culture ? 6000 : 4000), full: `${head}${q}\n\n👉 ${a}` };
-  } else bubble(`${head}${q}`, [], { seconds: 14 });
+// pendant la pause : une petite phrase sympa, chacune son tour dans un ordre au hasard
+let breakBag = [];
+function tellBreakItem() {
+  if (!breakBag.length) breakBag = [...Ob.LINES.breakLines].sort(() => Math.random() - 0.5);
+  bubble(breakBag.shift(), [], { seconds: 12 });
 }
 
 // =========================================================================================
@@ -978,7 +967,7 @@ function renderSearch() {
 // =========================================================================================
 const SETTINGS_FORM = [
   ['⏱ Rythme', [['rhythm', 'select', 'Rythme', [['50/10', '50 min / 10 min'], ['25/5', '25 min / 5 min'], ['Perso', 'Perso']]], ['customFocus', 'number', 'Focus perso (min)', 1, 240], ['customBreak', 'number', 'Pause perso (min)', 1, 120]]],
-  ['😄 Pendant la pause', [['jokes', 'bool', 'Blagues ou culture G'], ['breakContent', 'select', 'Contenu', [['Both', 'Les deux, en alternance'], ['Jokes', 'Des blagues'], ['Culture', 'De la culture G']]], ['motivation', 'bool', 'Petites phrases de motivation pendant le focus']]],
+  ['💬 Petites phrases', [['breakLines', 'bool', 'Petites phrases sympas pendant la pause'], ['motivation', 'bool', 'Petites phrases de motivation pendant le focus']]],
   ['🔔 Sons et rappels', [['sounds', 'bool', 'Sons doux (jamais stridents)'], ['vibrate', 'bool', 'Vibrations'], ['notifications', 'bool', 'Notification à la fin d’une session', "Tant que l'appli est ouverte ou en arrière-plan récent."], ['wakeLock', 'bool', 'Garder l’écran allumé pendant un focus', "Pour que le chrono sonne à coup sûr."], ['taskReminders', 'bool', 'Proposer ma carte la plus urgente au début du focus'], ['morningPlan', 'bool', 'Plan du matin'], ['idleNudge', 'bool', '👀 Sans focus depuis un moment : me proposer 2-3 cartes qui attendent'], ['idleNudgeMin', 'number', 'Au bout de (minutes)', 10, 240]]],
   ['⏳ Compte à rebours', [['urgencyBar', 'bool', 'Barre qui se vide et change de couleur (bleu, jaune, orange, rouge qui pulse)'], ['tickSound', 'bool', 'Un tic doux qui s’accélère à l’approche de la fin du focus'], ['tickZoneMin', 'number', 'Pendant les dernières (minutes)', 1, 15]]],
   ["✋ Je m'interromps", [['ctxButton', 'bool', 'Bouton ✋ à côté d’Orbit pendant un focus'], ['ctxRemind', 'bool', 'Me relancer si je n’ai pas repris (3 fois max)'], ['ctxRemindMin', 'number', 'Après (minutes)', 5, 480]]],

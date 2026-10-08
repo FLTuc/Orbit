@@ -18,8 +18,7 @@ Check 'les fonctions natives sont disponibles' $Native
 Check 'le code natif est garde en cache' (@(Get-ChildItem (Join-Path $appData 'Orbit') -Filter 'native-*.dll').Count -eq 1)
 Check 'le carnet n''est pas construit au demarrage (a la demande)' ($null -eq $panel)
 Check 'la fenetre des reglages non plus' ($null -eq $settingsWin)
-Check 'les blagues sont chargees (1000+)' ($Jokes.Count -ge 1000)
-Check 'la culture G est chargee (300+)' ($Facts.Count -ge 300)
+Check 'ni blagues ni culture G : de petites phrases sympas pour la pause' ($Lines.BreakLines.Count -ge 10 -and -not (Get-Command Tell-Joke -ErrorAction SilentlyContinue) -and -not (Get-Command Tell-Fact -ErrorAction SilentlyContinue))
 
 Section 'Dessins (construits a la demande)'
 foreach ($k in @($Skins.Keys | Where-Object { $_ -ne 'Custom' })) {
@@ -41,34 +40,20 @@ try { Set-Skin 'Custom' -Quiet; Check 'image personnalisee affichee' ($O.Skin -e
 Set-Skin 'Satellite' -Quiet
 Check 'changer de dessin libere les autres' ($LoadedSkins.Count -eq 1 -and -not $ui.CustomImg)
 
-Section 'Culture G pendant la pause'
+Section 'Petites phrases pendant la pause'
 try {
-    Tell-Fact -Force
-    Check 'une anecdote ou un quiz s''affiche' ($ui.BubbleText.Text -match '🧠')
-    $seen = @{}; for ($i = 0; $i -lt 50; $i++) { $seen[(Get-NextFact)] = 1 }
-    Check 'pas de repetition sur 50 tirages' ($seen.Count -eq 50)
-    $Config.BreakContent = 'Culture'; Hide-Bubble; Tell-BreakItem
-    Check 'reglage « culture G » : que de la culture' ($ui.BubbleText.Text -match '🧠')
-    $Config.BreakContent = 'Jokes'; Hide-Bubble; Tell-BreakItem
-    Check 'reglage « blagues » : pas de culture' ($ui.BubbleText.Text -notmatch '🧠')
-    $Config.BreakContent = 'Both'; $kinds = @{}
-    for ($i = 0; $i -lt 4; $i++) { Hide-Bubble; Tell-BreakItem; $kinds[[bool]($ui.BubbleText.Text -match '🧠')] = 1 }
-    Check 'reglage « les deux » : alternance blagues / culture' ($kinds.Count -eq 2)
-    $q = @($Facts | Where-Object { $_ -match '\|' })[0]
-    $O.FactPos = [array]::IndexOf(@($Facts), $q); $script:FactOrder = [int[]](0..($Facts.Count - 1))
-    Hide-Bubble; Tell-Fact -Force
-    Check 'quiz : la question d''abord' ($ui.BubbleText.Text -match 'Quiz' -and $ui.BubbleText.Text -notmatch '👉')
-    $O.Punch.At = (Get-Date).AddSeconds(-1); On-Frame
-    Check 'puis la reponse' ($ui.BubbleText.Text -match '👉')
+    Hide-Bubble; Tell-BreakItem
+    Check 'une petite phrase sympa s''affiche (bulle de pensee)' ($ui.BubbleText.Text -and $Lines.BreakLines -contains $ui.BubbleText.Text)
+    $seen = @{}; for ($i = 0; $i -lt $Lines.BreakLines.Count; $i++) { $seen[(Get-NextBreakLine)] = 1 }
+    Check 'chacune son tour : toutes passent avant de revenir' ($seen.Count -eq $Lines.BreakLines.Count)
     Hide-Bubble
-} catch { Check 'culture G sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
+} catch { Check 'petites phrases sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
 
 Section 'Texte des bulles (vraies polices de Windows)'
 [void](Test-Glyph 0x41)
 Check 'polices des bulles trouvees (texte, emoji, symboles)' ($script:GlyphMaps.Count -ge 2) "$($script:GlyphMaps.Count) police(s)"
 $texts = New-Object System.Collections.Generic.List[string]
-foreach ($t in $Jokes) { $texts.Add($t) }
-foreach ($t in $Facts) { $texts.Add($t) }
+foreach ($t in $Lines.BreakLines) { $texts.Add($t) }
 foreach ($file in 'orbit.ps1', 'notebook.ps1', 'notes.ps1', 'settings.ps1', 'transfer.ps1', 'context.ps1', 'anchor.ps1') {
     $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $Root $file), [ref]$null, [ref]$null)
     foreach ($node in $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.StringConstantExpressionAst] -or
@@ -346,7 +331,7 @@ try {
     $z.Dispose()
     Check 'zip cree' (Test-Path $zip)
     Check 'il contient le programme' (@($names | Where-Object { $_ -match 'Orbit[\\/]orbit\.ps1$' }).Count -eq 1)
-    Check 'et la culture G' (@($names | Where-Object { $_ -match 'culture[\\/].+\.txt$' }).Count -ge 5)
+    Check 'et les regles du S.O.S (decoupage identique sur l''autre PC)' (@($names | Where-Object { $_ -match 'unstick[\\/]rules\.json$' }).Count -eq 1)
     Check 'et les tableaux' (@($names | Where-Object { $_ -match 'donnees[\\/]kanban\.json$' }).Count -eq 1)
     Check 'mais pas le code compile de ce PC' (@($names | Where-Object { $_ -match 'native-' }).Count -eq 0)
     Check 'ni les captures d''ecran' (@($names | Where-Object { $_ -match 'captures[\\/]' }).Count -eq 0)
@@ -458,7 +443,7 @@ try {
         for ($f = 0; $f -lt 20; $f++) { On-Frame }
         Update-TrayIcon
         $O.EndsAt = (Get-Date).AddSeconds(-1); On-Second            # fin du focus -> question
-        Start-Break; Update-TrayIcon; Tell-Joke
+        Start-Break; Update-TrayIcon; Tell-BreakItem
         $O.EndsAt = (Get-Date).AddSeconds(-1); On-Second            # fin de la pause -> question
         Show-QuickNote; $qn.QnText.Text = "endurance $i"; Close-QuickNote
         Open-Notebook 'Todo'; Render-Todos; Select-Tab 'Search'; $pn.SearchBox.Text = 'endurance'; Render-Search; Close-Notebook

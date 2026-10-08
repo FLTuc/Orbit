@@ -94,9 +94,9 @@ $Config = @{
     WanderMaxMin        = 9
     BubbleSeconds       = 7
     CornerMargin        = 6
-    Jokes               = $true  # blagues pendant la pause
-    JokeEveryMin        = 2      # une blague toutes les ~2 minutes de pause
-    AppComments         = $true  # commentaires selon l'appli sous la souris
+    BreakLines          = $true  # petites phrases sympas pendant la pause
+    BreakLineEveryMin   = 2      # une toutes les ~2 minutes de pause
+    AppComments         = $true  # pendant un focus, rappel bienveillant sur un site de distraction
     Sounds              = $true
     DroidSounds         = $true  # petits bips de droide a chaque bulle
     DroidVolume         = 40     # volume des sons, de 0 a 100
@@ -113,7 +113,6 @@ $Config = @{
     UrgencyBar          = $true  # barre de compte a rebours qui change de couleur, a cote d'Orbit
     IdleNudge           = $true  # aucun focus depuis un moment : Orbit propose 2-3 cartes qui attendent
     IdleNudgeMin        = 45     # ... au bout de combien de minutes sans focus
-    BreakContent        = 'Both' # pendant la pause : Jokes | Culture | Both (en alternance)
     NotesMirror         = ''     # dossier ou copier automatiquement les notes (vide = non)
     ContextButton       = $true  # bouton ✋ « Je m'interromps » a cote d'Orbit pendant un focus
     ContextWindows      = 3      # fenetres precedentes gardees en plus de la fenetre active (0 a 5)
@@ -167,19 +166,6 @@ function Get-TextStart([string]$text, [int]$max) {
     if ([char]::IsHighSurrogate($text[$n - 1])) { $n-- }
     while ($n -gt 0 -and ([int]$text[$n - 1] -in 0x200D, 0xFE0E, 0xFE0F, 0x20E3)) { $n-- }
     return $text.Substring(0, $n)
-}
-
-# Lecture d'un fichier texte de l'utilisateur (blagues, culture G) : UTF-8 avec ou sans BOM,
-# et s'il a ete enregistre en ANSI (ancien Bloc-notes), on le lit en Windows-1252 au lieu
-# d'afficher des losanges a la place des accents.
-function Read-TextLines([string]$path) {
-    $bytes = [IO.File]::ReadAllBytes($path)
-    try { $text = (New-Object Text.UTF8Encoding($false, $true)).GetString($bytes) }
-    catch {
-        $ansi = try { [Text.Encoding]::GetEncoding(1252) } catch { [Text.Encoding]::GetEncoding(28591) }
-        $text = $ansi.GetString($bytes)
-    }
-    return , ($text.TrimStart([char]0xFEFF) -split "`r?`n")
 }
 
 # Polices des bulles : Segoe UI pour le texte, puis les polices d'emoji et de symboles.
@@ -665,37 +651,23 @@ $Lines = @{
         "Ok, on coupe. Bien joué : {0} session(s) de focus aujourd'hui 🏆",
         "Chrono coupé. {0} session(s) aujourd'hui, respect 🙌"
     )
-    BreakJokes = @(
-        "Pourquoi les astronautes ne se disputent jamais ? Parce qu'ils ont besoin d'espace 🚀",
-        "Le comble pour un astronaute ? Être dans la lune 🌙",
-        "Comment les planètes se coiffent-elles ? Avec des comètes ☄",
-        "Pourquoi les satellites ne mentent jamais ? Parce qu'on les a toujours à l'œil 🛰",
-        "Quel est le comble pour un électricien ? De ne pas être au courant ⚡",
-        "Pourquoi les plongeurs plongent-ils en arrière ? Parce que sinon, ils tombent dans le bateau 🤿",
-        "Qu'est-ce qui est jaune et qui attend ? Jonathan 🟡",
-        "Que fait une fraise sur un cheval ? Tagada, tagada 🍓",
-        "Quel est le sport le plus fruité ? La boxe : tu te prends des pêches et tu tombes dans les pommes 🥊",
-        "Pourquoi le livre de maths est-il triste ? Parce qu'il a trop de problèmes 📘",
-        "Qu'est-ce qu'un canif ? Un petit fien 🐶",
-        "Qu'est-ce qui est vert et qui monte et descend ? Un petit pois dans un ascenseur 🟢",
-        "Pourquoi Excel reste toujours calme ? Il a toutes ses cellules sous contrôle 📊",
-        "Quel est le café préféré des développeurs ? Le Java ☕",
-        "Comment appelle-t-on un boomerang qui ne revient pas ? Un bout de bois 🌳",
-        "Deux grains de sable arrivent dans le désert : « Waouh, c'est blindé aujourd'hui ! » 🏜",
-        "Pourquoi les vaches ferment les yeux pendant la traite ? Pour faire du lait concentré 🐄",
-        "Que dit une imprimante dans l'eau ? « J'ai papier ! » 🖨",
-        "Monsieur et Madame Térieur ont deux fils. Comment s'appellent-ils ? Alain et Alex 🏠",
-        "Qu'est-ce qu'un crocodile qui surveille la pharmacie ? Un Lacoste-garde 🐊",
-        "Que dit un oignon quand il se cogne ? « Aïe ! » 🧅",
-        "Pourquoi les poissons détestent l'ordinateur ? À cause du Net 🐟",
-        "Que dit un informaticien quand il s'ennuie ? « Je me fichier » 💾",
-        "Pourquoi les fantômes sont-ils de mauvais menteurs ? Parce qu'on lit à travers eux 👻",
-        "Quel est l'animal le plus heureux ? Le hibou, parce que sa femme est chouette 🦉",
-        "Pourquoi les réunions du lundi sont-elles si longues ? Parce que le week-end a laissé des traces 😴",
-        "Comment fait-on aboyer un chat ? On lui donne une tasse de lait, et il la boit 🐱",
-        "Que dit le zéro au huit ? « Joli ta ceinture ! » 😄",
-        "Qu'est-ce qui a des dents mais ne mange jamais ? Un peigne 💇",
-        "Pourquoi le Wi-Fi est-il si sociable ? Parce qu'il a beaucoup de connexions 📶"
+    # pendant la pause : de petites phrases sympas (ni blagues ni culture G)
+    BreakLines = @(
+        "Lève-toi et étire-toi un peu, ton dos te dira merci 🙆",
+        "Un verre d'eau ? Ton cerveau adore ça 💧",
+        "Regarde au loin quelques secondes, tes yeux respirent 👀",
+        "Trois respirations lentes… voilà, c'est tout 🌬",
+        "Fais rouler tes épaules, ça détend 😌",
+        "Ouvre la fenêtre une minute, un peu d'air frais 🌿",
+        "Profite, tu as bien bossé 🙌",
+        "Une petite marche jusqu'à la machine à café ? ☕",
+        "Desserre la mâchoire, relâche les épaules 😊",
+        "Pense à un truc qui t'a fait sourire aujourd'hui 🙂",
+        "Tu avances bien, sois fier(e) de toi ✨",
+        "Rien à faire pendant la pause, c'est le principe 😌",
+        "Range un objet sur ton bureau, juste un 🗂",
+        "Envoie un petit message sympa à quelqu'un ? 💌",
+        "Bouge un peu les mains et les poignets 🙌"
     )
     Wander = @(
         "Petite balade… 🚶",
@@ -711,58 +683,17 @@ $Lines = @{
 }
 
 # Commentaires par application (nom du processus, en minuscules)
-$AppLines = @{
-    'chrome'  = @("Un onglet de plus et la RAM dépose plainte 🧠", "Chrome… combien d'onglets déjà ? Non, ne réponds pas.")
-    'msedge'  = @("Edge ! Un choix audacieux, je respecte 😎", "Encore un onglet ? Je compte, hein 👀")
-    'firefox' = @("Le renard est de sortie 🦊", "Firefox, le choix des connaisseurs.")
-    'brave'   = @("Brave, comme toi face à cette to-do list 🦁")
-    'outlook' = @("Inbox zéro, c'est un mythe… mais on y croit 📬", "Répondre à tous ? Réfléchis bien 😅", "Un mail = 2 minutes. Dix mails = la matinée.")
-    'olk'     = @("Inbox zéro, c'est un mythe… mais on y croit 📬", "Répondre à tous ? Réfléchis bien 😅")
-    'ms-teams'= @("Tu es en réunion ? Je fais semblant de prendre des notes 📝", "Pense à couper ton micro avant de soupirer 🎤", "Cette réunion aurait pu être un mail ? 🤫")
-    'teams'   = @("Tu es en réunion ? Je fais semblant de prendre des notes 📝", "Pense à couper ton micro avant de soupirer 🎤")
-    'excel'   = @("Tant que ça ne finit pas en #REF!, tout va bien 📊", "RECHERCHEV ou RECHERCHEX ? Le débat du siècle.", "Une macro et hop, tu deviens magicien ✨", "Ctrl+Z est ton ami.")
-    'winword' = @("Times New Roman ? Audacieux.", "Le document_final_v3_VRAIMENT_final.docx, c'est celui-là ? 📄", "Pense à sauvegarder ! Ctrl+S 💾")
-    'powerpnt'= @("Encore une slide et c'est un roman graphique 🎞", "Moins de texte, plus d'impact ✨", "Les transitions en 'tourbillon', c'est non 🌀")
-    'onenote' = @("Prendre des notes, c'est déjà avancer 🗒")
-    'code'    = @("Ça compile ? Alors ça marche. (Presque.) 💻", "Un bug ? Explique-le à moi, je suis un excellent canard en caoutchouc 🦆", "Tabs ou espaces ? Je ne dirai rien.")
-    'devenv'  = @("Visual Studio charge… on a le temps d'un café ☕", "Un breakpoint et tout s'éclaire 🔍")
-    'idea64'  = @("IntelliJ réfléchit… toi aussi 🤔")
-    'pycharm64' = @("Ça sent le Python 🐍")
-    'notepad' = @("Le Bloc-notes, simple et efficace 📝")
-    'notepad++' = @("Notepad++, l'outil des vrais 💪")
-    'explorer'= @("Tu cherches un fichier ? Il est sûrement dans Téléchargements 🗂", "Rangement de dossiers = procrastination déguisée ? 🤔")
-    'windowsterminal' = @("Ah, l'écran noir des vrais pros 😎", "sudo fais-moi-un-café ☕")
-    'powershell' = @("PowerShell ! On est entre collègues 😄")
-    'pwsh'    = @("PowerShell ! On est entre collègues 😄")
-    'cmd'     = @("L'invite de commandes, old school 👴")
-    'slack'   = @("Slack… les fils de discussion n'ont jamais de fin 🧵")
-    'spotify' = @("Mets-nous un bon son de concentration 🎧", "Lo-fi beats to focus to ? 🎶")
-    'zoom'    = @("Caméra ON ? Vérifie ta coiffure 💇")
-    'acrobat' = @("Un PDF de 200 pages ? Courage 📚")
-    'acrord32'= @("Un PDF de 200 pages ? Courage 📚")
-    'mstsc'   = @("Un bureau dans le bureau… inception 🌀")
-    'calculatorapp' = @("2 + 2 = 4. Je vérifie pour toi 🧮")
-    'saplogon'= @("SAP… bon courage, sincèrement 💪")
-}
-
-# Mots-cles dans le titre de la fenetre (navigateurs surtout)
+# Pendant un focus, sur un site de distraction : un petit rappel bienveillant (pas de piques)
 $TitleLines = @(
-    @{ k = 'youtube';   d = $true;  l = @("YouTube pendant le focus ? Je n'ai rien vu… cette fois 👀", "Une petite vidéo et hop, 45 minutes envolées ⏳") }
-    @{ k = 'netflix';   d = $true;  l = @("Netflix ?! Le focus pleure dans un coin 😢") }
-    @{ k = 'twitch';    d = $true;  l = @("Twitch… le live peut attendre la pause 🎮") }
-    @{ k = 'facebook';  d = $true;  l = @("Facebook… on dit qu'on y passe 'juste 2 minutes' 😏") }
-    @{ k = 'instagram'; d = $true;  l = @("Insta peut attendre la pause 📸") }
-    @{ k = 'tiktok';    d = $true;  l = @("TikTok ? Danger ! Zone de distraction maximale 🚨") }
-    @{ k = 'reddit';    d = $true;  l = @("Reddit : le trou noir des pauses qui n'en sont pas 🕳") }
-    @{ k = 'amazon';    d = $true;  l = @("Ajouter au panier n'est pas un objectif de la journée 🛒") }
-    @{ k = 'leboncoin'; d = $true;  l = @("Une bonne affaire sur Leboncoin ? Après le focus 😉") }
-    @{ k = 'linkedin';  d = $false; l = @("LinkedIn… quelqu'un est 'ravi d'annoncer' quelque chose 🎉") }
-    @{ k = 'gmail';     d = $false; l = @("Les mails, c'est mieux par paquets 📨") }
-    @{ k = 'chatgpt';   d = $false; l = @("Tu parles à une autre IA ? Je suis un peu jaloux 🥺") }
-    @{ k = 'wikipedia'; d = $false; l = @("Wikipédia : on commence par la photosynthèse, on finit sur les pharaons 🏺") }
-    @{ k = 'stack overflow'; d = $false; l = @("Stack Overflow, le vrai collègue senior 💻") }
-    @{ k = 'github';    d = $false; l = @("Un petit commit ? 🐙") }
-    @{ k = 'jira';      d = $false; l = @("Ticket en cours… ou ticket en souffrance ? 🎫") }
+    @{ k = 'youtube';   l = @("Une vidéo ? On la garde pour la pause 😉") }
+    @{ k = 'netflix';   l = @("Netflix attendra la pause, promis 🙂") }
+    @{ k = 'twitch';    l = @("Le live peut attendre la pause 🎮") }
+    @{ k = 'facebook';  l = @("Facebook, ce sera pour la pause 😉") }
+    @{ k = 'instagram'; l = @("Insta peut attendre la pause 📸") }
+    @{ k = 'tiktok';    l = @("TikTok, ce sera pour la pause 🙂") }
+    @{ k = 'reddit';    l = @("Reddit peut attendre la pause 😉") }
+    @{ k = 'amazon';    l = @("Les achats, après le focus 🛒") }
+    @{ k = 'leboncoin'; l = @("Leboncoin, après le focus 😉") }
 )
 
 function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
@@ -1400,13 +1331,7 @@ $O = @{
     TaskReminders = $true
     PlanDay      = ''
     PlanIds      = @()
-    NextJoke     = [datetime]::MaxValue
-    JokeSeed     = (Get-Random)
-    JokePos      = 0
-    FactSeed     = (Get-Random)
-    FactPos      = 0
-    BreakToggle  = $false
-    Punch        = $null
+    NextBreakLine = [datetime]::MaxValue
     MyPid        = $PID
 }
 
@@ -1422,8 +1347,6 @@ try {
         if ($null -ne $s.wander) { $O.Wander = [bool]$s.wander }
         if ($s.rhythm -and $Rhythms.Contains([string]$s.rhythm)) { $O.Rhythm = [string]$s.rhythm }
         if ($null -ne $s.taskReminders) { $O.TaskReminders = [bool]$s.taskReminders }
-        if ($null -ne $s.jokeSeed) { $O.JokeSeed = [int]$s.jokeSeed; $O.JokePos = [int]$s.jokePos }
-        if ($null -ne $s.factSeed) { $O.FactSeed = [int]$s.factSeed; $O.FactPos = [int]$s.factPos }
         if ($s.planDay) { $O.PlanDay = [string]$s.planDay }
     }
 } catch { Write-Log "Lecture stats : $($_.Exception.Message)" }
@@ -1432,7 +1355,7 @@ function Save-Stats {
     try {
         $today = (Get-Date).ToString('yyyy-MM-dd')
         if ($today -ne $O.Today) { $O.Today = $today; $O.FocusToday = 0; $O.FocusMinToday = 0 }
-        $data = @{ date = $O.Today; focus = $O.FocusToday; minutes = $O.FocusMinToday; jokeSeed = $O.JokeSeed; jokePos = $O.JokePos; factSeed = $O.FactSeed; factPos = $O.FactPos; planDay = $O.PlanDay }
+        $data = @{ date = $O.Today; focus = $O.FocusToday; minutes = $O.FocusMinToday; planDay = $O.PlanDay }
         Write-FileSafe $StatsFile (ConvertTo-Json -InputObject $data)
     } catch { Write-Log "Ecriture stats : $($_.Exception.Message)" }
 }
@@ -1452,9 +1375,8 @@ function Get-SettingsSnapshot {
         taskReminders      = $O.TaskReminders
         reminderEveryMin   = $Config.ReminderEveryMin
         motivationEveryMin = $Config.MotivationEveryMin
-        jokes              = $Config.Jokes
-        jokeEveryMin       = $Config.JokeEveryMin
-        breakContent       = $Config.BreakContent
+        breakLines         = $Config.BreakLines
+        breakLineEveryMin  = $Config.BreakLineEveryMin
         appComments        = $Config.AppComments
         sounds             = $Config.Sounds
         droidSounds        = $Config.DroidSounds
@@ -1503,9 +1425,10 @@ function Apply-SettingsData($d) {
     if (Has 'notesMirror') { $Config.NotesMirror = [string]$d.notesMirror }
     if (Has 'reminderEveryMin') { $Config.ReminderEveryMin = [int]$d.reminderEveryMin }
     if (Has 'motivationEveryMin') { $Config.MotivationEveryMin = [int]$d.motivationEveryMin }
-    if (Has 'jokes') { $Config.Jokes = [bool]$d.jokes }
-    if (Has 'jokeEveryMin') { $Config.JokeEveryMin = [double]$d.jokeEveryMin }
-    if ($d.breakContent -and [string]$d.breakContent -in 'Jokes', 'Culture', 'Both') { $Config.BreakContent = [string]$d.breakContent }
+    # (« jokes » / « jokeEveryMin » : anciens noms du meme reglage, avant le retrait des blagues)
+    if (Has 'breakLines') { $Config.BreakLines = [bool]$d.breakLines } elseif (Has 'jokes') { $Config.BreakLines = [bool]$d.jokes }
+    $every = if (Has 'breakLineEveryMin') { $d.breakLineEveryMin } elseif (Has 'jokeEveryMin') { $d.jokeEveryMin } else { $null }
+    if ($null -ne $every) { $Config.BreakLineEveryMin = [math]::Min(30, [math]::Max(0.5, [double]$every)) }
     if (Has 'appComments') { $Config.AppComments = [bool]$d.appComments }
     if (Has 'sounds') { $Config.Sounds = [bool]$d.sounds }
     if (Has 'droidSounds') { $Config.DroidSounds = [bool]$d.droidSounds }
@@ -1690,7 +1613,7 @@ function Show-Bubble {
         $btn.Add_Click({ param($s, $e) Hide-Bubble; Invoke-Safe $s.Tag })
         [void]$ui.BubbleButtons.Children.Add($btn)
     }
-    # bulle de pensee (petits ronds) pour les blagues et reflexions, bulle de parole sinon
+    # bulle de pensee (petits ronds) pour les petites phrases et reflexions, bulle de parole sinon
     $ui.SpeechTail.Visibility = if ($Thought) { 'Collapsed' } else { 'Visible' }
     $ui.ThoughtTail.Visibility = if ($Thought) { 'Visible' } else { 'Collapsed' }
     $ui.Bubble.CornerRadius = if ($Thought) { '26' } else { '20' }
@@ -1856,7 +1779,7 @@ function Start-Break {
     $O.State = 'Break'
     $O.Paused = $false
     $O.EndsAt = (Get-Date).AddMinutes($Config.BreakMinutes)
-    $O.NextJoke = (Get-Date).AddSeconds(40)
+    $O.NextBreakLine = (Get-Date).AddSeconds(40)
     $O.NextMotivation = [datetime]::MaxValue
     $O.NextReminder = [datetime]::MaxValue
     Set-Mood 'Break'
@@ -1865,114 +1788,18 @@ function Start-Break {
 }
 
 # ---------------------------------------------------------------------------
-#  Blagues de pause : fichiers jokes\*.txt (une blague par ligne,
-#  "question|reponse" pour garder la chute quelques secondes)
+#  Pendant la pause : de petites phrases sympas (ni blagues ni culture G),
+#  chacune son tour dans un ordre au hasard
 # ---------------------------------------------------------------------------
-# Lit tous les fichiers .txt d'un dossier (une entree par ligne, # = commentaire, sans doublon)
-function Load-TextItems([string]$folder) {
-    $list = New-Object System.Collections.Generic.List[string]
-    $seen = New-Object 'System.Collections.Generic.HashSet[string]'
-    $dir = Join-Path $PSScriptRoot $folder
-    if (Test-Path $dir) {
-        foreach ($f in (Get-ChildItem -Path $dir -Filter '*.txt' | Sort-Object Name)) {
-            try {
-                foreach ($line in (Read-TextLines $f.FullName)) {
-                    $l = $line.Trim()
-                    if (-not $l -or $l.StartsWith('#')) { continue }
-                    if ($seen.Add($l.ToLowerInvariant())) { $list.Add($l) }
-                }
-            } catch { Write-Log "$folder ($($f.Name)) : $($_.Exception.Message)" }
-        }
+$script:BreakBag = $null
+function Get-NextBreakLine {
+    if (-not $script:BreakBag -or $script:BreakBag.Count -eq 0) {
+        $script:BreakBag = New-Object System.Collections.Queue (, @($Lines.BreakLines | Sort-Object { Get-Random }))
     }
-    return , $list
+    return $script:BreakBag.Dequeue()
 }
 
-function Load-Jokes {
-    $list = Load-TextItems 'jokes'
-    if ($list.Count -eq 0) { foreach ($j in $Lines.BreakJokes) { $list.Add($j) } }
-    return , $list
-}
-$Jokes = Load-Jokes
-$script:JokeOrder = $null
-# Culture generale : anecdotes et petits quiz (dossier culture\)
-$Facts = Load-TextItems 'culture'
-$script:FactOrder = $null
-
-# Ordre melange mais memorise d'un lancement a l'autre : pas de repetition
-# tant que toutes les blagues ne sont pas passees
-function Get-NextJoke {
-    if (-not $script:JokeOrder -or $O.JokePos -ge $Jokes.Count) {
-        if ($O.JokePos -ge $Jokes.Count) { $O.JokeSeed = Get-Random; $O.JokePos = 0 }
-        $rng = New-Object System.Random($O.JokeSeed)
-        $order = [int[]](0..($Jokes.Count - 1))
-        for ($i = $order.Length - 1; $i -gt 0; $i--) {
-            $k = $rng.Next($i + 1)
-            $tmp = $order[$i]; $order[$i] = $order[$k]; $order[$k] = $tmp
-        }
-        $script:JokeOrder = $order
-    }
-    $j = $Jokes[$script:JokeOrder[$O.JokePos]]
-    $O.JokePos++
-    Save-Stats
-    return $j
-}
-
-# Meme principe que les blagues : ordre melange, memorise, sans repetition
-function Get-NextFact {
-    if (-not $Facts.Count) { return $null }
-    if (-not $script:FactOrder -or $O.FactPos -ge $Facts.Count) {
-        if ($O.FactPos -ge $Facts.Count) { $O.FactSeed = Get-Random; $O.FactPos = 0 }
-        $rng = New-Object System.Random($O.FactSeed)
-        $order = [int[]](0..($Facts.Count - 1))
-        for ($i = $order.Length - 1; $i -gt 0; $i--) {
-            $k = $rng.Next($i + 1)
-            $tmp = $order[$i]; $order[$i] = $order[$k]; $order[$k] = $tmp
-        }
-        $script:FactOrder = $order
-    }
-    $f = $Facts[$script:FactOrder[$O.FactPos]]
-    $O.FactPos++
-    Save-Stats
-    return $f
-}
-
-# « Le saviez-vous ? » ou un petit quiz (la reponse arrive 6 s plus tard)
-function Tell-Fact([switch]$Force) {
-    $f = Get-NextFact
-    if (-not $f) { return }
-    $parts = $f.Split('|', 2)
-    if ($parts.Count -eq 2) {
-        $q = "🧠 Quiz : $($parts[0].Trim())"
-        Show-Bubble "$q 🤔" -Seconds 18 -Force:$Force
-        $O.Punch = @{ Shown = "$q 🤔"; Full = "$q`n`n👉 $($parts[1].Trim())"; At = (Get-Date).AddSeconds(6) }
-    } else {
-        Show-Bubble "🧠 Le saviez-vous ?`n$f" -Seconds 14 -Force:$Force
-    }
-}
-
-# Pendant la pause : blague, culture G, ou les deux en alternance (reglage BreakContent)
-function Tell-BreakItem {
-    $mode = [string]$Config.BreakContent
-    $fact = switch ($mode) {
-        'Culture' { $true }
-        'Jokes'   { $false }
-        default   { $O.BreakToggle = -not $O.BreakToggle; [bool]$O.BreakToggle }
-    }
-    if ($fact -and $Facts.Count) { Tell-Fact } else { Tell-Joke }
-}
-
-function Tell-Joke {
-    $j = Get-NextJoke
-    $parts = $j.Split('|', 2)
-    if ($parts.Count -eq 2) {
-        # la question d'abord, la chute 4 secondes plus tard
-        $q = $parts[0].Trim()
-        Show-Bubble "$q 🤔" -Seconds 14
-        $O.Punch = @{ Shown = "$q 🤔"; Full = "$q`n`n👉 $($parts[1].Trim())"; At = (Get-Date).AddSeconds(4) }
-    } else {
-        Show-Bubble $j -Seconds 10
-    }
-}
+function Tell-BreakItem { Show-Bubble (Get-NextBreakLine) -Thought -Seconds 10 }
 
 function Stop-Cycle {
     $O.State = 'Idle'
@@ -2546,18 +2373,8 @@ function Check-App {
 
     $line = $null
     $lowTitle = $title.ToLowerInvariant()
-    foreach ($t in $TitleLines) {
-        if ($lowTitle.Contains($t.k)) {
-            if ($t.d -and $O.State -eq 'Focus') { $line = Pick $t.l }
-            elseif ($t.d -and $O.State -eq 'Break') { $line = "C'est la pause, profite 😌" }
-            elseif (-not $t.d) { $line = Pick $t.l }
-            break
-        }
-    }
-    if (-not $line) {
-        $name = ''
-        try { $name = (Get-Process -Id $procId -ErrorAction Stop).ProcessName.ToLowerInvariant() } catch { return }
-        if ($AppLines.ContainsKey($name) -and (Get-Random -Maximum 100) -lt 60) { $line = Pick $AppLines[$name] }
+    if ($O.State -eq 'Focus' -and -not $O.Paused) {
+        foreach ($t in $TitleLines) { if ($lowTitle.Contains($t.k)) { $line = Pick $t.l; break } }
     }
     if ($line) {
         Show-Bubble $line -Thought
@@ -2733,16 +2550,6 @@ function On-Frame {
     } 'animation'
 
     Invoke-Safe {
-        # chute de la blague en cours
-        if ($O.Punch -and $now -ge $O.Punch.At) {
-            if ($ui.BubbleWrap.Visibility -eq 'Visible' -and $ui.BubbleText.Text -eq (ConvertTo-DisplayText $O.Punch.Shown)) {
-                $ui.BubbleText.Text = ConvertTo-DisplayText $O.Punch.Full
-                Fit-BubbleWindow
-                Play-Chirp
-                $O.BubbleUntil = $now.AddSeconds(9)
-            }
-            $O.Punch = $null
-        }
 
         # bulle temporaire
         if ($ui.BubbleWrap.Visibility -eq 'Visible' -and $now -ge $O.BubbleUntil) { Hide-Bubble }
@@ -2884,7 +2691,7 @@ function Restore-State {
                 return "$intro Encore $([math]::Ceiling($left.TotalMinutes)) min de focus$(if ($O.Paused) { ' (en pause ⏸)' }). 🎯"
             }
             'Break' {
-                $O.NextJoke = (Get-Date).AddSeconds(40)
+                $O.NextBreakLine = (Get-Date).AddSeconds(40)
                 $left = if ($O.Paused) { $O.Remaining } else { $O.EndsAt - (Get-Date) }
                 if ($left.TotalSeconds -le 0) { return "$intro Ta pause s'est terminée entre-temps." }
                 return "$intro Encore $([math]::Ceiling($left.TotalMinutes)) min de pause ☕"
@@ -2968,11 +2775,11 @@ function Step-Timer($now) {
     if (($O.State -notin 'Focus', 'Break') -or $O.Paused) { return $false }
     $left = $O.EndsAt - $now
     if ($left.TotalSeconds -le 0) { On-TimerEnded; return $true }
-    if ($O.State -eq 'Break' -and $now -ge $O.NextJoke) {
-        # une blague / culture G toutes les ~2 minutes pendant la pause (sauf dans les 20 dernieres secondes)
-        $base = [math]::Max(20, $Config.JokeEveryMin * 60)
-        $O.NextJoke = $now.AddSeconds((Get-Random -Minimum ([int]($base * 0.75)) -Maximum ([int]($base * 1.25) + 1)))
-        if ($Config.Jokes -and $left.TotalSeconds -gt 20) { Tell-BreakItem }
+    if ($O.State -eq 'Break' -and $now -ge $O.NextBreakLine) {
+        # une petite phrase sympa toutes les ~2 minutes pendant la pause (sauf dans les 20 dernieres secondes)
+        $base = [math]::Max(20, $Config.BreakLineEveryMin * 60)
+        $O.NextBreakLine = $now.AddSeconds((Get-Random -Minimum ([int]($base * 0.75)) -Maximum ([int]($base * 1.25) + 1)))
+        if ($Config.BreakLines -and $left.TotalSeconds -gt 20) { Tell-BreakItem }
     }
     if ($O.State -eq 'Focus') {
         $total = $Config.FocusMinutes
@@ -3054,7 +2861,7 @@ function Step-Autopilot($now) {
     $k = $script:ApTicks
     if ($k % 9 -eq 0) { Show-QuickNote; $qn.QnText.Text = "autopilote $($now.ToString('HH:mm:ss'))"; Close-QuickNote }
     if ($k % 11 -eq 0) { Open-Notebook 'Todo'; Close-Notebook }
-    if ($k % 13 -eq 0) { Tell-Fact -Force }
+    if ($k % 13 -eq 0) { Tell-BreakItem }
     # une interruption complete (une fois sur deux avec capture d'ecran) : fenetres, post-it,
     # enregistrement au tour suivant, puis terminee
     if ($script:ctxWin -and $ctxWin.IsVisible) {
@@ -3189,7 +2996,6 @@ $miCtx    = New-MenuItem "✋  Je m'interromps (garder où j'en suis)" { Start-I
 $miCtxList = New-MenuItem "↩  Mes reprises" { Open-Notebook 'Ctx' }
 $miSos    = New-MenuItem "🚨  S.O.S : je bloque (une seule chose à la fois)" { Show-Sos }
 $miNote   = New-MenuItem "📝  Note rapide" { Show-QuickNote }
-$miFact   = New-MenuItem "🧠  Le saviez-vous ? (culture G)" { Ensure-Visible; Tell-Fact -Force }
 $miNotes  = New-MenuItem "📒  Mes notes" { Open-Notebook 'Notes' }
 $miTodo   = New-MenuItem "🗂  Mes tableaux (Kanban)" { Open-Notebook 'Todo' }
 $miClip   = New-MenuItem "📋  Mes copier-coller du jour" { Open-Notebook 'Clip' }
@@ -3199,7 +3005,7 @@ $miPause  = New-MenuItem "⏸  Mettre le chrono en pause" { Toggle-Pause }
 $miStop   = New-MenuItem "⏹  Couper le chrono" { Stop-Cycle }
 $miCards  = New-MenuItem "🎯  Cartes du focus…" { Choose-FocusCards }
 $miPlan   = New-MenuItem "☀  Plan du jour" { Show-MorningPlan }
-$miQuiet  = New-MenuItem "🤫  Mode silencieux (pas de blagues)" { $O.Quiet = -not $O.Quiet; Save-Settings; if ($O.Quiet) { Hide-Bubble } } -Checkable
+$miQuiet  = New-MenuItem "🤫  Mode silencieux (moins de bulles)" { $O.Quiet = -not $O.Quiet; Save-Settings; if ($O.Quiet) { Hide-Bubble } } -Checkable
 $miWander = New-MenuItem "🚶  Balades sur les écrans" { $O.Wander = -not $O.Wander; $O.Walking = $false; Save-Settings } -Checkable
 $miHome   = New-MenuItem "🏠  Revenir en bas à droite" { $O.Pinned = $false; $O.Walking = $false }
 $miMini   = New-MenuItem "🔽  Réduire" { Set-Mini (-not $O.Mini) } -Checkable
@@ -3242,7 +3048,7 @@ foreach ($k in $Skins.Keys) {
 $miMore = New-Object Windows.Controls.MenuItem
 $miMore.Header = "☰  Plus"
 foreach ($i in @($miCards, $miPlan, $miRhythm, $miTasks, (New-Object Windows.Controls.Separator),
-                 $miSearch, $miClip, $miStats, $miFact, (New-Object Windows.Controls.Separator),
+                 $miSearch, $miClip, $miStats, (New-Object Windows.Controls.Separator),
                  $miSkin, $miQuiet, $miWander, $miMini, $miHide, $miAuto, (New-Object Windows.Controls.Separator),
                  $miMove)) { [void]$miMore.Items.Add($i) }
 foreach ($i in @($miFocus, $miBreak, $miPause, $miStop, $miHome, (New-Object Windows.Controls.Separator),
@@ -3415,7 +3221,6 @@ try {
     [void]$cms.Items.Add('Rechercher partout…', $null, { Invoke-Safe { Open-Notebook 'Search' } })
     [void]$cms.Items.Add('Cartes du focus…', $null, { Invoke-Safe { Choose-FocusCards } })
     [void]$cms.Items.Add('Plan du jour', $null, { Invoke-Safe { Ensure-Visible; Show-MorningPlan } })
-    [void]$cms.Items.Add('Le saviez-vous ? (culture G)', $null, { Invoke-Safe { Ensure-Visible; Tell-Fact -Force } })
     [void]$cms.Items.Add('-')
     [void]$cms.Items.Add('Réglages…', $null, { Invoke-Safe { Open-Settings } })
     [void]$cms.Items.Add('Épingler l''icône près de l''horloge', $null, {

@@ -1,6 +1,6 @@
 ﻿# Endurance en conditions reelles : Orbit est lance pour de vrai (sa vraie boucle, ses vrais
 # minuteurs) en mode demo (focus 1 min, pause 30 s) et en « pilote automatique » : il enchaine
-# seul focus, pauses, balades, blagues, culture G, notes, tableaux... pendant plusieurs minutes.
+# seul focus, pauses, balades, petites phrases, notes, tableaux... pendant plusieurs minutes.
 # On mesure toutes les 15 s sa memoire et ses ressources Windows, et on lit son journal.
 param([int]$Minutes = 5)
 . (Join-Path $PSScriptRoot 'common.ps1')

@@ -26,11 +26,7 @@ check('recherche : accents et majuscules ignores', S.searchKey('ÉCOLE Été Ça
 check('coupe sans casser un emoji', !/[\uD800-\uDBFF]$/.test(S.shortText('a'.repeat(10) + '🚀'.repeat(10), 12).replace('…', '')));
 check('texte nettoye (controles, moities d\'emoji)', S.cleanText('a\u0007b\uD83Dc\u200Bd') === 'abcd');
 check('formatAgo', S.formatAgo(S.isoLocal(new Date(Date.now() - 25 * 60000))) === 'il y a 25 min');
-check('permutation : chaque element une seule fois', (() => { const p = S.permutation(1000, 42); return new Set(p).size === 1000; })());
-const stats = { jokeSeed: 0, jokePos: 0 };
-const seen = new Set();
-for (let i = 0; i < 50; i++) seen.add(S.nextItem(Array.from({ length: 50 }, (_, k) => k), stats, 'jokeSeed', 'jokePos'));
-check('blagues : aucune repetition avant d\'avoir tout vu', seen.size === 50);
+check('ni blagues ni culture G : petites phrases sympas pendant la pause (ancien reglage repris)', S.defaultSettings().breakLines === true && !('jokes' in S.defaultSettings()) && S.sanitizeSettings({ jokes: false }).breakLines === false && S.sanitizeSettings({ breakLines: true, jokes: false }).breakLines === true);
 
 section('Tableaux et focus');
 let s = S.defaultState();

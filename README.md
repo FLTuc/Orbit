@@ -36,7 +36,7 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   - **à la fin du focus**, il demande si l'objectif est bouclé, avec un bouton « ✅ C'est fait ! » qui coche la tâche ;
   - **à la fin de la pause**, il rappelle la prochaine tâche au programme.
 - **Pause automatique si tu t'absentes** : si tu ne touches ni la souris ni le clavier pendant 5 min en plein focus, Orbit met le chrono en pause au moment où tu es parti (le temps d'absence ne compte pas). À ton retour, il te dit combien de temps tu as été absent et te propose de reprendre.
-- **Des blagues pendant la pause** : environ une toutes les 2 minutes, piochées parmi **plus de 1000 blagues** (combles, devinettes, « Monsieur et Madame… », bureau, informatique, espace…). Orbit pose la question, puis donne la chute quelques secondes plus tard. Il retient où il en est, même après un redémarrage : aucune blague ne revient tant que toutes ne sont pas passées.
+- **De petites phrases sympas pendant la pause** : environ une toutes les 2 minutes (« Lève-toi et étire-toi un peu », « Un verre d'eau ? », « Trois respirations lentes »…), chacune son tour dans un ordre au hasard. Pas de blagues ni de culture G : la pause sert à se reposer.
 - **Des bulles de BD** : tout ce que dit Orbit apparaît dans une bulle de bande dessinée avec un « pop », accompagné d'un **petit son au choix** : droïde doux, carillon, marimba, pop, bip, **tes propres sons** (choix « 📁 Mes sons » : voir ci-dessous), ou 🎲 **aléatoire** parmi tous les sons. Les sons sont générés par Orbit lui-même et montent légèrement quand il te pose une question. Le son de fin de session et des rappels se choisit aussi (carillon, son de Windows ou ton fichier WAV/MP3).
 - **🎵 Mes sons = un dossier** : `%APPDATA%\Orbit\sons`. Tout fichier **.wav, .mp3, .m4a ou .wma** posé dedans fait partie de tes sons, sans rien régler. Pour le remplir :
   - dans les réglages (section 🔊), **＋ Ajouter…** copie les fichiers choisis dans ce dossier ;
@@ -46,8 +46,8 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
 
   Les sons passent **chacun leur tour, dans un ordre au hasard** : Orbit mélange la liste, joue chaque son une fois, puis remélange (jamais deux fois de suite le même). Le dossier part avec l'export vers un autre PC. Les sons choisis avec une ancienne version d'Orbit sont rangés tout seuls dans ce dossier au premier lancement.
   - Bulle de **parole** (avec une pointe) quand il te parle : questions, chrono, indications.
-  - Bulle de **pensée** (avec des petits ronds) pour ses réflexions et ses commentaires sur tes applis.
-- **Des petits commentaires** : de la motivation pendant le focus (mi-parcours, 5 dernières minutes…) et des blagues selon l'application sous ta souris (Excel, Outlook, Teams, PowerPoint, VS Code…). Pendant le focus, il te taquine si tu passes sur YouTube, Netflix, Reddit…
+  - Bulle de **pensée** (avec des petits ronds) pour ses petites phrases et réflexions.
+- **Des petits encouragements** : de la motivation pendant le focus (mi-parcours, 5 dernières minutes…). Si tu ouvres YouTube, Netflix, Reddit… pendant un focus, il te rappelle gentiment que ce sera pour la pause (réglable).
 - **Statistiques** : il compte tes sessions et tes minutes de focus du jour.
 - **Des tableaux Kanban, façon Trello** (clic droit > 🗂️ Mes tableaux) :
   - **plusieurs tableaux** (un par projet, un perso…) : liste déroulante pour passer de l'un à l'autre, boutons ＋ Tableau, ✏️ renommer, 🗑️ supprimer ;
@@ -120,7 +120,7 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   - rythme 50/10, 25/5 ou personnalisé ;
   - pause automatique en cas d'absence, et au bout de combien de minutes ;
   - rappels de tâches, et fréquence des relances quand Orbit attend ta réponse ;
-  - blagues de pause (oui/non et fréquence), phrases de motivation, commentaires sur les applis, mode silencieux ;
+  - petites phrases de pause (oui/non et fréquence), phrases de motivation, rappel sur les sites de distraction, mode silencieux ;
   - apparence (satellite, droïde, robot, majordome robot ou humain, cerveau humain) ;
   - balades (oui/non et fréquence), sons (style, dossier « Mes sons » avec ＋ Ajouter / － Retirer / 📂 Dossier, volume, bouton ▶ pour écouter), lancement au démarrage de Windows.
 
@@ -129,7 +129,7 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
 Le dossier `pwa\` contient Orbit en version « appli web installable » : elle s'ajoute à l'écran d'accueil, s'ouvre en plein écran, **fonctionne sans réseau** et garde tout sur le téléphone (rien n'est envoyé nulle part).
 
 **Ce qu'il y a dedans** :
-- Orbit et sa bulle, le Pomodoro (50/10, 25/5 ou perso) avec ses confirmations, les blagues et la culture G ;
+- Orbit et sa bulle, le Pomodoro (50/10, 25/5 ou perso) avec ses confirmations et les petites phrases sympas de la pause ;
 - les tableaux Kanban, les notes, ✋ Je m'interromps, le plan du matin et la recherche ;
 - 🚨 S.O.S / ⚡ Unstick Me, la 📝 note rapide (bouton rond) et le 🏆 journal des victoires ;
 - sons doux et vibrations, écran maintenu allumé pendant un focus (option), bruit brun, dictée (🎙).
@@ -158,7 +158,7 @@ Ensuite, sur le téléphone : ouvre l'adresse dans Chrome, puis ⋮ > « Install
 - `node tests/pwa/static.mjs` : la sécurité du code ;
 - `node tests/pwa/e2e.cjs` : un parcours complet sur un Pixel 7 simulé, avec le temps accéléré, le hors-ligne, le partage, le glissement du doigt, l'import et l'export ;
 - `node tests/pwa/monkey.cjs 500 1` : le test « chaos » : 500 gestes au hasard (boutons, saisies, retour d'Android, temps qui passe, rechargements), sans aucune erreur permise ;
-- `python tools/build_pwa.py` : régénère les blagues et la culture G du téléphone, et le cache hors ligne.
+- `python tools/build_pwa.py` : régénère les règles du S.O.S du téléphone et le cache hors ligne.
 
 ## 🐧 Orbit sur Linux (Debian, Ubuntu, Mint…) : version légère
 
@@ -187,7 +187,7 @@ Données : `~/.local/share/orbit` (une copie des tableaux et des notes par jour,
 |---|---|
 | Clic gauche sur Orbit | Affiche le statut (temps restant, ou la question en attente) |
 | Glisser Orbit | Le pose où tu veux, et il y reste |
-| **Clic droit** | Un menu court : le chrono (seulement ce qui sert à cet instant : lancer un focus, prendre la pause, mettre en pause, couper), 📝 Note rapide, ✋ Je m'interromps, 🚨 S.O.S, 🗂 Mes tableaux, 📒 Mes notes, ↩ Mes reprises, puis **☰ Plus** (cartes du focus, plan du jour, rythme, rappels, recherche, copier-coller, victoires, culture G, apparence, silencieux, balades, réduire, masquer, démarrage de Windows, autre PC), ⚙ Réglages et Quitter. « 🏠 Revenir en bas à droite » apparaît quand tu as déplacé Orbit. |
+| **Clic droit** | Un menu court : le chrono (seulement ce qui sert à cet instant : lancer un focus, prendre la pause, mettre en pause, couper), 📝 Note rapide, ✋ Je m'interromps, 🚨 S.O.S, 🗂 Mes tableaux, 📒 Mes notes, ↩ Mes reprises, puis **☰ Plus** (cartes du focus, plan du jour, rythme, rappels, recherche, copier-coller, victoires, apparence, silencieux, balades, réduire, masquer, démarrage de Windows, autre PC), ⚙ Réglages et Quitter. « 🏠 Revenir en bas à droite » apparaît quand tu as déplacé Orbit. |
 | Carnet (tableaux / copier-coller / 🔍) | Entrée pour ajouter une carte, **Ctrl+F pour chercher partout**, Échap pour fermer, glisser le titre pour déplacer |
 | Icône près de l'horloge | Elle affiche le **chrono en direct** (bleu = focus, vert = pause, gris = en pause, orange « ! » = Orbit attend ta réponse, satellite = au repos). **Un clic** : cacher / faire revenir Orbit ; clic droit : menu court (réduire, focus, pause, plan du jour, recherche, épingler l'icône…) |
 
@@ -198,7 +198,7 @@ Données : `~/.local/share/orbit` (une copie des tableaux et des notes par jour,
 
 ## Personnaliser
 
-Le plus simple est de passer par **clic droit > ⚙️ Réglages…**. Pour aller plus loin, tout est dans `orbit.ps1` (le carnet est dans `notebook.ps1`, la fenêtre de réglages dans `settings.ps1`, les blagues dans `jokes\`) :
+Le plus simple est de passer par **clic droit > ⚙️ Réglages…**. Pour aller plus loin, tout est dans `orbit.ps1` (le carnet est dans `notebook.ps1`, la fenêtre de réglages dans `settings.ps1`) :
 - les valeurs par défaut des réglages sont dans le bloc `$Config` en haut de `orbit.ps1` ;
 - les phrases sont dans `$Lines`, `$AppLines` (par application) et `$TitleLines` (par mot-clé dans le titre de la fenêtre). Ajoute les tiennes !
 
@@ -218,40 +218,13 @@ Tout est enregistré dans `%APPDATA%\Orbit\` :
 
 Attention : l'historique des copier-coller est stocké en clair dans ton profil. Si tu copies des données sensibles, utilise la case **Pause** ou le bouton **Tout effacer**.
 
-## 🧠 Culture G
-
-Pendant la pause, Orbit peut aussi te donner une **anecdote** (« 🧠 Le saviez-vous ? ») ou un **petit quiz** (la question, puis la réponse quelques secondes plus tard). Plus de **340 entrées** dans 10 thèmes : sciences, histoire, géographie, arts et littérature, nature et animaux, corps humain, langue française et expressions, espace, inventions, et travail/concentration (de quoi mieux profiter de tes pauses).
-
-- **Réglages > Blagues et commentaires** : « Blagues et culture G en alternance » (par défaut), « Des blagues » ou « De la culture G ».
-- Quand tu veux : clic droit sur Orbit (ou sur son icône) > **🧠 Le saviez-vous ?**
-- Comme les blagues : ordre mélangé, mémorisé d'un lancement à l'autre, pas de répétition avant d'avoir tout vu.
-- Pour en ajouter : un fichier `.txt` dans le dossier `culture`, une entrée par ligne. `Question ?|Réponse` pour un quiz, une phrase seule pour une anecdote ; les lignes qui commencent par `#` sont ignorées.
-
-## Ajouter tes propres blagues
-
-Les blagues sont dans le dossier `jokes\`, une par ligne, dans de simples fichiers texte (UTF-8) :
-
-```
-Quel est le comble pour un électricien ?|Ne pas être au courant.
-Orbit a déjà terminé une to-do list. Les scientifiques étudient encore le phénomène.
-```
-
-- `question|réponse` : Orbit affiche la question, puis la réponse 4 secondes après ;
-- une ligne sans `|` s'affiche d'un coup ;
-- les lignes qui commencent par `#` sont ignorées ;
-- tu peux créer ton propre fichier, par exemple `jokes\10-mes-blagues.txt` ;
-- l'encodage n'a pas d'importance : un fichier enregistré en ANSI par un ancien Bloc-notes est lu correctement (pas de losange à la place des accents) ;
-- évite les emoji composés (👩‍💻, 👍🏽, drapeaux, 8️⃣) : la bulle ne sait pas les assembler, Orbit n'en garde que le premier morceau.
-
-Pour vérifier qu'il n'y a ni doublon ni erreur de format (facultatif, il faut Python) : `python tools\check_jokes.py`.
-
 ## Et sur un PC d'entreprise ?
 
 Orbit n'installe rien, n'écrit que dans ton profil utilisateur et ne demande aucun droit administrateur. `-ExecutionPolicy Bypass` ne s'applique qu'à ce lancement de PowerShell : ça ne touche pas aux réglages du PC.
 
 Il peut quand même être bloqué si ton service informatique a verrouillé PowerShell (stratégie de groupe qui impose la politique d'exécution, AppLocker/WDAC, ou *Constrained Language Mode*). Dans ce cas, le plus simple est de leur demander : c'est un script lisible de quelques centaines de lignes, sans accès réseau.
 
-Si seule la compilation des fonctions natives est bloquée, Orbit fonctionne quand même, mais sans les commentaires liés à l'application survolée.
+Si seule la compilation des fonctions natives est bloquée, Orbit fonctionne quand même, mais sans le rappel sur les sites de distraction.
 
 ### Sécurité
 

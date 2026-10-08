@@ -110,30 +110,6 @@ export function formatDue(day, now = new Date()) {
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
 }
 
-// --- melange sans repetition (blagues, culture G) ------------------------------
-function mulberry32(a) {
-  return function () {
-    a |= 0; a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-export function permutation(n, seed) {
-  const p = Array.from({ length: n }, (_, i) => i);
-  const r = mulberry32(seed);
-  for (let i = n - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; }
-  return p;
-}
-// prend l'element suivant ; quand tout est passe, nouveau melange
-export function nextItem(list, stats, seedKey, posKey) {
-  if (!list.length) return '';
-  if (!stats[seedKey] || stats[posKey] >= list.length) { stats[seedKey] = 1 + Math.floor(Math.random() * 2e9); stats[posKey] = 0; }
-  const idx = permutation(list.length, stats[seedKey])[stats[posKey]];
-  stats[posKey]++;
-  return list[idx];
-}
-
 // --- etat complet ------------------------------------------------------------
 export function newColumn(name, done = false) { return { id: newId(), name, done }; }
 export function newBoard(name) {
@@ -143,7 +119,7 @@ export function newBoard(name) {
 export function defaultSettings() {
   return {
     rhythm: '50/10', customFocus: 40, customBreak: 8,
-    jokes: true, breakContent: 'Both', motivation: true,
+    breakLines: true, motivation: true,
     sounds: true, vibrate: true, wakeLock: false, notifications: false,
     taskReminders: true, morningPlan: true, idleNudge: true, idleNudgeMin: 45,
     tickSound: true, tickZoneMin: 5, urgencyBar: true,
@@ -157,7 +133,7 @@ export function defaultState() {
     version: 1,
     settings: defaultSettings(),
     timer: { state: 'Idle', endsAt: 0, paused: false, remainingMs: 0, sessionMin: 0 },
-    stats: { date: dayString(), focus: 0, minutes: 0, jokeSeed: 0, jokePos: 0, factSeed: 0, factPos: 0, planDay: '' },
+    stats: { date: dayString(), focus: 0, minutes: 0, planDay: '' },
     kanban: { current: b.id, boards: [b], cards: [], focus: [], upcoming: [], templates: [] },
     notes: [],
     reprises: [],
@@ -178,7 +154,7 @@ export function sanitizeSettings(s) {
   if (['50/10', '25/5', 'Perso'].includes(s.rhythm)) out.rhythm = s.rhythm;
   out.customFocus = num(s.customFocus, 1, 240, d.customFocus);
   out.customBreak = num(s.customBreak, 1, 120, d.customBreak);
-  if (['Both', 'Jokes', 'Culture'].includes(s.breakContent)) out.breakContent = s.breakContent;
+  if (typeof s.breakLines !== 'boolean' && typeof s.jokes === 'boolean') out.breakLines = s.jokes;   // ancien nom du reglage
   out.ctxRemindMin = num(s.ctxRemindMin, 5, 480, d.ctxRemindMin);
   out.idleNudgeMin = num(s.idleNudgeMin, 10, 240, d.idleNudgeMin);
   out.tickZoneMin = Math.round(num(s.tickZoneMin, 1, 15, d.tickZoneMin));
@@ -319,8 +295,6 @@ export function normalizeState(raw) {
   const st = raw.stats || {};
   s.stats = {
     date: dayOrEmpty(st.date) || dayString(), focus: Math.floor(num(st.focus, 0, 1e6, 0)), minutes: num(st.minutes, 0, 1e7, 0),
-    jokeSeed: Math.floor(num(st.jokeSeed, 0, 4e9, 0)), jokePos: Math.floor(num(st.jokePos, 0, 1e6, 0)),
-    factSeed: Math.floor(num(st.factSeed, 0, 4e9, 0)), factPos: Math.floor(num(st.factPos, 0, 1e6, 0)),
     planDay: dayOrEmpty(st.planDay),
   };
   return s;
