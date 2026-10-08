@@ -160,6 +160,27 @@ Ensuite, sur le téléphone : ouvre l'adresse dans Chrome, puis ⋮ > « Install
 - `node tests/pwa/monkey.cjs 500 1` : le test « chaos » : 500 gestes au hasard (boutons, saisies, retour d'Android, temps qui passe, rechargements), sans aucune erreur permise ;
 - `python tools/build_pwa.py` : régénère les blagues et la culture G du téléphone, et le cache hors ligne.
 
+## 🐧 Orbit sur Linux (Debian, Ubuntu, Mint…) : version légère
+
+Pensée pour les petites machines (moins de 8 Go de RAM) : **environ 35 Mo de mémoire** (mesuré à chaque mise à jour par les tests, limite fixée à 60 Mo), aucun navigateur intégré, aucune animation qui tourne en permanence. Python 3 et Tkinter seulement, déjà présents sur Debian (sinon : `sudo apt install python3-tk`, 3 Mo).
+
+**L'installer** (sans droits administrateur) :
+```sh
+sh linux/install.sh              # dans le menu des applications
+sh linux/install.sh --autostart  # ... et lancé à chaque ouverture de session
+sh linux/install.sh --remove     # désinstaller (tes données sont gardées)
+```
+Ou sans rien installer : `python3 linux/orbit.py`. Facultatif : `sudo apt install xdotool xprintidle` (✋ garde le titre de la fenêtre en cours ; pause automatique quand tu t'absentes).
+
+**Ce qu'il y a dedans** (le principal, en léger) :
+- Orbit en bas à droite, toujours au-dessus, avec les **boutons ronds** à côté (✎ note rapide, ✋ je m'interromps, SOS, ▦ tableaux, ☰ notes, ↩ reprises) ; clic = où j'en suis, glisser = le déplacer, clic droit = le menu court (le reste dans « ☰ Plus ») ;
+- le **focus** 50/10, 25/5 ou perso, avec confirmation à chaque fin, la **barre de compte à rebours** (bleu, jaune, orange, rouge) et le **tic qui s'accélère** dans les 5 dernières minutes ;
+- les **tableaux** (colonnes, priorités « !2 », rappels « @14h », échéances, cartes du focus), les **notes**, **✋ Je m'interromps** et les reprises, le **S.O.S** (même découpage que le PC et le téléphone), le **journal des victoires**, le **plan du matin** et la relance **« Tu attends quoi ? »** ;
+- **mes sons** : le dossier `~/.local/share/orbit/sons` (.wav, .ogg, .flac, .mp3), chacun son tour au hasard ;
+- **échange** avec le PC et le téléphone : clic droit > ☰ Plus > Exporter / Importer (le même zip partout).
+
+Données : `~/.local/share/orbit` (une copie des tableaux et des notes par jour, 7 jours gardés ; un fichier abîmé est mis de côté et Orbit repart de la copie du jour). Pas inclus pour rester léger : l'historique des copier-coller, les commentaires selon l'application, les autres apparences.
+
 ## Commandes
 
 | Action | Effet |
