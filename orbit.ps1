@@ -2328,7 +2328,7 @@ function Show-MorningPlan {
 #  Relance « Tu attends quoi ? » : aucun focus depuis 45 min (reglable) alors que des
 #  cartes attendent -> 2 ou 3 propositions, un clic lance le focus sur l'une d'elles.
 #  Jamais pendant un focus ou une pause, ni si tu n'es pas devant l'ecran, ni par-dessus
-#  une autre question ; « Plus tard » = dans 45 min, « Pas aujourd'hui » = jusqu'a demain.
+#  une autre question, ni quand Orbit est cache ou reduit ; « Plus tard » = dans 45 min, « Pas aujourd'hui » = jusqu'a demain.
 # ---------------------------------------------------------------------------
 function Test-IdleNudgeDue([datetime]$now, [double]$idleMs = 0) {
     if (-not $Config.IdleNudge) { return $false }
@@ -2375,7 +2375,8 @@ function Check-IdleNudge([datetime]$now) {
     $idle = if ($Native) { [OrbitNative]::IdleMs() } else { 0 }
     if (-not (Test-IdleNudgeDue $now $idle)) { return }
     # pas par-dessus une autre question, ni quand Orbit est cache, ni avant le plan du matin
-    if (-not $window.IsVisible -or $ui.BubbleButtons.Children.Count -or (Test-MorningPlanDue)) { return }
+    # (ni en mode « Réduire », ou Orbit a promis de se taire)
+    if (-not $window.IsVisible -or $O.Mini -or $ui.BubbleButtons.Children.Count -or (Test-MorningPlanDue)) { return }
     [void](Show-IdleNudge $now)
 }
 
