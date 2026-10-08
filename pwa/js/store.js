@@ -146,6 +146,7 @@ export function defaultSettings() {
     jokes: true, breakContent: 'Both', motivation: true,
     sounds: true, vibrate: true, wakeLock: false, notifications: false,
     taskReminders: true, morningPlan: true, idleNudge: true, idleNudgeMin: 45,
+    tickSound: true, tickZoneMin: 5, urgencyBar: true,
     ctxButton: true, ctxRemind: true, ctxRemindMin: 30,
   };
 }
@@ -180,6 +181,7 @@ export function sanitizeSettings(s) {
   if (['Both', 'Jokes', 'Culture'].includes(s.breakContent)) out.breakContent = s.breakContent;
   out.ctxRemindMin = num(s.ctxRemindMin, 5, 480, d.ctxRemindMin);
   out.idleNudgeMin = num(s.idleNudgeMin, 10, 240, d.idleNudgeMin);
+  out.tickZoneMin = Math.round(num(s.tickZoneMin, 1, 15, d.tickZoneMin));
   return out;
 }
 
@@ -705,6 +707,24 @@ export function winStreak(s, now = new Date()) {
 
 // --- ancien Brain Dump / DopaList : rien n'est perdu ------------------------------------
 // idees -> notes rapides, actions -> cartes, routines -> cartes qui se repetent (comme sur le PC)
+// zone finale du focus (memes regles que sur le PC) : silence, puis un tic toutes les 20 s
+// (5 dernieres min), 10 s (2 dernieres), 5 s (derniere minute), 2 s (30 dernieres s), 1 s (10 dernieres)
+export function tickInterval(leftSec, zoneSec) {
+  if (leftSec <= 0 || leftSec > zoneSec) return 0;
+  if (leftSec > 120) return 20;
+  if (leftSec > 60) return 10;
+  if (leftSec > 30) return 5;
+  if (leftSec > 10) return 2;
+  return 1;
+}
+// couleur de la barre : calme > 50 %, attention > 25 %, presse, puis final (derniere minute)
+export function urgencyLevel(frac, leftSec) {
+  if (leftSec <= 60) return 'final';
+  if (frac > 0.5) return 'calm';
+  if (frac > 0.25) return 'mid';
+  return 'high';
+}
+
 // relance « Tu attends quoi ? » : aucun focus ni pause depuis idleNudgeMin minutes
 // (« Pas aujourd'hui » = offDay, la date du jour ou on ne relance plus)
 export function idleNudgeDue(settings, timerState, lastBusyMs, now = new Date(), offDay = '') {

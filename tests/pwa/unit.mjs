@@ -98,6 +98,14 @@ section('Relance « Tu attends quoi ? » (45 min sans focus)');
   check('reglage borne (10 a 240 min)', S.sanitizeSettings({ idleNudgeMin: 2 }).idleNudgeMin === 10 && S.sanitizeSettings({ idleNudgeMin: 9999 }).idleNudgeMin === 240 && S.sanitizeSettings({ idleNudge: false }).idleNudge === false);
 }
 
+section('Zone finale : tic qui s\'accelere et barre de couleur');
+{
+  check('silence avant les 5 dernieres minutes', S.tickInterval(301, 300) === 0 && S.tickInterval(2000, 300) === 0);
+  check('20 s, 10 s, 5 s, 2 s, 1 s', S.tickInterval(300, 300) === 20 && S.tickInterval(100, 300) === 10 && S.tickInterval(45, 300) === 5 && S.tickInterval(20, 300) === 2 && S.tickInterval(5, 300) === 1);
+  check('memes couleurs que le PC', S.urgencyLevel(0.8, 2400) === 'calm' && S.urgencyLevel(0.4, 1200) === 'mid' && S.urgencyLevel(0.2, 600) === 'high' && S.urgencyLevel(0.02, 59) === 'final');
+  check('reglages par defaut et bornes', S.defaultSettings().tickSound && S.defaultSettings().urgencyBar && S.sanitizeSettings({ tickZoneMin: 99 }).tickZoneMin === 15 && S.sanitizeSettings({ tickZoneMin: 0 }).tickZoneMin === 1);
+}
+
 section('Unstick Me : decoupage local');
 const steps = S.decompose('Répondre au mail de Julie', rules);
 check('3 a 5 micro-etapes', steps.length >= 3 && steps.length <= 5);

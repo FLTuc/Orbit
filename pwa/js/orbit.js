@@ -51,6 +51,12 @@ export function chime(volume = 0.16) {
   const t = ac.currentTime + 0.02;
   [659.25, 783.99, 1046.5].forEach((f, i) => tone(ac, f, t + i * 0.18, 0.9, volume, 'triangle'));
 }
+// « tic » court et doux du compte a rebours (plus aigu pour les 10 dernieres secondes)
+export function tick(high = false, volume = 0.09) {
+  const ac = audio();
+  if (!ac) return;
+  tone(ac, high ? 1568 : 1046.5, ac.currentTime + 0.01, 0.05, volume, 'sine');
+}
 // « ding » de victoire
 export function success(volume = 0.14) {
   const ac = audio();

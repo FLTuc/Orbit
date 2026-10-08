@@ -108,6 +108,9 @@ $Config = @{
     IdlePause           = $true  # met le focus en pause si tu t'absentes
     IdleMinutes         = 5
     MorningPlan         = $true  # le matin, propose les 3 cartes les plus urgentes
+    TickSound           = $true  # zone finale du focus : un tic doux qui s'accelere jusqu'a la fin
+    TickZoneMin         = 5      # ... pendant les N dernieres minutes (1 a 15)
+    UrgencyBar          = $true  # barre de compte a rebours qui change de couleur, a cote d'Orbit
     IdleNudge           = $true  # aucun focus depuis un moment : Orbit propose 2-3 cartes qui attendent
     IdleNudgeMin        = 45     # ... au bout de combien de minutes sans focus
     BreakContent        = 'Both' # pendant la pause : Jokes | Culture | Both (en alternance)
@@ -1242,6 +1245,18 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
 
     </Canvas>
 
+    <!-- Compte a rebours visible : une barre qui se vide et change de couleur (bleu, jaune,
+         orange, puis rouge qui pulse la derniere minute), juste au-dessus des boutons ronds -->
+    <Border x:Name="UrgencyChip" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,146,108"
+            Width="68" Height="18" CornerRadius="9" Background="#FF1E1B3A" BorderBrush="#1E1B3A" BorderThickness="1.5"
+            Visibility="Collapsed" IsHitTestVisible="False">
+      <Grid>
+        <Border x:Name="UrgencyFill" HorizontalAlignment="Left" Width="65" CornerRadius="8" Background="#FF4C8DFF"/>
+        <TextBlock x:Name="UrgencyText" Text="50:00" FontFamily="Consolas, Segoe UI" FontWeight="Bold" FontSize="11"
+                   Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      </Grid>
+    </Border>
+
     <!-- Les boutons ronds colles a Orbit (option des reglages) : 2 colonnes de 3, en partant d'Orbit.
          Les boutons caches (✋ hors focus, ↩ sans reprise) laissent la place aux suivants. -->
     <WrapPanel x:Name="Dock" Orientation="Vertical" FlowDirection="RightToLeft" Height="102"
@@ -1337,6 +1352,8 @@ $O = @{
     LastBusy     = [datetime]::Now   # dernier moment avec un focus ou une pause en cours (ou derniere relance)
     NudgeOffDay  = ''          # « Pas aujourd'hui » : plus de relance ce jour-la
     NudgeIds     = @()
+    NextTick     = [datetime]::MinValue
+    UrgencyLevel = ''
     EndsAt       = [datetime]::MinValue
     Paused       = $false
     Remaining    = [timespan]::Zero
@@ -1452,6 +1469,9 @@ function Get-SettingsSnapshot {
         idleMinutes        = $Config.IdleMinutes
         morningPlan        = $Config.MorningPlan
         idleNudge          = $Config.IdleNudge
+        tickSound          = $Config.TickSound
+        tickZoneMin        = $Config.TickZoneMin
+        urgencyBar         = $Config.UrgencyBar
         idleNudgeMin       = $Config.IdleNudgeMin
         notesMirror        = $Config.NotesMirror
         contextButton      = $Config.ContextButton
@@ -1476,6 +1496,9 @@ function Apply-SettingsData($d) {
     if (Has 'taskReminders') { $O.TaskReminders = [bool]$d.taskReminders }
     if (Has 'morningPlan') { $Config.MorningPlan = [bool]$d.morningPlan }
     if (Has 'idleNudge') { $Config.IdleNudge = [bool]$d.idleNudge }
+    if (Has 'tickSound') { $Config.TickSound = [bool]$d.tickSound }
+    if (Has 'tickZoneMin') { $Config.TickZoneMin = [math]::Min(15, [math]::Max(1, [int]$d.tickZoneMin)) }
+    if (Has 'urgencyBar') { $Config.UrgencyBar = [bool]$d.urgencyBar }
     if (Has 'idleNudgeMin') { $Config.IdleNudgeMin = [math]::Min(240, [math]::Max(10, [int]$d.idleNudgeMin)) }
     if (Has 'notesMirror') { $Config.NotesMirror = [string]$d.notesMirror }
     if (Has 'reminderEveryMin') { $Config.ReminderEveryMin = [int]$d.reminderEveryMin }
@@ -2325,6 +2348,88 @@ function Show-MorningPlan {
 }
 
 # ---------------------------------------------------------------------------
+#  Zone finale du focus : compte a rebours sonore et visuel
+#  Choix de conception : pas de tic-tac pendant tout le focus (il capterait l'attention
+#  et ferait l'inverse du but). Le son ne commence qu'a l'approche de la fin et
+#  s'accelere : toutes les 20 s, puis 10 s (2 dernieres min), 5 s (derniere minute),
+#  2 s (30 dernieres s), et chaque seconde, plus aigu, pour les 10 dernieres.
+# ---------------------------------------------------------------------------
+function Get-TickInterval([double]$leftSec, [double]$zoneSec) {
+    if ($leftSec -le 0 -or $leftSec -gt $zoneSec) { return 0 }
+    if ($leftSec -gt 120) { return 20 }
+    if ($leftSec -gt 60) { return 10 }
+    if ($leftSec -gt 30) { return 5 }
+    if ($leftSec -gt 10) { return 2 }
+    return 1
+}
+
+# niveau d'urgence pour les couleurs : calme > 50 %, attention > 25 %, presse, puis final (derniere minute)
+function Get-UrgencyLevel([double]$frac, [double]$leftSec) {
+    if ($leftSec -le 60) { return 'final' }
+    if ($frac -gt 0.5) { return 'calm' }
+    if ($frac -gt 0.25) { return 'mid' }
+    return 'high'
+}
+$UrgencyColors = @{ calm = '#FF4C8DFF'; mid = '#FFFFC93C'; high = '#FFFF8A1C'; final = '#FFFF4D4D'; break = '#FF3DDC84'; paused = '#FF8A8FA3' }
+
+# un « tic » court et doux (WAV en memoire), plus aigu pour les 10 dernieres secondes
+function New-TickWav([double]$freq, [int]$volume) {
+    $rate = 22050; $n = [int]($rate * 0.045)
+    $amp = 9000 * [math]::Min(1, [math]::Max(0.05, $volume / 100))
+    $ms = New-Object IO.MemoryStream
+    $w = New-Object IO.BinaryWriter $ms
+    $w.Write([Text.Encoding]::ASCII.GetBytes('RIFF')); $w.Write([int](36 + $n * 2)); $w.Write([Text.Encoding]::ASCII.GetBytes('WAVEfmt '))
+    $w.Write([int]16); $w.Write([int16]1); $w.Write([int16]1); $w.Write([int]$rate); $w.Write([int]($rate * 2)); $w.Write([int16]2); $w.Write([int16]16)
+    $w.Write([Text.Encoding]::ASCII.GetBytes('data')); $w.Write([int]($n * 2))
+    for ($i = 0; $i -lt $n; $i++) {
+        $env = [math]::Exp(-$i / ($n / 5.0)) * [math]::Min(1, $i / 40.0)
+        $w.Write([int16]($amp * $env * [math]::Sin(2 * [math]::PI * $freq * $i / $rate)))
+    }
+    $w.Flush()
+    return $ms.ToArray()
+}
+
+function Play-Tick([bool]$high) {
+    $key = "$high|$($Config.DroidVolume)"
+    if ($script:TickKey -ne $key) { $script:TickKey = $key; $script:TickWav = New-TickWav $(if ($high) { 1568 } else { 1046 }) $Config.DroidVolume }
+    try {
+        $script:TickPlayer = New-Object System.Media.SoundPlayer (New-Object IO.MemoryStream (, $script:TickWav))
+        $script:TickPlayer.Play()
+    } catch { Write-Log "Tic : $($_.Exception.Message)" }
+}
+
+function Step-Ticks([datetime]$now) {
+    if (-not $Config.TickSound -or $Config.DroidVolume -le 0 -or $O.State -ne 'Focus' -or $O.Paused) { $O.NextTick = [datetime]::MinValue; return }
+    $left = ($O.EndsAt - $now).TotalSeconds
+    $iv = Get-TickInterval $left ($Config.TickZoneMin * 60)
+    if (-not $iv) { $O.NextTick = [datetime]::MinValue; return }
+    if ($now -lt $O.NextTick) { return }
+    Play-Tick ($left -le 10)
+    $O.NextTick = $now.AddSeconds($iv - 0.1)
+}
+
+# la barre : longueur = temps restant, couleur = urgence (rafraichie chaque seconde)
+function Update-UrgencyChip([datetime]$now = (Get-Date)) {
+    $show = $Config.UrgencyBar -and $O.State -in 'Focus', 'Break' -and -not $O.Mini
+    $vis = if ($show) { 'Visible' } else { 'Collapsed' }
+    if ($ui.UrgencyChip.Visibility -ne $vis) { $ui.UrgencyChip.Visibility = $vis }
+    if (-not $show) { $O.UrgencyLevel = ''; return }
+    $total = 60 * $(if ($O.State -eq 'Focus') { [math]::Max(1, $O.SessionMin) } else { [math]::Max(1, $Config.BreakMinutes) })
+    $left = if ($O.Paused) { $O.Remaining.TotalSeconds } else { ($O.EndsAt - $now).TotalSeconds }
+    $left = [math]::Max(0, $left)
+    $frac = [math]::Min(1, $left / $total)
+    $level = if ($O.Paused) { 'paused' } elseif ($O.State -eq 'Break') { 'break' } else { Get-UrgencyLevel $frac $left }
+    $O.UrgencyLevel = $level
+    # derniere minute : la barre « zoome » sur ces 60 secondes (rouge, elle se vide seconde par seconde)
+    $shown = if ($level -eq 'final') { [math]::Min(1, $left / 60) } else { $frac }
+    $ui.UrgencyFill.Width = [math]::Max(4, 65 * $shown)
+    $ui.UrgencyFill.Background = $UrgencyColors[$level]
+    $ui.UrgencyText.Foreground = if ($level -eq 'mid') { '#FF1E1B3A' } else { '#FFFFFFFF' }
+    $ui.UrgencyText.Text = '{0}{1}:{2:00}' -f $(if ($O.Paused) { '⏸' } else { '' }), [math]::Floor($left / 60), [math]::Floor($left % 60)
+    if ($level -ne 'final') { $ui.UrgencyChip.Opacity = 1 }
+}
+
+# ---------------------------------------------------------------------------
 #  Relance « Tu attends quoi ? » : aucun focus depuis 45 min (reglable) alors que des
 #  cartes attendent -> 2 ou 3 propositions, un clic lance le focus sur l'une d'elles.
 #  Jamais pendant un focus ou une pause, ni si tu n'es pas devant l'ecran, ni par-dessus
@@ -2556,6 +2661,11 @@ function On-Frame {
     $O.LastFrame = $now
     $O.Time += $dt
     $t = $O.Time
+    # derniere minute : la barre pulse (de plus en plus vite)
+    if ($O.UrgencyLevel -eq 'final') {
+        $left = [math]::Max(1, ($O.EndsAt - $now).TotalSeconds)
+        $ui.UrgencyChip.Opacity = 0.55 + 0.45 * [math]::Abs([math]::Sin($t * [math]::Min(12, 3 + 40 / $left)))
+    }
 
     # (la derive lente dans l'espace est une animation WPF : voir Start-Floating)
 
@@ -2824,6 +2934,8 @@ function On-Second {
     Invoke-Safe { $script:TimerEnded = Step-Timer $now } 'chrono'
     if ($script:TimerEnded) { Invoke-Safe { Update-Pill } 'chrono'; return }
     Invoke-Safe { Step-AwaitReminder $now } 'relance'
+    Invoke-Safe { Step-Ticks $now } 'compte a rebours sonore'
+    Invoke-Safe { Update-UrgencyChip $now } 'compte a rebours visuel'
     if ($n % 2 -eq 0) { Invoke-Safe { Check-Idle } 'absence' }
     if ($n % 2 -eq 1) { Invoke-Safe { Check-ContextReturn } 'reprise au retour' }
     if ($n % 15 -eq 7) { Invoke-Safe { Check-ContextReminders $now } 'rappel de reprise' }

@@ -681,6 +681,35 @@ Check 'etat Idle : rien a reprendre' (-not (Test-Path $StateFile))
 $O.State = 'Idle'; [void](Restore-State)
 Check 'etat trop ancien (6 h) : ignore' ($O.State -eq 'Idle')
 
+Section 'Zone finale du focus : tic qui s''accelere et barre qui change de couleur'
+foreach ($def in Get-ScriptFunctions (Join-Path $Root 'orbit.ps1') @('Get-TickInterval', 'Get-UrgencyLevel', 'New-TickWav', 'Step-Ticks')) { . ([scriptblock]::Create($def)) }
+Check 'silence avant la zone finale (5 min)' ((Get-TickInterval 301 300) -eq 0 -and (Get-TickInterval 1800 300) -eq 0)
+Check 'puis de plus en plus vite : 20 s, 10 s, 5 s, 2 s, 1 s' ((Get-TickInterval 300 300) -eq 20 -and (Get-TickInterval 100 300) -eq 10 -and (Get-TickInterval 45 300) -eq 5 -and (Get-TickInterval 20 300) -eq 2 -and (Get-TickInterval 5 300) -eq 1)
+Check 'couleurs : calme, attention, presse, final (derniere minute)' ((Get-UrgencyLevel 0.8 2400) -eq 'calm' -and (Get-UrgencyLevel 0.4 1200) -eq 'mid' -and (Get-UrgencyLevel 0.2 600) -eq 'high' -and (Get-UrgencyLevel 0.02 59) -eq 'final')
+$wav = New-TickWav 1046 50
+Check 'le tic est un vrai WAV court (RIFF/WAVE, < 0,1 s)' ([Text.Encoding]::ASCII.GetString($wav, 0, 4) -eq 'RIFF' -and [Text.Encoding]::ASCII.GetString($wav, 8, 4) -eq 'WAVE' -and $wav.Length -lt 4500 -and [BitConverter]::ToInt32($wav, 4) -eq $wav.Length - 8)
+$ticks = New-Object System.Collections.ArrayList
+function Play-Tick([bool]$high) { [void]$ticks.Add(@{ At = $script:simNow; High = $high }) }
+$Config.TickSound = $true; $Config.TickZoneMin = 5; $Config.DroidVolume = 50
+$O.State = 'Focus'; $O.Paused = $false; $O.NextTick = [datetime]::MinValue
+$start = Get-Date '2026-10-05T10:00:00'; $O.EndsAt = $start.AddMinutes(50)
+for ($sec = 0; $sec -lt 3000; $sec++) { $script:simNow = $start.AddSeconds($sec); Step-Ticks $script:simNow }
+$first = ($ticks[0].At - $start).TotalSeconds
+$gaps = for ($i = 1; $i -lt $ticks.Count; $i++) { [math]::Round(($ticks[$i].At - $ticks[$i - 1].At).TotalSeconds) }
+Check "aucun tic pendant les 45 premieres minutes, premier a 5:00 de la fin ($($ticks.Count) tics)" ($first -eq 2700)
+Check 'les intervalles ne font que raccourcir (accelere jusqu''a la fin)' (@(for ($i = 1; $i -lt $gaps.Count; $i++) { if ($gaps[$i] -gt $gaps[$i - 1]) { 1 } }).Count -eq 0 -and $gaps[0] -eq 20 -and $gaps[-1] -eq 1) ($gaps -join ',')
+Check 'les 10 dernieres secondes : tic plus aigu' (@($ticks | Where-Object { $_.High }).Count -ge 9 -and -not $ticks[0].High)
+$ticks.Clear(); $O.Paused = $true; $O.NextTick = [datetime]::MinValue
+for ($sec = 2950; $sec -lt 2999; $sec++) { $script:simNow = $start.AddSeconds($sec); Step-Ticks $script:simNow }
+Check 'en pause : silence' ($ticks.Count -eq 0)
+$O.Paused = $false; $Config.TickSound = $false
+for ($sec = 2950; $sec -lt 2999; $sec++) { $script:simNow = $start.AddSeconds($sec); Step-Ticks $script:simNow }
+Check 'desactive dans les reglages : silence' ($ticks.Count -eq 0)
+$Config.TickSound = $true; $O.State = 'Break'
+for ($sec = 2950; $sec -lt 2999; $sec++) { $script:simNow = $start.AddSeconds($sec); Step-Ticks $script:simNow }
+Check 'pendant la pause : pas de tic (la pause doit reposer)' ($ticks.Count -eq 0)
+$O.State = 'Idle'
+
 Section 'Mes sons : le dossier « sons », chacun son tour au hasard'
 foreach ($def in Get-ScriptFunctions (Join-Path $Root 'orbit.ps1') @('Get-MySounds', 'Pick-NotLast', 'Copy-ToSoundsDir', 'Move-OldSoundList', 'Play-Chirp')) { . ([scriptblock]::Create($def)) }
 $SoundsDir = Join-Path $T 'sons-du-test'; $SoundExt = @('.wav', '.mp3', '.m4a', '.wma')

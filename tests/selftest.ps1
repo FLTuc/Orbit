@@ -255,6 +255,13 @@ try {
     $Config.ContextButton = $false; Update-Pill
     Check 'et cache si desactive dans les reglages' ($ui.CtxBadge.Visibility -eq 'Collapsed')
     $Config.ContextButton = $true
+    Update-UrgencyChip
+    Check 'barre de compte a rebours visible pendant le focus, avec le temps' ($ui.UrgencyChip.Visibility -eq 'Visible' -and $ui.UrgencyText.Text -match '^\d+:\d\d$')
+    $keepEnd = $O.EndsAt; $O.EndsAt = (Get-Date).AddSeconds(42); Update-UrgencyChip; On-Frame
+    Check 'derniere minute : barre rouge qui pulse' ($O.UrgencyLevel -eq 'final' -and [string]$ui.UrgencyFill.Background -eq '#FFFF4D4D')
+    Play-Tick $false; Play-Tick $true
+    Check 'le tic se joue sans erreur (grave et aigu)' ($script:TickPlayer -ne $null)
+    $O.EndsAt = $keepEnd; Update-UrgencyChip
     $n0 = $NB.Contexts.Count; $Config.ContextScreenshot = $false
     Start-Interruption; Close-ContextEditor -Cancel
     Check 'annuler : rien de garde, le focus continue' ($NB.Contexts.Count -eq $n0 -and -not $O.Paused)
@@ -307,6 +314,7 @@ try {
     Check '🏆 mes victoires : le deblocage y est' ($ui.BubbleText.Text -match 'Débloqué')
     Open-Settings
     Check 'reglages : bouton 📝' ($sw.SAnchorButton.IsChecked -eq $Config.AnchorButton)
+    Check 'reglages : compte a rebours (tic, zone, barre)' ($sw.STickSound.IsChecked -eq $Config.TickSound -and [int]$sw.STickZone.Text -eq $Config.TickZoneMin -and $sw.SUrgencyBar.IsChecked -eq $Config.UrgencyBar)
     Check 'reglages : relance sans focus (case + minutes)' ($sw.SIdleNudge.IsChecked -eq $Config.IdleNudge -and [int]$sw.SIdleNudgeMin.Text -eq $Config.IdleNudgeMin)
     New-Item -ItemType Directory -Force -Path $SoundsDir | Out-Null
     [IO.File]::WriteAllBytes((Join-Path $SoundsDir 'test-orbit.wav'), [byte[]](1..10))

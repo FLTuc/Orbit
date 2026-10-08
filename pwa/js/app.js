@@ -316,6 +316,7 @@ function loop() {
   if (ev) { commit(); onTimerEvent(ev, document.visibilityState !== 'visible'); return; }
   const now = Date.now();
   const t = S.timer;
+  if (document.visibilityState === 'visible') stepTicks(now);
   if (t.state === 'Break' && !t.paused && S.settings.jokes && now >= nextJoke && St.timeLeft(S) > 20000 && view === 'home' && !bubbleHasQuestion()) {
     nextJoke = now + 120000;
     tellBreakItem();
@@ -365,8 +366,38 @@ function renderClock() {
   $('timerState').textContent = state;
   Ob.setMood(bot, mood);
   document.title = (t.state === 'Focus' || t.state === 'Break') ? `${big} · Orbit` : 'Orbit';
+  renderUrgency();
   $('ctxBadge').classList.toggle('hidden', !(S.settings.ctxButton && t.state === 'Focus' && !t.paused));
   $('dockReprises').classList.toggle('hidden', !St.openReprises(S).length);
+}
+
+// --- zone finale : barre de compte a rebours (couleur) et tic qui s'accelere ---------------
+function renderUrgency() {
+  const t = S.timer, bar = $('urgency');
+  const show = S.settings.urgencyBar && (t.state === 'Focus' || t.state === 'Break');
+  bar.classList.toggle('hidden', !show);
+  $('bigClock').classList.remove('final');
+  if (!show) return;
+  const left = St.timeLeft(S) / 1000, total = Math.max(1, t.sessionMin) * 60;
+  const frac = Math.min(1, Math.max(0, left / total));
+  const level = t.paused ? 'paused' : t.state === 'Break' ? 'break' : St.urgencyLevel(frac, left);
+  bar.className = `urgency lv-${level}${level === 'final' && left <= 10 ? ' fast' : ''}`;
+  bar.setAttribute('aria-valuenow', String(Math.round(frac * 100)));
+  // derniere minute : la barre « zoome » sur ces 60 secondes (rouge, elle se vide seconde par seconde)
+  const shown = level === 'final' ? Math.min(1, left / 60) : frac;
+  $('urgencyFill').style.width = `${Math.max(2, shown * 100)}%`;
+  $('bigClock').classList.toggle('final', level === 'final');
+}
+let nextTick = 0;
+function stepTicks(now) {
+  const t = S.timer;
+  if (!S.settings.tickSound || !S.settings.sounds || t.state !== 'Focus' || t.paused) { nextTick = 0; return; }
+  const left = St.timeLeft(S, now) / 1000;
+  const iv = St.tickInterval(left, S.settings.tickZoneMin * 60);
+  if (!iv) { nextTick = 0; return; }
+  if (now < nextTick) return;
+  Ob.tick(left <= 10);
+  nextTick = now + iv * 1000 - 100;
 }
 
 function renderHome() {
@@ -949,6 +980,7 @@ const SETTINGS_FORM = [
   ['⏱ Rythme', [['rhythm', 'select', 'Rythme', [['50/10', '50 min / 10 min'], ['25/5', '25 min / 5 min'], ['Perso', 'Perso']]], ['customFocus', 'number', 'Focus perso (min)', 1, 240], ['customBreak', 'number', 'Pause perso (min)', 1, 120]]],
   ['😄 Pendant la pause', [['jokes', 'bool', 'Blagues ou culture G'], ['breakContent', 'select', 'Contenu', [['Both', 'Les deux, en alternance'], ['Jokes', 'Des blagues'], ['Culture', 'De la culture G']]], ['motivation', 'bool', 'Petites phrases de motivation pendant le focus']]],
   ['🔔 Sons et rappels', [['sounds', 'bool', 'Sons doux (jamais stridents)'], ['vibrate', 'bool', 'Vibrations'], ['notifications', 'bool', 'Notification à la fin d’une session', "Tant que l'appli est ouverte ou en arrière-plan récent."], ['wakeLock', 'bool', 'Garder l’écran allumé pendant un focus', "Pour que le chrono sonne à coup sûr."], ['taskReminders', 'bool', 'Proposer ma carte la plus urgente au début du focus'], ['morningPlan', 'bool', 'Plan du matin'], ['idleNudge', 'bool', '👀 Sans focus depuis un moment : me proposer 2-3 cartes qui attendent'], ['idleNudgeMin', 'number', 'Au bout de (minutes)', 10, 240]]],
+  ['⏳ Compte à rebours', [['urgencyBar', 'bool', 'Barre qui se vide et change de couleur (bleu, jaune, orange, rouge qui pulse)'], ['tickSound', 'bool', 'Un tic doux qui s’accélère à l’approche de la fin du focus'], ['tickZoneMin', 'number', 'Pendant les dernières (minutes)', 1, 15]]],
   ["✋ Je m'interromps", [['ctxButton', 'bool', 'Bouton ✋ à côté d’Orbit pendant un focus'], ['ctxRemind', 'bool', 'Me relancer si je n’ai pas repris (3 fois max)'], ['ctxRemindMin', 'number', 'Après (minutes)', 5, 480]]],
 ];
 function renderSettings() {
