@@ -101,7 +101,7 @@ $Config = @{
     DroidSounds         = $true  # petits bips de droide a chaque bulle
     DroidVolume         = 40     # volume des sons, de 0 a 100
     BubbleSound         = 'Droide'   # Droide | Carillon | Marimba | Pop | Bip | Fichier | Aleatoire
-    BubbleSoundFiles    = @()        # mes sons (.wav, .mp3, .m4a, .wma), joues au hasard
+    BubbleSoundFiles    = @()        # ancienne liste de sons : copiee une fois dans le dossier « sons »
     EndSound            = 'Carillon' # Carillon | Windows | Fichier  (fin de session et rappels)
     EndSoundFile        = ''
     CustomImage         = ''         # apparence "Mon image"
@@ -130,6 +130,9 @@ $DataDir = Join-Path $env:APPDATA 'Orbit'
 $StatsFile = Join-Path $DataDir 'stats.json'
 $SettingsFile = Join-Path $DataDir 'settings.json'
 $LogFile = Join-Path $DataDir 'orbit.log'
+# Mes sons : tous les fichiers audio poses dans ce dossier (%APPDATA%\Orbit\sons)
+$SoundsDir = Join-Path $DataDir 'sons'
+$SoundExt = @('.wav', '.mp3', '.m4a', '.wma')
 $StateFile = Join-Path $DataDir 'etat.json'
 if (-not (Test-Path $DataDir)) { New-Item -ItemType Directory -Path $DataDir | Out-Null }
 
@@ -1981,16 +1984,59 @@ function Get-StyleBank([int]$style) {
     return $script:StyleBanks[$style]
 }
 
-function Get-MySounds { @($Config.BubbleSoundFiles | Where-Object { $_ -and (Test-Path -LiteralPath $_) }) }
+# Mes sons = les fichiers audio du dossier « sons » d'Orbit (on peut en ajouter ou en retirer
+# directement dans l'Explorateur : la liste suit le dossier)
+function Get-MySounds {
+    if (-not (Test-Path -LiteralPath $SoundsDir)) { return @() }
+    @(Get-ChildItem -LiteralPath $SoundsDir -File -ErrorAction SilentlyContinue |
+        Where-Object { $SoundExt -contains $_.Extension.ToLowerInvariant() } | Sort-Object Name | ForEach-Object { $_.FullName })
+}
 
-# tire au hasard un element different du precedent quand c'est possible
+# copie un son dans le dossier « sons » (sans ecraser un autre son du meme nom) ; renvoie son chemin
+function Copy-ToSoundsDir([string]$f) {
+    if (-not (Test-Path -LiteralPath $SoundsDir)) { New-Item -ItemType Directory -Path $SoundsDir -Force | Out-Null }
+    $full = [IO.Path]::GetFullPath($f)
+    if ([IO.Path]::GetDirectoryName($full) -eq [IO.Path]::GetFullPath($SoundsDir).TrimEnd('\', '/')) { return $full }
+    $dest = Join-Path $SoundsDir ([IO.Path]::GetFileName($f))
+    $i = 2
+    while ((Test-Path -LiteralPath $dest) -and ((Get-Item -LiteralPath $dest).Length -ne (Get-Item -LiteralPath $f).Length)) {
+        $dest = Join-Path $SoundsDir ("{0} ({1}){2}" -f [IO.Path]::GetFileNameWithoutExtension($f), $i, [IO.Path]::GetExtension($f)); $i++
+    }
+    if (-not (Test-Path -LiteralPath $dest)) { Copy-Item -LiteralPath $f -Destination $dest }
+    return $dest
+}
+
+# ancienne version : la liste de sons etait dans les reglages -> on les range une fois dans le dossier
+function Move-OldSoundList {
+    $old = @($Config.BubbleSoundFiles | Where-Object { $_ })
+    if (-not $old.Count) { return }
+    foreach ($f in $old) {
+        try { if ((Test-Path -LiteralPath $f) -and $SoundExt -contains [IO.Path]::GetExtension($f).ToLowerInvariant()) { [void](Copy-ToSoundsDir $f) } }
+        catch { Write-Log "Son $f : $($_.Exception.Message)" }
+    }
+    $Config.BubbleSoundFiles = @()
+    Save-Settings
+    Write-Log "Sons : $($old.Count) son(s) ranges dans le dossier $SoundsDir"
+}
+
+# Chacun son tour, dans un ordre au hasard : on melange la liste, on la joue en entier,
+# puis on remelange (sans rejouer tout de suite le dernier son entendu).
 function Pick-NotLast([object[]]$items) {
-    if ($items.Count -le 1) { return $items[0] }
-    do { $it = $items[(Get-Random -Maximum $items.Count)] } while ("$it" -eq "$($script:LastSoundPick)")
+    $items = @($items | Where-Object { $_ })
+    if ($items.Count -le 1) { $script:LastSoundPick = $items[0]; return $items[0] }
+    $key = ($items | ForEach-Object { "$_" }) -join '|'
+    if ($script:SoundBagKey -ne $key -or -not $script:SoundBag -or $script:SoundBag.Count -eq 0) {
+        $script:SoundBagKey = $key
+        $mixed = @($items | Sort-Object { Get-Random })
+        if ("$($mixed[0])" -eq "$($script:LastSoundPick)") { $mixed = @($mixed[1..($mixed.Count - 1)]) + @($mixed[0]) }
+        $script:SoundBag = New-Object System.Collections.Queue (, $mixed)
+    }
+    $it = $script:SoundBag.Dequeue()
     $script:LastSoundPick = $it
     return $it
 }
 Build-Chirps
+Move-OldSoundList
 
 # joue un son choisi par l'utilisateur (renvoie $false s'il est introuvable ou illisible)
 #  - .wav : lecteur simple de Windows

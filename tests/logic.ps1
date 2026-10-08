@@ -654,6 +654,36 @@ Check 'etat Idle : rien a reprendre' (-not (Test-Path $StateFile))
 $O.State = 'Idle'; [void](Restore-State)
 Check 'etat trop ancien (6 h) : ignore' ($O.State -eq 'Idle')
 
+Section 'Mes sons : le dossier « sons », chacun son tour au hasard'
+foreach ($def in Get-ScriptFunctions (Join-Path $Root 'orbit.ps1') @('Get-MySounds', 'Pick-NotLast', 'Copy-ToSoundsDir', 'Move-OldSoundList', 'Play-Chirp')) { . ([scriptblock]::Create($def)) }
+$SoundsDir = Join-Path $T 'sons-du-test'; $SoundExt = @('.wav', '.mp3', '.m4a', '.wma')
+Check 'pas de dossier : aucun son, pas d''erreur' (@(Get-MySounds).Count -eq 0)
+$oldDir = Join-Path $T 'anciens-sons'; New-Item -ItemType Directory -Force -Path $oldDir | Out-Null
+foreach ($n in 'a.wav', 'b.mp3', 'c.m4a', 'lisez-moi.txt') { [IO.File]::WriteAllText((Join-Path $oldDir $n), $n) }
+$saved = 0; function Save-Settings { $script:saved++ }
+$Config.BubbleSoundFiles = @((Join-Path $oldDir 'a.wav'), (Join-Path $oldDir 'b.mp3'), (Join-Path $oldDir 'c.m4a'), (Join-Path $oldDir 'lisez-moi.txt'), 'C:\introuvable\x.wav')
+Move-OldSoundList
+$mine = @(Get-MySounds)
+Check 'ancienne liste rangee une fois dans le dossier « sons » (sons seulement)' ($mine.Count -eq 3 -and @($Config.BubbleSoundFiles).Count -eq 0 -and $saved -eq 1)
+[IO.File]::WriteAllText((Join-Path $SoundsDir 'd.wma'), 'd'); [IO.File]::WriteAllText((Join-Path $SoundsDir 'notes.txt'), 'x')
+Check 'un fichier pose dans le dossier est pris tout de suite (pas les autres fichiers)' (@(Get-MySounds).Count -eq 4)
+Check 'meme nom, contenu different : copie sans ecraser' ((Split-Path -Leaf (Copy-ToSoundsDir (Join-Path $oldDir 'lisez-moi.txt'))) -eq 'lisez-moi.txt' -and (Split-Path -Leaf (Copy-ToSoundsDir (Join-Path $oldDir 'a.wav'))) -eq 'a.wav')
+[IO.File]::WriteAllText((Join-Path $oldDir 'a.wav'), 'autre contenu plus long')
+Check 'homonyme different : renomme « (2) »' ((Split-Path -Leaf (Copy-ToSoundsDir (Join-Path $oldDir 'a.wav'))) -eq 'a (2).wav')
+Remove-Item -LiteralPath (Join-Path $SoundsDir 'a (2).wav'), (Join-Path $SoundsDir 'lisez-moi.txt')
+$played = New-Object System.Collections.ArrayList
+function Play-AudioFile($p) { [void]$played.Add([IO.Path]::GetFileName($p)); $true }
+function Build-Chirps {}
+$SoundStyles = @{}; $Config.DroidSounds = $true; $Config.DroidVolume = 50; $Config.BubbleSound = 'Fichier'; $script:ChirpKey = 'Fichier|50'
+for ($i = 0; $i -lt 40; $i++) { Play-Chirp -Force }
+$rounds = for ($r = 0; $r -lt 10; $r++) { (@($played[($r * 4)..($r * 4 + 3)] | Sort-Object) -join ',') }
+Check 'chaque tour joue les 4 sons une fois (pas toujours le premier)' (@($rounds | Where-Object { $_ -ne 'a.wav,b.mp3,c.m4a,d.wma' }).Count -eq 0) ($played -join ' ')
+$twice = 0; for ($i = 1; $i -lt $played.Count; $i++) { if ($played[$i] -eq $played[$i - 1]) { $twice++ } }
+Check 'jamais deux fois de suite le meme son' ($twice -eq 0)
+$orders = foreach ($r in 0..9) { $played[($r * 4)..($r * 4 + 3)] -join ',' }
+Check 'l''ordre change d''un tour a l''autre (hasard)' (@($orders | Select-Object -Unique).Count -gt 1)
+Check 'un seul son : toujours lui' ((Pick-NotLast @('seul.wav')) -eq 'seul.wav' -and (Pick-NotLast @('seul.wav')) -eq 'seul.wav')
+
 Section 'Texte des bulles : pas de caractere bizarre'
 $E = { param($cp) [char]::ConvertFromUtf32($cp) }
 $rocket = & $E 0x1F680; $tech = (& $E 0x1F9D1) + [char]0x200D + (& $E 0x1F4BB)

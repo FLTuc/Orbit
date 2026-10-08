@@ -37,7 +37,14 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   - **à la fin de la pause**, il rappelle la prochaine tâche au programme.
 - **Pause automatique si tu t'absentes** : si tu ne touches ni la souris ni le clavier pendant 5 min en plein focus, Orbit met le chrono en pause au moment où tu es parti (le temps d'absence ne compte pas). À ton retour, il te dit combien de temps tu as été absent et te propose de reprendre.
 - **Des blagues pendant la pause** : environ une toutes les 2 minutes, piochées parmi **plus de 1000 blagues** (combles, devinettes, « Monsieur et Madame… », bureau, informatique, espace…). Orbit pose la question, puis donne la chute quelques secondes plus tard. Il retient où il en est, même après un redémarrage : aucune blague ne revient tant que toutes ne sont pas passées.
-- **Des bulles de BD** : tout ce que dit Orbit apparaît dans une bulle de bande dessinée avec un « pop », accompagné d'un **petit son au choix** : droïde doux, carillon, marimba, pop, bip, **tes propres sons** (ajoute autant de fichiers que tu veux, en WAV, MP3, M4A ou WMA ; un est joué au hasard à chaque bulle, sans répéter deux fois de suite le même), ou 🎲 **aléatoire** parmi tous les sons. Les sons sont générés par Orbit lui-même et montent légèrement quand il te pose une question. Le son de fin de session et des rappels se choisit aussi (carillon, son de Windows ou ton fichier WAV/MP3).
+- **Des bulles de BD** : tout ce que dit Orbit apparaît dans une bulle de bande dessinée avec un « pop », accompagné d'un **petit son au choix** : droïde doux, carillon, marimba, pop, bip, **tes propres sons** (choix « 📁 Mes sons » : voir ci-dessous), ou 🎲 **aléatoire** parmi tous les sons. Les sons sont générés par Orbit lui-même et montent légèrement quand il te pose une question. Le son de fin de session et des rappels se choisit aussi (carillon, son de Windows ou ton fichier WAV/MP3).
+- **🎵 Mes sons = un dossier** : `%APPDATA%\Orbit\sons`. Tout fichier **.wav, .mp3, .m4a ou .wma** posé dedans fait partie de tes sons, sans rien régler. Pour le remplir :
+  - dans les réglages (section 🔊), **＋ Ajouter…** copie les fichiers choisis dans ce dossier ;
+  - **📂 Dossier** l'ouvre dans l'Explorateur : glisse-y tes sons, ou supprime ceux qui ne te plaisent plus ;
+  - **－ Retirer** envoie le son sélectionné à la corbeille de Windows (récupérable) ;
+  - **▶ Écouter** joue le son sélectionné (ou le suivant de la liste).
+
+  Les sons passent **chacun leur tour, dans un ordre au hasard** : Orbit mélange la liste, joue chaque son une fois, puis remélange (jamais deux fois de suite le même). Le dossier part avec l'export vers un autre PC. Les sons choisis avec une ancienne version d'Orbit sont rangés tout seuls dans ce dossier au premier lancement.
   - Bulle de **parole** (avec une pointe) quand il te parle : questions, chrono, indications.
   - Bulle de **pensée** (avec des petits ronds) pour ses réflexions et ses commentaires sur tes applis.
 - **Des petits commentaires** : de la motivation pendant le focus (mi-parcours, 5 dernières minutes…) et des blagues selon l'application sous ta souris (Excel, Outlook, Teams, PowerPoint, VS Code…). Pendant le focus, il te taquine si tu passes sur YouTube, Netflix, Reddit…
@@ -111,7 +118,7 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   - rappels de tâches, et fréquence des relances quand Orbit attend ta réponse ;
   - blagues de pause (oui/non et fréquence), phrases de motivation, commentaires sur les applis, mode silencieux ;
   - apparence (satellite, droïde, robot, majordome robot ou humain, cerveau humain) ;
-  - balades (oui/non et fréquence), sons (style, fichiers perso WAV ou MP3, volume, bouton ▶ pour écouter), lancement au démarrage de Windows.
+  - balades (oui/non et fréquence), sons (style, dossier « Mes sons » avec ＋ Ajouter / － Retirer / 📂 Dossier, volume, bouton ▶ pour écouter), lancement au démarrage de Windows.
 
 ## 📱 Orbit sur ton téléphone (Android, iPhone)
 
@@ -180,7 +187,7 @@ Tout est enregistré dans `%APPDATA%\Orbit\` :
 | `clipboard\AAAA-MM-JJ.json` | les copier-coller du jour |
 | `clipboard-favoris.json` | les copier-coller mis en favori ⭐ (conservés) |
 | `settings.json` | tes réglages |
-| `sons\` | les sons que tu as ajoutés (copiés ici) |
+| `sons\` | **tes sons** : tout fichier .wav, .mp3, .m4a ou .wma posé ici est joué, chacun son tour, au hasard |
 | `stats.json`, `orbit.log` | statistiques et petit journal d'erreurs |
 
 Attention : l'historique des copier-coller est stocké en clair dans ton profil. Si tu copies des données sensibles, utilise la case **Pause** ou le bouton **Tout effacer**.
