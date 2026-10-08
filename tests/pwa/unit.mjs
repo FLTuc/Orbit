@@ -86,6 +86,18 @@ check('victoires gardees, ancien contenu vide, une seule fois', s.anchor.wins.le
 const rs = S.normalizeState(JSON.parse(JSON.stringify(s)));
 check('carte « jour ouvre » du PC gardee', S.sanitizeKanban({ ...rs.kanban, cards: [{ ...rc, repeat: 'workdays' }] }).cards[0].repeat === 'workdays');
 
+section('Relance « Tu attends quoi ? » (45 min sans focus)');
+{
+  const set = S.defaultSettings(), t0 = new Date(2026, 9, 5, 10, 0).getTime();
+  check('active par defaut, 45 min', set.idleNudge === true && set.idleNudgeMin === 45);
+  check('pas avant 45 min', !S.idleNudgeDue(set, 'Idle', t0, new Date(t0 + 44 * 60000)));
+  check('oui a 45 min', S.idleNudgeDue(set, 'Idle', t0, new Date(t0 + 45 * 60000)));
+  check('jamais pendant un focus ou une pause', !S.idleNudgeDue(set, 'Focus', t0, new Date(t0 + 99 * 60000)) && !S.idleNudgeDue(set, 'Break', t0, new Date(t0 + 99 * 60000)));
+  check('« Pas aujourd\'hui » : rien ce jour-la, demain oui', !S.idleNudgeDue(set, 'Idle', t0, new Date(t0 + 60 * 60000), '2026-10-05') && S.idleNudgeDue(set, 'Idle', t0, new Date(2026, 9, 6, 9), '2026-10-05'));
+  check('desactivee : jamais', !S.idleNudgeDue({ ...set, idleNudge: false }, 'Idle', t0, new Date(t0 + 999 * 60000)));
+  check('reglage borne (10 a 240 min)', S.sanitizeSettings({ idleNudgeMin: 2 }).idleNudgeMin === 10 && S.sanitizeSettings({ idleNudgeMin: 9999 }).idleNudgeMin === 240 && S.sanitizeSettings({ idleNudge: false }).idleNudge === false);
+}
+
 section('Unstick Me : decoupage local');
 const steps = S.decompose('Répondre au mail de Julie', rules);
 check('3 a 5 micro-etapes', steps.length >= 3 && steps.length <= 5);

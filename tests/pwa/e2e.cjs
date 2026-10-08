@@ -253,6 +253,31 @@ function pcZip(entries) {
     check('idee -> note, routine -> carte qui se repete', st.notes.some((n) => n.text === 'Vieille idée du Brain Dump') && st.kanban.cards.find((c) => c.text === 'Vieille routine')?.repeat === 'workdays' && !st.anchor.dump.length && !st.anchor.tasks.length);
     check('Orbit le dit dans sa bulle', /Rien n'est perdu/.test(await page.textContent('#bubbleText')));
 
+    section('👀 Relance apres 45 min sans focus');
+    await page.evaluate(() => {
+      const raw = JSON.parse(localStorage.getItem('orbit.v1'));
+      raw.timer = { state: 'Idle', endsAt: 0, paused: false, remainingMs: 0, sessionMin: 0 };
+      raw.reprises = [];
+      localStorage.setItem('orbit.v1', JSON.stringify(raw));
+    });
+    await page.reload();
+    await page.waitForSelector('#bigClock');
+    await page.evaluate(() => document.getElementById('bubble').classList.add('hidden'));
+    await page.clock.fastForward('30:00');
+    await page.waitForTimeout(200);
+    check('pas de relance avant 45 min', !/qu'est-ce que tu attends/.test(await page.textContent('#bubbleText')));
+    await page.clock.fastForward('16:00');
+    await page.waitForTimeout(300);
+    const nudge = await page.textContent('#bubbleText');
+    check('a 45 min : « qu\'est-ce que tu attends ? » avec des cartes', /qu'est-ce que tu attends/.test(nudge) && /1\. «/.test(nudge), nudge.slice(0, 120));
+    check('boutons : cartes + Plus tard + Pas aujourd\'hui', /Plus tard/.test(await page.textContent('#bubbleButtons')) && /Pas aujourd/.test(await page.textContent('#bubbleButtons')));
+    await page.click('#bubbleButtons button >> nth=0');
+    st = await state();
+    check('un clic : focus lance sur cette carte', st.timer.state === 'Focus' && st.kanban.focus.length === 1);
+    await page.evaluate(() => { const raw = JSON.parse(localStorage.getItem('orbit.v1')); raw.timer.state = 'Idle'; localStorage.setItem('orbit.v1', JSON.stringify(raw)); });
+    await page.reload();
+    await page.waitForSelector('#bigClock');
+
     section('Mode sombre');
     await page.emulateMedia({ colorScheme: 'dark' });
     const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);

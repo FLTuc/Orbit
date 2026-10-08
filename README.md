@@ -103,6 +103,7 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
     - les fenêtres de navigation privée (InPrivate, Incognito) ne sont jamais lues ;
     - la capture d'écran reste sur ce PC, n'est jamais exportée et s'efface dès que tu as repris ;
     - Orbit ne rouvre que des adresses web (http/https), des dossiers et des documents (Excel, Word, PDF…) qui existent, jamais un programme.
+- **👀 « Tu attends quoi ? »** : si aucun focus n'a été lancé depuis **45 minutes** (réglable) alors que des cartes attendent, Orbit sort une bulle : « Tu as des tâches en cours, qu'est-ce que tu attends ? » avec **2 ou 3 cartes proposées** (les plus urgentes, avec la raison). Un clic sur une carte lance le focus dessus ; **⏰ Plus tard** le redemande dans 45 min ; **🌙 Pas aujourd'hui** le fait taire jusqu'au lendemain. Jamais pendant un focus ou une pause, jamais si tu n'es pas devant l'écran (il attend ton retour), jamais par-dessus une autre question. Aussi sur le téléphone (quand l'appli est ouverte). Réglages : case « 👀 Sans focus depuis … min ».
 - **☀️ Plan du matin** : à ta première apparition de la journée (à partir de 5 h), Orbit propose les 3 cartes les plus urgentes, tous tableaux confondus (en retard, à rendre aujourd'hui ou demain, rappel du jour, déjà commencées, puis priorité), avec la raison. « Go » les lie au focus et le lance ; « Choisir autre chose » ouvre la liste avec ces 3 cartes déjà cochées. À revoir quand tu veux : clic droit > ☀️ Plan du jour. Se désactive dans les réglages.
 - **🔍 Recherche partout** (onglet 🔍 du carnet, Ctrl+F, ou clic droit > ☰ Plus > Rechercher partout) : cartes de tous les tableaux (titre, description, sous-tâches), notes, reprises (✋), cartes récurrentes à venir, copier-coller et favoris, archives. Plusieurs mots : ils doivent tous y être ; accents et majuscules ignorés. Clic sur une carte : elle s'ouvre dans son tableau ; clic sur un copier-coller : il est recopié.
 - **📦 Changer de PC** (clic droit > ☰ Plus > 📦 Autre PC) : « Exporter » crée un seul fichier zip avec Orbit et tes données (réglages, tableaux, modèles, favoris, sons, image, sauvegardes). Sur l'autre PC, décompresse-le et double-clic sur `Orbit\Orbit.cmd` : tout est récupéré au premier lancement (les chemins de l'image et des sons sont adaptés). Si Orbit est déjà installé, « Importer un export… » fait la même chose et redémarre Orbit ; les données présentes sont gardées dans `avant-import-<date>`.
@@ -153,6 +154,7 @@ Ensuite, sur le téléphone : ouvre l'adresse dans Chrome, puis ⋮ > « Install
 - `node tests/pwa/unit.mjs` : la logique et les attaques ;
 - `node tests/pwa/static.mjs` : la sécurité du code ;
 - `node tests/pwa/e2e.cjs` : un parcours complet sur un Pixel 7 simulé, avec le temps accéléré, le hors-ligne, le partage, le glissement du doigt, l'import et l'export ;
+- `node tests/pwa/monkey.cjs 500 1` : le test « chaos » : 500 gestes au hasard (boutons, saisies, retour d'Android, temps qui passe, rechargements), sans aucune erreur permise ;
 - `python tools/build_pwa.py` : régénère les blagues et la culture G du téléphone, et le cache hors ligne.
 
 ## Commandes

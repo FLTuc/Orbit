@@ -176,6 +176,33 @@ $plan = @(Get-PlanCards 3)
 Check 'le plan propose 3 cartes' ($plan.Count -eq 3)
 Check 'ordre : en retard, puis pour aujourd''hui, puis la plus prioritaire' ($plan[0].Card.text -eq 'En retard' -and $plan[1].Card.text -eq 'Pour aujourd hui' -and $plan[2].Card.text -eq 'Tres prioritaire')
 Check 'avec la raison' ($plan[0].Why -match 'retard' -and $plan[1].Why -match "aujourd'hui")
+
+# relance « Tu attends quoi ? » apres 45 min sans focus
+foreach ($def in Get-ScriptFunctions (Join-Path $Root 'orbit.ps1') @('Test-IdleNudgeDue', 'Show-IdleNudge', 'Start-NudgeCard')) { . ([scriptblock]::Create($def)) }
+function Ensure-Visible {}
+$Config.IdleNudge = $true; $Config.IdleNudgeMin = 45
+$t0 = Get-Date '2026-10-05T10:00:00'
+$O.State = 'Focus'
+Check 'relance : jamais pendant un focus' (-not (Test-IdleNudgeDue $t0) -and $O.LastBusy -eq $t0)
+$O.State = 'Idle'; $O.NudgeOffDay = ''
+Check 'relance : pas avant 45 min sans focus' (-not (Test-IdleNudgeDue $t0.AddMinutes(44)))
+Check 'relance : oui a 45 min' (Test-IdleNudgeDue $t0.AddMinutes(45))
+Check 'relance : pas si tu n''es pas devant l''ecran (attend ton retour)' (-not (Test-IdleNudgeDue $t0.AddMinutes(60) 300000))
+$script:Bubble = $null
+Check 'bulle : 3 cartes proposees + Plus tard + Pas aujourd''hui' ((Show-IdleNudge $t0.AddMinutes(45)) -and $script:Bubble.Buttons.Count -eq 5 -and $script:Bubble.Text -match 'qu''est-ce que tu attends' -and $script:Bubble.Text -match 'En retard') ($script:Bubble.Buttons -join ' | ')
+Check 'apres la bulle : prochaine relance 45 min plus tard' (-not (Test-IdleNudgeDue $t0.AddMinutes(80)) -and (Test-IdleNudgeDue $t0.AddMinutes(90)))
+$nudgeActions = $script:Bubble.Actions
+& $nudgeActions[4]
+$d0 = (Get-Date).Date; $O.LastBusy = $d0
+Check '« Pas aujourd''hui » : plus de relance ce jour-la, mais demain oui' (-not (Test-IdleNudgeDue $d0.AddHours(15)) -and (Test-IdleNudgeDue $d0.AddDays(1).AddHours(9)))
+$O.NudgeOffDay = ''
+& $nudgeActions[1]
+Check 'un clic sur une carte : focus lance sur cette carte' ($O.State -eq 'Focus' -and @($NB.FocusCards).Count -eq 1 -and $NB.FocusCards[0] -eq $plan[1].Card.id)
+$O.State = 'Idle'
+$Config.IdleNudge = $false
+Check 'relance desactivee dans les reglages : jamais' (-not (Test-IdleNudgeDue $t0.AddHours(5)))
+$NB.Todos.Clear()
+Check 'aucune carte : pas de bulle' (-not (Show-IdleNudge $t0.AddHours(6)))
 $NB.Todos.Clear(); foreach ($x in $saved) { [void]$NB.Todos.Add($x) }
 
 Section 'Recherche globale'

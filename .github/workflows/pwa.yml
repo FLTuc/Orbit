@@ -24,7 +24,7 @@ jobs:
       - name: Securite du code
         run: node tests/pwa/static.mjs
 
-      - name: Logique (tableaux, chrono, Brain Dump, DopaList, Unstick Me, zip, attaques)
+      - name: Logique (tableaux, chrono, S.O.S, relance, victoires, zip, attaques)
         run: node tests/pwa/unit.mjs
 
       - name: Installation du navigateur de test
@@ -36,6 +36,12 @@ jobs:
       - name: Parcours complet sur un telephone simule (Pixel 7)
         working-directory: tests/pwa
         run: node e2e.cjs
+
+      - name: Test « chaos » (gestes au hasard, aucune erreur permise)
+        working-directory: tests/pwa
+        run: |
+          node monkey.cjs 500 1
+          node monkey.cjs 500 2
 
       - name: Site pret a mettre en ligne (zip)
         uses: actions/upload-artifact@v4
