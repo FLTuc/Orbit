@@ -1,5 +1,5 @@
 {
-  "_doc": "Decoupeur local d'Orbit (« Unstick Me ») : une tache -> 3 a 5 micro-etapes ridiculement petites. Utilise par la version PC (orbit.ps1) et la version telephone (pwa). {x} = la tache, {o} = la tache sans son verbe. Les regles sont essayees dans l'ordre, la premiere dont un mot-cle apparait gagne.",
+  "_doc": "Decoupeur local d'Orbit (« Unstick Me ») : une tache -> 3 a 5 micro-etapes ridiculement petites. Utilise par la version PC (orbit.ps1) et la version Linux (linux/orbit_core.py). {x} = la tache, {o} = la tache sans son verbe. Les regles sont essayees dans l'ordre, la premiere dont un mot-cle apparait gagne.",
   "rules": [
     {
       "name": "mail",

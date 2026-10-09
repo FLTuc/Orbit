@@ -366,7 +366,7 @@ class Orbit:
             rh.add_radiobutton(label=r if r != 'Perso' else 'Perso (%g/%g)' % (self.s.settings['customFocus'], self.s.settings['customBreak']),
                                value=r, variable=self._rhythm_var, command=lambda r=r: self.set_rhythm(r))
         more.add_cascade(label='⏱  Rythme', menu=rh)
-        more.add_command(label='⇩  Exporter (zip pour le PC / téléphone)…', command=self.export)
+        more.add_command(label='⇩  Exporter (zip pour le PC)…', command=self.export)
         more.add_command(label='⇧  Importer un export…', command=self.import_)
         more.add_command(label='♫  Ouvrir le dossier de mes sons', command=self.open_sounds_dir)
         m.add_cascade(label='☰  Plus', menu=more)
@@ -1298,7 +1298,7 @@ class Orbit:
         if path:
             with open(path, 'wb') as f:
                 f.write(C.export_zip(self.s))
-            self.say('Export prêt : %s\nIl s\'ouvre aussi sur le PC (Importer un export) et le téléphone.' % os.path.basename(path), seconds=8)
+            self.say('Export prêt : %s\nIl s\'ouvre aussi sur le PC (Importer un export).' % os.path.basename(path), seconds=8)
 
     def import_(self):
         path = filedialog.askopenfilename(parent=self.root, filetypes=[('Zip', '*.zip')])

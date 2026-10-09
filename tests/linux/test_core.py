@@ -194,7 +194,7 @@ class Sons(unittest.TestCase):
 
 
 class Sos(unittest.TestCase):
-    def test_meme_decoupage_que_pc_et_telephone(self):
+    def test_meme_decoupage_que_pc(self):
         expected = load('tests', 'fixtures', 'unstick-expected.json')
         diff = {t: C.decompose(t, RULES) for t, steps in expected.items() if C.decompose(t, RULES) != steps}
         self.assertEqual(diff, {})
@@ -257,7 +257,7 @@ class NotesReprisesVictoires(unittest.TestCase):
         self.assertEqual(len(s.search('FACTURE edf')['cards']), 1)
 
     def test_ancien_brain_dump(self):
-        old = load('tests', 'fixtures', 'lifeanchor-telephone.json')
+        old = load('tests', 'fixtures', 'lifeanchor-ancien.json')
         s = C.State()
         s.anchor = C.sanitize_anchor(old)
         m = s.migrate_anchor()
@@ -300,7 +300,7 @@ class Fichiers(unittest.TestCase):
                 s = C.Store(d).load()
                 self.assertTrue(s.kanban['boards'])
 
-    def test_zip_avec_pc_et_telephone(self):
+    def test_zip_avec_pc(self):
         s = C.State()
         s.add_card('Carte Linux')
         s.add_note('Note')
