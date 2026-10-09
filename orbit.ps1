@@ -111,6 +111,8 @@ $Config = @{
     TickSound           = $true  # zone finale du focus : un tic doux qui s'accelere jusqu'a la fin
     TickZoneMin         = 5      # ... pendant les N dernieres minutes (1 a 15)
     UrgencyBar          = $true  # barre de compte a rebours qui change de couleur, a cote d'Orbit
+    FocusAmbience       = ''     # fond sonore pendant le focus : '' (aucun), 'brown' (bruit brun) ou un fichier du dossier « sons »
+    FocusAmbienceVolume = 30     # son volume, de 5 a 100
     IdleNudge           = $true  # aucun focus depuis un moment : Orbit propose 2-3 cartes qui attendent
     IdleNudgeMin        = 45     # ... au bout de combien de minutes sans focus
     NotesMirror         = ''     # dossier ou copier automatiquement les notes (vide = non)
@@ -464,6 +466,27 @@ public static class OrbitNative {
         }
         int fade = rate / 10;
         for (int i = 0; i < fade; i++) { double k = (double)i / fade; buf[i] *= k; buf[n - 1 - i] *= k; }
+        return Wav(buf, volume);
+    }
+
+    // Fond sonore du focus : bruit brun en boucle SANS couture (la fin se fond dans le debut :
+    // aucun creux ni « clic » a chaque tour, meme pendant 50 minutes)
+    public static byte[] BrownNoiseLoop(double volume, int seconds) {
+        const int rate = 22050;
+        int n = rate * seconds, cross = rate * 2;
+        double[] raw = new double[n + cross];
+        Random rnd = new Random(11);
+        double last = 0;
+        for (int i = 0; i < raw.Length; i++) {
+            last = (last + 0.02 * (rnd.NextDouble() * 2 - 1)) / 1.02;
+            raw[i] = last * 3.5;
+        }
+        double[] buf = new double[n];
+        Array.Copy(raw, buf, n);
+        for (int i = 0; i < cross; i++) {
+            double k = (double)i / cross;
+            buf[i] = raw[i] * Math.Sqrt(k) + raw[n + i] * Math.Sqrt(1 - k);
+        }
         return Wav(buf, volume);
     }
 
@@ -1390,6 +1413,8 @@ function Get-SettingsSnapshot {
         tickSound          = $Config.TickSound
         tickZoneMin        = $Config.TickZoneMin
         urgencyBar         = $Config.UrgencyBar
+        focusAmbience      = $Config.FocusAmbience
+        focusAmbienceVolume = $Config.FocusAmbienceVolume
         idleNudgeMin       = $Config.IdleNudgeMin
         notesMirror        = $Config.NotesMirror
         contextButton      = $Config.ContextButton
@@ -1417,6 +1442,8 @@ function Apply-SettingsData($d) {
     if (Has 'tickSound') { $Config.TickSound = [bool]$d.tickSound }
     if (Has 'tickZoneMin') { $Config.TickZoneMin = [math]::Min(15, [math]::Max(1, [int]$d.tickZoneMin)) }
     if (Has 'urgencyBar') { $Config.UrgencyBar = [bool]$d.urgencyBar }
+    if (Has 'focusAmbience') { $Config.FocusAmbience = [string]$d.focusAmbience }
+    if (Has 'focusAmbienceVolume') { $Config.FocusAmbienceVolume = [math]::Min(100, [math]::Max(5, [int]$d.focusAmbienceVolume)) }
     if (Has 'idleNudgeMin') { $Config.IdleNudgeMin = [math]::Min(240, [math]::Max(10, [int]$d.idleNudgeMin)) }
     if (Has 'notesMirror') { $Config.NotesMirror = [string]$d.notesMirror }
     if (Has 'reminderEveryMin') { $Config.ReminderEveryMin = [int]$d.reminderEveryMin }
@@ -2096,15 +2123,20 @@ function On-TimerEnded {
     Update-Pill
 }
 
-function Update-Pill {
+# secondes restantes, arrondies au-dessus : le chrono du robot et la barre affichent toujours la meme chose
+function Get-ShownSeconds([datetime]$now) {
+    $left = if ($O.Paused) { $O.Remaining.TotalSeconds } else { ($O.EndsAt - $now).TotalSeconds }
+    return [int][math]::Max(0, [math]::Ceiling($left - 0.001))
+}
+
+function Update-Pill([datetime]$now = (Get-Date)) {
     $txt = switch ($O.State) {
         'Idle'       { '▶ FOCUS' }
         'AwaitBreak' { '☕ ?' }
         'AwaitFocus' { '🚀 ?' }
         default {
-            $left = if ($O.Paused) { $O.Remaining } else { $O.EndsAt - (Get-Date) }
-            if ($left -lt [timespan]::Zero) { $left = [timespan]::Zero }
-            $t = '{0:00}:{1:00}' -f [math]::Floor($left.TotalMinutes), $left.Seconds
+            $sec = Get-ShownSeconds $now
+            $t = '{0:00}:{1:00}' -f [math]::Floor($sec / 60), ($sec % 60)
             $prefix = if ($O.Paused) { '⏸' } elseif ($O.State -eq 'Break') { '☕' } else { '' }
             $prefix + $t
         }
@@ -2222,6 +2254,69 @@ function Play-Tick([bool]$high) {
     } catch { Write-Log "Tic : $($_.Exception.Message)" }
 }
 
+# ---------------------------------------------------------------------------
+#  🎧 Fond sonore pendant le focus : en boucle tant que le focus tourne,
+#  coupe en pause, a la fin du focus et quand on arrete. Bruit brun genere
+#  par Orbit, ou un de tes fichiers du dossier « sons » (pluie, musique...).
+# ---------------------------------------------------------------------------
+$script:AmbiencePlayer = $null
+$script:AmbienceKey = ''
+$script:AmbiencePreview = $false
+$script:AmbienceMissing = ''
+$script:PulseMode = ''
+
+function Get-AmbienceFile([string]$choice) {
+    if (-not $choice) { return $null }
+    if ($choice -eq 'brown') {
+        if (-not $Native) { return $null }
+        $file = Join-Path ([IO.Path]::GetTempPath()) 'orbit-fond-brun.wav'
+        if (-not (Test-Path -LiteralPath $file)) { [IO.File]::WriteAllBytes($file, [OrbitNative]::BrownNoiseLoop(0.5, 30)) }
+        return $file
+    }
+    # seulement un fichier du dossier « sons » : un nom, jamais un chemin
+    $leaf = [IO.Path]::GetFileName($choice)
+    if (-not $leaf -or $leaf -ne $choice) { return $null }
+    $file = Join-Path $SoundsDir $leaf
+    if ($SoundExt -notcontains [IO.Path]::GetExtension($leaf).ToLowerInvariant()) { return $null }
+    if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { return $null }
+    return $file
+}
+
+function Stop-Ambience {
+    if ($script:AmbiencePlayer) {
+        try { $script:AmbiencePlayer.Stop(); $script:AmbiencePlayer.Close() } catch {}
+        $script:AmbiencePlayer = $null
+    }
+    $script:AmbienceKey = ''
+}
+
+function Start-Ambience([string]$choice, [int]$volume) {
+    $key = "$choice|$volume"
+    if ($script:AmbiencePlayer -and $script:AmbienceKey -eq $key) { return $true }
+    Stop-Ambience
+    $file = Get-AmbienceFile $choice
+    if (-not $file) { return $false }
+    $p = New-Object Windows.Media.MediaPlayer
+    $p.Volume = [math]::Min(1, [math]::Max(0.05, $volume / 100))
+    $p.Add_MediaEnded({ param($s, $e) $s.Position = [timespan]::Zero; $s.Play() })   # en boucle
+    $p.Open((New-Object Uri $file))
+    $p.Play()
+    $script:AmbiencePlayer = $p
+    $script:AmbienceKey = $key
+    return $true
+}
+
+# chaque seconde : le fond sonore suit l'etat du chrono
+function Step-Ambience {
+    if ($script:AmbiencePreview) { return }   # essai en cours dans les reglages
+    if ($Config.FocusAmbience -and $O.State -eq 'Focus' -and -not $O.Paused) {
+        if (-not (Start-Ambience $Config.FocusAmbience $Config.FocusAmbienceVolume) -and $script:AmbienceMissing -ne $Config.FocusAmbience) {
+            $script:AmbienceMissing = $Config.FocusAmbience   # note une seule fois (fichier retire du dossier, par exemple)
+            Write-Log "Fond sonore introuvable : $($Config.FocusAmbience)"
+        }
+    } elseif ($script:AmbiencePlayer) { Stop-Ambience }
+}
+
 function Step-Ticks([datetime]$now) {
     if (-not $Config.TickSound -or $Config.DroidVolume -le 0 -or $O.State -ne 'Focus' -or $O.Paused) { $O.NextTick = [datetime]::MinValue; return }
     $left = ($O.EndsAt - $now).TotalSeconds
@@ -2237,10 +2332,9 @@ function Update-UrgencyChip([datetime]$now = (Get-Date)) {
     $show = $Config.UrgencyBar -and $O.State -in 'Focus', 'Break' -and -not $O.Mini
     $vis = if ($show) { 'Visible' } else { 'Collapsed' }
     if ($ui.UrgencyChip.Visibility -ne $vis) { $ui.UrgencyChip.Visibility = $vis }
-    if (-not $show) { $O.UrgencyLevel = ''; return }
+    if (-not $show) { $O.UrgencyLevel = ''; Set-UrgencyPulse ''; return }
     $total = 60 * $(if ($O.State -eq 'Focus') { [math]::Max(1, $O.SessionMin) } else { [math]::Max(1, $Config.BreakMinutes) })
-    $left = if ($O.Paused) { $O.Remaining.TotalSeconds } else { ($O.EndsAt - $now).TotalSeconds }
-    $left = [math]::Max(0, $left)
+    $left = Get-ShownSeconds $now
     $frac = [math]::Min(1, $left / $total)
     $level = if ($O.Paused) { 'paused' } elseif ($O.State -eq 'Break') { 'break' } else { Get-UrgencyLevel $frac $left }
     $O.UrgencyLevel = $level
@@ -2249,8 +2343,22 @@ function Update-UrgencyChip([datetime]$now = (Get-Date)) {
     $ui.UrgencyFill.Width = [math]::Max(4, 65 * $shown)
     $ui.UrgencyFill.Background = $UrgencyColors[$level]
     $ui.UrgencyText.Foreground = if ($level -eq 'mid') { '#FF1E1B3A' } else { '#FFFFFFFF' }
-    $ui.UrgencyText.Text = '{0}{1}:{2:00}' -f $(if ($O.Paused) { '⏸' } else { '' }), [math]::Floor($left / 60), [math]::Floor($left % 60)
-    if ($level -ne 'final') { $ui.UrgencyChip.Opacity = 1 }
+    $ui.UrgencyText.Text = '{0}{1}:{2:00}' -f $(if ($O.Paused) { '⏸' } else { '' }), [math]::Floor($left / 60), ($left % 60)
+    Set-UrgencyPulse $(if ($level -ne 'final') { '' } elseif ($left -le 10) { 'fast' } else { 'slow' })
+}
+
+# derniere minute : la barre pulse (plus vite les 10 dernieres secondes). Animation WPF :
+# fluide meme quand Orbit economise le processeur (avant, elle saccadait a 7 images/s)
+function Set-UrgencyPulse([string]$mode) {
+    if ($script:PulseMode -eq $mode) { return }
+    $script:PulseMode = $mode
+    $prop = [Windows.UIElement]::OpacityProperty
+    if (-not $mode) { $ui.UrgencyChip.BeginAnimation($prop, $null); $ui.UrgencyChip.Opacity = 1; return }
+    $ms = if ($mode -eq 'fast') { 250 } else { 500 }
+    $anim = New-Object Windows.Media.Animation.DoubleAnimation(1.0, 0.45, [timespan]::FromMilliseconds($ms))
+    $anim.AutoReverse = $true
+    $anim.RepeatBehavior = [Windows.Media.Animation.RepeatBehavior]::Forever
+    $ui.UrgencyChip.BeginAnimation($prop, $anim)
 }
 
 # ---------------------------------------------------------------------------
@@ -2475,10 +2583,14 @@ function On-Frame {
     $O.LastFrame = $now
     $O.Time += $dt
     $t = $O.Time
-    # derniere minute : la barre pulse (de plus en plus vite)
-    if ($O.UrgencyLevel -eq 'final') {
-        $left = [math]::Max(1, ($O.EndsAt - $now).TotalSeconds)
-        $ui.UrgencyChip.Opacity = 0.55 + 0.45 * [math]::Abs([math]::Sin($t * [math]::Min(12, 3 + 40 / $left)))
+    # chrono du robot et barre : redessines des que la seconde affichee change. La minuterie
+    # d'une seconde prend du retard (presse-papiers, fenetres...) : seule, elle sautait des secondes
+    if ($O.State -in 'Focus', 'Break') {
+        $sec = Get-ShownSeconds $now
+        if ($sec -ne $script:ShownSec) {
+            $script:ShownSec = $sec
+            Invoke-Safe { Update-UrgencyChip $now; Update-Pill $now } 'chrono'
+        }
     }
 
     # (la derive lente dans l'espace est une animation WPF : voir Start-Floating)
@@ -2736,10 +2848,10 @@ function On-Second {
     if ($env:ORBIT_AUTOPILOT) { Invoke-Safe { Step-Autopilot $now } 'autopilote' }
     $script:TimerEnded = $false
     Invoke-Safe { $script:TimerEnded = Step-Timer $now } 'chrono'
-    if ($script:TimerEnded) { Invoke-Safe { Update-Pill } 'chrono'; return }
+    if ($script:TimerEnded) { Invoke-Safe { Update-Pill; Update-UrgencyChip } 'chrono'; return }
     Invoke-Safe { Step-AwaitReminder $now } 'relance'
     Invoke-Safe { Step-Ticks $now } 'compte a rebours sonore'
-    Invoke-Safe { Update-UrgencyChip $now } 'compte a rebours visuel'
+    Invoke-Safe { Step-Ambience } 'fond sonore'
     if ($n % 2 -eq 0) { Invoke-Safe { Check-Idle } 'absence' }
     if ($n % 2 -eq 1) { Invoke-Safe { Check-ContextReturn } 'reprise au retour' }
     if ($n % 15 -eq 7) { Invoke-Safe { Check-ContextReminders $now } 'rappel de reprise' }
@@ -2764,7 +2876,13 @@ function On-Second {
         Invoke-Safe { [OrbitNative]::KeepOnTop($O.Hwnd) } 'premier plan'
     }
     if ($n % 5 -eq 0) { Invoke-Safe { Test-Watchdogs } 'surveillance' }
-    Invoke-Safe { Update-Pill } 'affichage'
+    # affichage avec l'heure d'APRES les taches ci-dessus (sinon il pouvait reculer d'une seconde),
+    # la meme pour le chrono du robot et la barre
+    Invoke-Safe {
+        $d = [datetime]::Now
+        Update-Pill $d; Update-UrgencyChip $d
+        $script:ShownSec = Get-ShownSeconds $d
+    } 'affichage'
 }
 
 # Chrono focus / pause. Renvoie $true quand la session vient de se terminer.

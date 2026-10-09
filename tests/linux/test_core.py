@@ -193,6 +193,38 @@ class Sons(unittest.TestCase):
         self.assertEqual(int.from_bytes(w[4:8], 'little'), len(w) - 8)
 
 
+class FondSonore(unittest.TestCase):
+    def test_choix_verifies(self):
+        ok = C.sanitize_settings({'focusAmbience': 'pluie.ogg', 'focusAmbienceVolume': 999})
+        self.assertEqual((ok['focusAmbience'], ok['focusAmbienceVolume']), ('pluie.ogg', 100))
+        for bad in ('../pluie.ogg', '/etc/passwd', 'a/b.mp3', '.cache.wav', 'notes.txt', 42, None):
+            self.assertEqual(C.sanitize_settings({'focusAmbience': bad})['focusAmbience'], '', bad)
+        self.assertEqual(C.sanitize_settings({'focusAmbience': 'brown'})['focusAmbience'], 'brown')
+
+    def test_fichier_du_dossier_seulement(self):
+        with tempfile.TemporaryDirectory() as d:
+            open(os.path.join(d, 'pluie.ogg'), 'wb').close()
+            self.assertEqual(C.ambience_file('pluie.ogg', d), os.path.join(d, 'pluie.ogg'))
+            self.assertIsNone(C.ambience_file('absent.ogg', d))
+            self.assertIsNone(C.ambience_file('../pluie.ogg', d))
+            self.assertIsNone(C.ambience_file('brown', d))
+
+    def test_seulement_pendant_le_focus(self):
+        st = {'focusAmbience': 'brown'}
+        self.assertEqual(C.ambience_wanted({'state': 'Focus', 'paused': False}, st), 'brown')
+        for t in ({'state': 'Focus', 'paused': True}, {'state': 'Break'}, {'state': 'AwaitBreak'}, {'state': 'Idle'}):
+            self.assertEqual(C.ambience_wanted(t, st), '', t)
+        self.assertEqual(C.ambience_wanted({'state': 'Focus', 'paused': False}, {'focusAmbience': ''}), '')
+
+    def test_bruit_brun_sans_couture(self):
+        w = C.make_brown_loop(50, seconds=3)
+        self.assertEqual((w[:4], w[8:12]), (b'RIFF', b'WAVE'))
+        import array
+        a = array.array('h', w[44:])
+        steps = max(abs(a[i + 1] - a[i]) for i in range(len(a) - 1))
+        self.assertLessEqual(abs(a[0] - a[-1]), steps)   # la fin rejoint le debut : pas de clic a chaque tour
+
+
 class Sos(unittest.TestCase):
     def test_meme_decoupage_que_pc(self):
         expected = load('tests', 'fixtures', 'unstick-expected.json')

@@ -117,6 +117,7 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
 - **⏳ Compte à rebours de fin de focus** (réglable) :
   - **une barre** à côté d'Orbit qui se vide avec le temps et change de couleur : **bleu** (plus de la moitié du temps), **jaune** (moins de la moitié), **orange** (dernier quart), puis **rouge qui pulse** la dernière minute ; à ce moment, elle « zoome » sur les 60 dernières secondes pour qu'on la voie se vider ; grise en pause, verte pendant la pause café ;
   - **un tic doux qui s'accélère**, seulement dans la **zone finale** (5 dernières minutes par défaut, de 1 à 15) : toutes les 20 s, puis 10 s (2 dernières minutes), 5 s (dernière minute), 2 s (30 dernières secondes) et chaque seconde, plus aigu, pour les 10 dernières. Pourquoi pas pendant tout le focus : un tic-tac continu capterait l'attention, l'inverse du but. Jamais en pause ni pendant la pause café.
+- **🎧 Fond sonore pendant le focus** (Réglages > Sons, « Aucun » par défaut) : un **bruit brun** doux généré par Orbit, ou **un de tes fichiers** du dossier « sons » (pluie, musique, café…). Il tourne **en boucle, sans coupure**, pendant tout le focus, et se coupe tout seul quand le chrono est en pause, à la fin du focus, pendant la pause et quand tu arrêtes. Volume à part (réglable), bouton ▶ pour l'essayer.
 - **👀 « Tu attends quoi ? »** : si aucun focus n'a été lancé depuis **45 minutes** (réglable) alors que des cartes attendent, Orbit sort une bulle : « Tu as des tâches en cours, qu'est-ce que tu attends ? » avec **2 ou 3 cartes proposées** (les plus urgentes, avec la raison). Un clic sur une carte lance le focus dessus ; **⏰ Plus tard** le redemande dans 45 min ; **🌙 Pas aujourd'hui** le fait taire jusqu'au lendemain. Jamais pendant un focus ou une pause, jamais si tu n'es pas devant l'écran (il attend ton retour), jamais par-dessus une autre question, ni quand Orbit est caché ou réduit. Réglages : case « 👀 Sans focus depuis … min ».
 - **☀️ Plan du matin** : à ta première apparition de la journée (à partir de 5 h), Orbit propose les 3 cartes les plus urgentes, tous tableaux confondus (en retard, à rendre aujourd'hui ou demain, rappel du jour, déjà commencées, puis priorité), avec la raison. « Go » les lie au focus et le lance ; « Choisir autre chose » ouvre la liste avec ces 3 cartes déjà cochées. À revoir quand tu veux : clic droit > ☰ Plus > ☀️ Plan du jour (sur le téléphone : le bouton rond ☀). Se désactive dans les réglages.
 - **🔍 Recherche partout** (onglet 🔍 du carnet, Ctrl+F, ou clic droit > ☰ Plus > Rechercher partout) : cartes de tous les tableaux (titre, description, sous-tâches), notes, reprises (✋), cartes récurrentes à venir, copier-coller et favoris, archives. Plusieurs mots : ils doivent tous y être ; accents et majuscules ignorés. Clic sur une carte : elle s'ouvre dans son tableau ; clic sur un copier-coller : il est recopié.
@@ -130,6 +131,7 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
 - **Réglages** (clic droit > ⚙️ Réglages…) : une fenêtre pour tout régler sans toucher au code :
   - rythme 50/10, 25/5 ou personnalisé ;
   - ⏳ compte à rebours : la barre de couleur, le tic qui s'accélère et la durée de la zone finale (1 à 15 min) ;
+  - 🎧 fond sonore pendant le focus (aucun, bruit brun ou un de tes sons) et son volume ;
   - 👀 « Tu attends quoi ? » (oui/non, au bout de combien de minutes) et ☀️ plan du matin ;
   - les boutons ronds à côté d'Orbit, et le bouton ✋ ;
   - pause automatique en cas d'absence, et au bout de combien de minutes ;
@@ -155,6 +157,7 @@ Ou sans rien installer : `python3 linux/orbit.py`. Facultatif : `sudo apt instal
 - le **focus** 50/10, 25/5 ou perso, avec confirmation à chaque fin, la **barre de compte à rebours** (bleu, jaune, orange, rouge) et le **tic qui s'accélère** dans les 5 dernières minutes ;
 - les **tableaux** (colonnes, priorités « !2 », rappels « @14h », échéances, cartes du focus), les **notes**, **✋ Je m'interromps** et les reprises, le **S.O.S** (même découpage que le PC), le **journal des victoires**, le **plan du matin** et la relance **« Tu attends quoi ? »** ;
 - **mes sons** : le dossier `~/.local/share/orbit/sons` (.wav, .ogg, .flac, .mp3), chacun son tour au hasard ;
+- **🎧 fond sonore pendant le focus** : bruit brun ou un de tes sons, en boucle, coupé en pause et à la fin (Réglages) ;
 - **échange** avec le PC : clic droit > ☰ Plus > Exporter / Importer (le même zip partout).
 
 Données : `~/.local/share/orbit` (une copie des tableaux et des notes par jour, 7 jours gardés ; un fichier abîmé est mis de côté et Orbit repart de la copie du jour). Pas inclus pour rester léger : l'historique des copier-coller, le rappel sur les sites de distraction, les autres apparences.

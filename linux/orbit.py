@@ -123,6 +123,59 @@ class Sound:
         if self.ok():
             self.play_file(self._wav('win', [(880, 0.1, 0), (1318, 0.3, 0)]))
 
+    # --- fond sonore du focus : en boucle (relance a chaque fin de lecture) -----------------
+    amb_proc = None
+    amb_key = None
+    amb_failed = None
+
+    def ambience(self, choice, volume):
+        """choice '' = silence. Appele chaque seconde : ne fait rien si ca joue deja."""
+        key = (choice, volume) if choice else None
+        if key != self.amb_key:
+            self.stop_ambience()
+            self.amb_key = key
+        if not key or (self.amb_proc and self.amb_proc.poll() is None) or self.amb_failed == key:
+            return
+        if choice == 'brown':
+            path = os.path.join(self.dir, 'fond-brun-%d.wav' % volume)
+            if not os.path.exists(path):
+                with open(path, 'wb') as f:
+                    f.write(C.make_brown_loop(volume))
+            args = []
+        else:
+            path = C.ambience_file(choice, self.app.store.sounds)
+            if not path:
+                return
+            args = None   # volume du fichier : selon le lecteur
+        self.played.append('ambience:' + choice)
+        ext = os.path.splitext(path)[1].lower()
+        for name in (('pw-play', 'paplay', 'aplay') if ext == '.wav' else ('pw-play', 'paplay')):
+            exe = self.players.get(name)
+            if not exe:
+                continue
+            cmd = [exe]
+            if args is None and name == 'pw-play':
+                cmd.append('--volume=%.2f' % (volume / 100.0))
+            elif args is None and name == 'paplay':
+                cmd.append('--volume=%d' % int(65536 * volume / 100))
+            try:
+                self.amb_proc = subprocess.Popen(cmd + [path], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                                 stderr=subprocess.DEVNULL, close_fds=True)
+                return
+            except OSError:
+                continue
+        self.amb_failed = key   # aucun lecteur de son : on n'essaie pas a chaque seconde
+
+    def stop_ambience(self):
+        if self.amb_proc and self.amb_proc.poll() is None:
+            try:
+                self.amb_proc.terminate()
+            except OSError:
+                pass
+        self.amb_proc = None
+        self.amb_key = None
+        self.amb_failed = None
+
 
 def run_quiet(args, timeout=1.0):
     """Petit outil optionnel du systeme (xdotool, xprintidle) : jamais de shell, jamais bloquant longtemps."""
@@ -511,7 +564,13 @@ class Orbit:
             self._second()
         except Exception as e:   # une erreur imprevue ne doit jamais arreter Orbit
             print('Orbit :', repr(e), file=sys.stderr)
-        self.root.after(1000, self.on_second)
+        # prochain passage juste apres le changement de la seconde affichee : une minuterie fixe
+        # d'1 s prend du retard et finissait par sauter des secondes
+        delay = 1000
+        st = self.s.timer
+        if st['state'] in ('Focus', 'Break') and not st['paused']:
+            delay = max(30, int(((st['endsAt'] - self.now()) % 1.0) * 1000) + 20)
+        self.root.after(delay, self.on_second)
 
     def _second(self):
         now = self.now()
@@ -576,6 +635,10 @@ class Orbit:
         for e in self.eyes:
             c.itemconfigure(e, fill=MOODS[mood])
         c.itemconfigure('screen', outline=MOODS[mood])
+        try:
+            self.sound.ambience(C.ambience_wanted(st, self.s.settings), self.s.settings['focusAmbienceVolume'])
+        except OSError as e:
+            print('Orbit : fond sonore', repr(e), file=sys.stderr)
         # barre de compte a rebours
         show = self.s.settings['urgencyBar'] and st['state'] in ('Focus', 'Break')
         self.show_bar(show)
@@ -589,7 +652,9 @@ class Orbit:
             self.bar.itemconfigure(self.bar_fill, fill=COLORS[lvl])
             self.bar.itemconfigure(self.bar_text, text=('⏸ ' if st['paused'] else '') + C.fmt_clock(left))
             if lvl == 'final' and self.level != 'final':
-                self.root.after(120, self.pulse)
+                if not getattr(self, 'pulsing', False):   # une seule boucle de clignotement a la fois
+                    self.pulsing = True
+                    self.root.after(120, self.pulse)
             self.level = lvl
         else:
             self.level = ''
@@ -597,12 +662,13 @@ class Orbit:
     def pulse(self):
         """Derniere minute : la barre clignote doucement, de plus en plus vite (seulement a ce moment-la)."""
         if self.level != 'final':
+            self.pulsing = False
             self.bar.itemconfigure(self.bar_track, fill=SOFT)
             return
-        left = max(1.0, self.s.time_left(self.now()))
-        on = int(time.time() * (2 + 30 / left)) % 2 == 0
-        self.bar.itemconfigure(self.bar_track, fill='#FFD6D6' if on else SOFT)
-        self.root.after(150, self.pulse)
+        # rythme regulier (avant : calcule sur l'horloge, il clignotait en desordre) ; plus vite les 10 dernieres s
+        self.pulse_on = not getattr(self, 'pulse_on', False)
+        self.bar.itemconfigure(self.bar_track, fill='#FFD6D6' if self.pulse_on else SOFT)
+        self.root.after(250 if self.s.time_left(self.now()) <= 10 else 500, self.pulse)
 
     def on_pointer(self):
         """Les yeux suivent la souris (4 fois par seconde, seulement si elle a bouge)."""
@@ -1260,6 +1326,19 @@ class Orbit:
             for val, lab in (('droide', 'Droïde doux'), ('mes-sons', 'Mes sons (dossier)'), ('aucun', 'Aucun')):
                 tk.Radiobutton(f, text=lab, value=val, variable=bs, bg=BG, font=FONT).pack(side='left')
             btn(body, '♫ Ouvrir le dossier de mes sons', self.open_sounds_dir).pack(anchor='w', pady=2)
+            f = tk.Frame(body, bg=BG)
+            f.pack(fill='x', pady=(6, 0))
+            tk.Label(f, text='Fond sonore pendant le focus :', bg=BG, font=FONT).pack(side='left')
+            choices = [('Aucun', ''), ('Bruit brun (doux)', 'brown')] + \
+                [(os.path.splitext(os.path.basename(p))[0], os.path.basename(p)) for p in C.list_sounds(self.store.sounds)]
+            labels = [lab for lab, _ in choices]
+            cur = next((lab for lab, val in choices if val == st['focusAmbience']), 'Aucun')
+            amb = tk.StringVar(value=cur)
+            tk.OptionMenu(f, amb, *labels).pack(side='left', padx=4)
+            row('Volume du fond (5-100)', 'focusAmbienceVolume', 'num', 5, 100)
+            tk.Label(body, text='En boucle pendant tout le focus, coupé en pause et à la fin.\n'
+                     'Pluie, musique… : pose le fichier dans le dossier de mes sons.', bg=BG, fg=MUTED, font=FONT,
+                     justify='left').pack(anchor='w')
             section('Aide')
             row('Plan du matin (les 3 cartes les plus urgentes)', 'morningPlan')
             row('Proposer ma carte la plus urgente au début du focus', 'taskReminders')
@@ -1276,6 +1355,7 @@ class Orbit:
                 new = dict(st)
                 new['rhythm'] = rv.get()
                 new['bubbleSound'] = bs.get()
+                new['focusAmbience'] = dict(choices).get(amb.get(), '')
                 for k, (v, kind, lo, hi) in vals.items():
                     new[k] = bool(v.get()) if kind == 'bool' else C.num(v.get(), lo, hi, st[k])
                 self.s.settings = C.sanitize_settings(new)
@@ -1321,6 +1401,7 @@ class Orbit:
 
     def quit(self):
         self.save()
+        self.sound.stop_ambience()
         shutil.rmtree(self.sound.dir, ignore_errors=True)
         self.root.destroy()
 

@@ -740,6 +740,48 @@ $orders = foreach ($r in 0..9) { $played[($r * 4)..($r * 4 + 3)] -join ',' }
 Check 'l''ordre change d''un tour a l''autre (hasard)' (@($orders | Select-Object -Unique).Count -gt 1)
 Check 'un seul son : toujours lui' ((Pick-NotLast @('seul.wav')) -eq 'seul.wav' -and (Pick-NotLast @('seul.wav')) -eq 'seul.wav')
 
+Section 'Chrono et barre : la meme seconde partout'
+foreach ($def in Get-ScriptFunctions (Join-Path $Root 'orbit.ps1') @('Get-ShownSeconds')) { . ([scriptblock]::Create($def)) }
+$O.Paused = $false; $now0 = Get-Date '2026-10-05T10:00:00'
+$O.EndsAt = $now0.AddSeconds(2999.6)
+Check 'au depart d''un focus de 50 min : 50:00 (pas 49:59)' ((Get-ShownSeconds $now0) -eq 3000)
+$O.EndsAt = $now0.AddSeconds(0.2)
+Check 'derniere fraction de seconde : 00:01, jamais 00:00 avant la fin' ((Get-ShownSeconds $now0) -eq 1)
+$O.EndsAt = $now0.AddSeconds(-3)
+Check 'fin depassee : 0, jamais negatif' ((Get-ShownSeconds $now0) -eq 0)
+$O.Paused = $true; $O.Remaining = [timespan]::FromSeconds(61)
+Check 'en pause : le temps garde' ((Get-ShownSeconds $now0) -eq 61)
+$O.Paused = $false
+$shown = for ($ms = 0; $ms -lt 60000; $ms += 137) { $O.EndsAt = $now0.AddSeconds(60); Get-ShownSeconds $now0.AddMilliseconds($ms) }
+$jumps = @(for ($i = 1; $i -lt $shown.Count; $i++) { if ($shown[$i - 1] - $shown[$i] -gt 1) { 1 } })
+Check 'redessine plusieurs fois par seconde : aucune seconde sautee' ($jumps.Count -eq 0 -and $shown[0] -eq 60 -and $shown[-1] -eq 1)
+
+Section 'Fond sonore pendant le focus'
+foreach ($def in Get-ScriptFunctions (Join-Path $Root 'orbit.ps1') @('Get-AmbienceFile', 'Step-Ambience')) { . ([scriptblock]::Create($def)) }
+New-Item -ItemType Directory -Force -Path $SoundsDir | Out-Null
+[IO.File]::WriteAllText((Join-Path $SoundsDir 'pluie.mp3'), 'x'); [IO.File]::WriteAllText((Join-Path $SoundsDir 'notes.txt'), 'x')
+$Native = $false
+Check 'un fichier du dossier « sons » est accepte' ((Get-AmbienceFile 'pluie.mp3') -eq (Join-Path $SoundsDir 'pluie.mp3'))
+Check 'aucun = rien' ($null -eq (Get-AmbienceFile ''))
+Check 'jamais un chemin (ni ..\, ni C:\, ni sous-dossier)' ($null -eq (Get-AmbienceFile '..\pluie.mp3') -and $null -eq (Get-AmbienceFile 'C:\Windows\Media\tada.wav') -and $null -eq (Get-AmbienceFile 'x/pluie.mp3'))
+Check 'seulement des sons (.wav, .mp3...) qui existent' ($null -eq (Get-AmbienceFile 'notes.txt') -and $null -eq (Get-AmbienceFile 'absent.mp3'))
+$amb = New-Object System.Collections.ArrayList
+function Start-Ambience([string]$choice, [int]$volume) { [void]$amb.Add("start:$choice"); $script:AmbiencePlayer = 'x'; $true }
+function Stop-Ambience { [void]$amb.Add('stop'); $script:AmbiencePlayer = $null }
+$script:AmbiencePlayer = $null; $script:AmbiencePreview = $false
+$Config.FocusAmbience = 'brown'; $Config.FocusAmbienceVolume = 30
+$O.State = 'Focus'; $O.Paused = $false; Step-Ambience
+Check 'focus lance : le fond sonore demarre' ($amb[-1] -eq 'start:brown')
+$O.Paused = $true; Step-Ambience
+Check 'chrono en pause : il se coupe' ($amb[-1] -eq 'stop')
+$O.Paused = $false; Step-Ambience; $O.State = 'AwaitBreak'; Step-Ambience
+Check 'fin du focus : coupe' ($amb[-1] -eq 'stop')
+$amb.Clear(); $O.State = 'Break'; Step-Ambience
+Check 'pendant la pause : silence' ($amb.Count -eq 0)
+$O.State = 'Focus'; $Config.FocusAmbience = ''; Step-Ambience
+Check 'reglage « Aucun » : rien ne joue' ($amb.Count -eq 0)
+$O.State = 'Idle'
+
 Section 'Texte des bulles : pas de caractere bizarre'
 $E = { param($cp) [char]::ConvertFromUtf32($cp) }
 $rocket = & $E 0x1F680; $tech = (& $E 0x1F9D1) + [char]0x200D + (& $E 0x1F4BB)

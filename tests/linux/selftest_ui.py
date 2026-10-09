@@ -216,6 +216,23 @@ def scenario(app):
     check('toutes les etapes : victoire « Débloqué »', app.s.anchor['unstick'] is None and app.s.anchor['wins'][-1]['title'].startswith('Débloqué'))
     app.windows['runner'].destroy()
 
+    section('Fond sonore pendant le focus')
+    app.hide_bubble()
+    app.s.settings['focusAmbience'] = 'brown'
+    app.sound.played.clear()
+    app.start_focus()
+    r.update()
+    check('focus lance : le bruit brun demarre', 'ambience:brown' in app.sound.played and app.sound.amb_key == ('brown', 30))
+    n = len(app.sound.played)
+    seconds(app, 5)
+    check('il ne redemarre pas a chaque seconde', app.sound.played.count('ambience:brown') == 1, str(app.sound.played[n:]))
+    app.toggle_pause()
+    r.update()
+    check('chrono en pause : il se coupe', app.sound.amb_key is None)
+    app.stop()
+    check('focus coupe : silence', app.sound.amb_key is None)
+    app.s.settings['focusAmbience'] = ''
+
     section('Relance « Tu attends quoi ? »')
     app.hide_bubble()
     app.last_busy = app.now() - 46 * 60

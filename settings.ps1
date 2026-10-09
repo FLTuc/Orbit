@@ -187,6 +187,18 @@
             <TextBlock Text="dernières min du focus" VerticalAlignment="Center"/>
           </StackPanel>
           <CheckBox x:Name="SUrgencyBar" Margin="0,4,0,0" Content="⏳ Barre de compte à rebours à côté d'Orbit (bleu, jaune, orange, puis rouge qui pulse)"/>
+          <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+            <TextBlock Text="🎧 Fond sonore pendant le focus" VerticalAlignment="Center"/>
+            <ComboBox x:Name="SAmbience" Width="200" Margin="8,0,0,0"/>
+            <Button x:Name="SAmbienceTest" Content="▶" Padding="8,2" Margin="6,0,0,0" Background="#EEEEF5" BorderThickness="0" Cursor="Hand" ToolTip="Écouter (cliquer encore pour arrêter)"/>
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Margin="22,3,0,0">
+            <TextBlock Text="Volume du fond" VerticalAlignment="Center"/>
+            <Slider x:Name="SAmbienceVol" Minimum="5" Maximum="100" Width="150" Margin="10,0,0,0"
+                    VerticalAlignment="Center" IsSnapToTickEnabled="True" TickFrequency="5"/>
+          </StackPanel>
+          <TextBlock Margin="22,2,0,0" TextWrapping="Wrap" Foreground="#6B6880" FontSize="11.5"
+                     Text="En boucle pendant tout le focus, coupé en pause et à la fin. Pour une pluie, une musique… : pose le fichier dans le dossier « sons » (bouton 📂 Dossier)."/>
           <CheckBox x:Name="SSounds" Margin="0,8,0,3" Content="Un son à la fin des sessions et pour les rappels"/>
           <StackPanel Orientation="Horizontal" Margin="22,3,0,0">
             <ComboBox x:Name="SEndSound" Width="150">
@@ -247,6 +259,8 @@ function Fill-SettingsForm($d) {
     $sw.STickSound.IsChecked = $d.tickSound
     $sw.STickZone.Text = $d.tickZoneMin
     $sw.SUrgencyBar.IsChecked = $d.urgencyBar
+    Update-AmbienceList ([string]$d.focusAmbience)
+    $sw.SAmbienceVol.Value = [math]::Max(5, [double]$d.focusAmbienceVolume)
     $sw.SNudge.Text = $d.reminderEveryMin
     $sw.SBreakLines.IsChecked = $d.breakLines
     $sw.SBreakLineMin.Text = $d.breakLineEveryMin
@@ -311,6 +325,7 @@ function Save-SettingsForm {
         rhythm = $rhythm; customFocus = $pf; customBreak = $pb
         idlePause = [bool]$sw.SIdle.IsChecked; idleMinutes = [int]$idle
         taskReminders = [bool]$sw.STasks.IsChecked; reminderEveryMin = [int]$nudge; morningPlan = [bool]$sw.SMorning.IsChecked; idleNudge = [bool]$sw.SIdleNudge.IsChecked; idleNudgeMin = [int]$idleNudgeMin; tickSound = [bool]$sw.STickSound.IsChecked; tickZoneMin = [int]$tickZone; urgencyBar = [bool]$sw.SUrgencyBar.IsChecked
+        focusAmbience = $(if ($sw.SAmbience.SelectedItem) { [string]$sw.SAmbience.SelectedItem.Tag } else { '' }); focusAmbienceVolume = [int]$sw.SAmbienceVol.Value
         breakLines = [bool]$sw.SBreakLines.IsChecked; breakLineEveryMin = $breakEvery; motivationEveryMin = [int]$motiv
         appComments = [bool]$sw.SApps.IsChecked; quiet = [bool]$sw.SQuiet.IsChecked
         wander = [bool]$sw.SWander.IsChecked; wanderMin = [int]$wmin; wanderMax = [int]$wmax
@@ -370,6 +385,41 @@ function Update-SoundList {
     foreach ($f in (Get-MySounds)) { [void]$SF.BubbleFiles.Add([string]$f) }
 }
 
+# le choix du fond sonore : aucun, bruit brun, ou un des fichiers du dossier « sons »
+function Update-AmbienceList([string]$selected) {
+    $sw.SAmbience.Items.Clear()
+    $items = @(@{ C = 'Aucun'; T = '' }, @{ C = '🟤 Bruit brun (doux, généré par Orbit)'; T = 'brown' })
+    foreach ($f in (Get-MySounds)) { $items += @{ C = '🎵 ' + [IO.Path]::GetFileNameWithoutExtension($f); T = [IO.Path]::GetFileName($f) } }
+    if ($selected -and -not ($items | Where-Object { $_.T -eq $selected })) { $items += @{ C = "🎵 $selected (introuvable)"; T = $selected } }
+    foreach ($i in $items) {
+        $it = New-Object Windows.Controls.ComboBoxItem
+        $it.Content = $i.C; $it.Tag = $i.T
+        [void]$sw.SAmbience.Items.Add($it)
+    }
+    Select-ComboTag $sw.SAmbience $selected
+}
+
+# ▶ : ecoute le fond choisi (sans enregistrer) ; un 2e clic l'arrete
+function Test-Ambience {
+    if ($script:AmbiencePreview) { Stop-AmbiencePreview; return }
+    $choice = if ($sw.SAmbience.SelectedItem) { [string]$sw.SAmbience.SelectedItem.Tag } else { '' }
+    if (-not $choice) { return }
+    $script:AmbiencePreview = $true
+    if (Start-Ambience $choice ([int]$sw.SAmbienceVol.Value)) { $sw.SAmbienceTest.Content = '■' }
+    else {
+        $script:AmbiencePreview = $false
+        [Windows.MessageBox]::Show($settingsWin, "Impossible de lire ce fond sonore.", 'Orbit') | Out-Null
+    }
+}
+
+function Stop-AmbiencePreview {
+    if (-not $script:AmbiencePreview) { return }
+    $script:AmbiencePreview = $false
+    Stop-Ambience
+    $sw.SAmbienceTest.Content = '▶'
+    Step-Ambience   # pendant un focus, le vrai fond sonore reprend
+}
+
 function Select-ComboTag($combo, [string]$tag) {
     foreach ($it in $combo.Items) { if ($it.Tag -eq $tag) { $combo.SelectedItem = $it; return } }
     $combo.SelectedIndex = 0
@@ -407,6 +457,7 @@ function Add-MySounds {
     if ([string]$sw.SBubbleSound.SelectedItem.Tag -notin 'Fichier', 'Aleatoire') { Select-ComboTag $sw.SBubbleSound 'Fichier' }
     Update-SoundList
     Update-FileLabels
+    Update-AmbienceList $(if ($sw.SAmbience.SelectedItem) { [string]$sw.SAmbience.SelectedItem.Tag } else { '' })
 }
 
 # retire des sons : ils partent a la corbeille de Windows (recuperables)
@@ -421,6 +472,7 @@ function Remove-MySounds {
     }
     Update-SoundList
     Update-FileLabels
+    Update-AmbienceList $(if ($sw.SAmbience.SelectedItem) { [string]$sw.SAmbience.SelectedItem.Tag } else { '' })
 }
 
 # ouvre le dossier des sons dans l'Explorateur (on peut y deposer ou supprimer des fichiers)
@@ -448,7 +500,7 @@ function Initialize-Settings {
     $script:settingsWin = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $settingsXaml))
     $script:sw = @{}
     foreach ($n in 'SHeader','SClose','SDefaults','SCancel','SSave','SError','SR50','SR25','SRPerso','SPersoFocus','SPersoBreak',
-                   'SIdle','SIdleMin','STasks','SCtxButton','SAnchorButton','SCtxWindows','SCtxShot','SCtxRemind','SCtxRemindMin','SMorning','SIdleNudge','SIdleNudgeMin','STickSound','STickZone','SUrgencyBar','SNudge','SBreakLines','SBreakLineMin','SMotiv','SApps','SQuiet','SWander','SWanderMin',
+                   'SIdle','SIdleMin','STasks','SCtxButton','SAnchorButton','SCtxWindows','SCtxShot','SCtxRemind','SCtxRemindMin','SMorning','SIdleNudge','SIdleNudgeMin','STickSound','STickZone','SUrgencyBar','SAmbience','SAmbienceTest','SAmbienceVol','SNudge','SBreakLines','SBreakLineMin','SMotiv','SApps','SQuiet','SWander','SWanderMin',
                    'SWanderMax','SSounds','SDroid','SDroidVol','SAuto','SBubbleSound','SBubbleTest','SMySounds','SSoundAdd','SSoundDel','SSoundPlay','SSoundDir',
                    'SEndSound','SEndFile','SEndTest','SEndFileName','SSkinCustom','SImgPick','SImgName','SSkinSatellite','SSkinDroid','SSkinRobot','SSkinButler','SSkinBrain','SSkinHuman') {
         $sw[$n] = $settingsWin.FindName($n)
@@ -461,6 +513,9 @@ function Initialize-Settings {
     $sw.SSave.Add_Click({ Invoke-Safe { Save-SettingsForm } })
     $sw.SBubbleTest.Add_Click({ Invoke-Safe { Test-SoundChoice } })
     $sw.SEndTest.Add_Click({ Invoke-Safe { Test-SoundChoice -End } })
+    $sw.SAmbienceTest.Add_Click({ Invoke-Safe { Test-Ambience } })
+    # fenetre fermee (enregistrer, annuler, ✖) : l'essai du fond sonore s'arrete
+    $settingsWin.Add_IsVisibleChanged({ Invoke-Safe { if (-not $settingsWin.IsVisible) { Stop-AmbiencePreview } } })
     $sw.SSoundAdd.Add_Click({ Invoke-Safe { Add-MySounds } })
     $sw.SSoundDel.Add_Click({ Invoke-Safe { Remove-MySounds } })
     $sw.SSoundDir.Add_Click({ Invoke-Safe { Open-SoundsDir } })
