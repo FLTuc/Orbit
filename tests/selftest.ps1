@@ -245,9 +245,18 @@ try {
     Check 'barre de compte a rebours visible pendant le focus, avec le temps' ($ui.UrgencyChip.Visibility -eq 'Visible' -and $ui.UrgencyText.Text -match '^\d+:\d\d$')
     $keepEnd = $O.EndsAt; $O.EndsAt = (Get-Date).AddSeconds(42); Update-UrgencyChip; On-Frame
     Check 'derniere minute : barre rouge qui pulse' ($O.UrgencyLevel -eq 'final' -and [string]$ui.UrgencyFill.Background -eq '#FFFF4D4D')
+    Check 'la pulsation est une animation fluide (pas recalculee image par image)' ($script:PulseMode -eq 'slow' -and $ui.UrgencyChip.HasAnimatedProperties)
+    $tNow = Get-Date; Update-Pill $tNow; Update-UrgencyChip $tNow
+    Check 'le chrono du robot et la barre affichent la meme seconde' ($ui[$Skins[$O.Skin].Clock].Text -eq ('00:' + $ui.UrgencyText.Text.Split(':')[1]) -and $ui.UrgencyText.Text -match '^0:4[0-2]$') "$($ui[$Skins[$O.Skin].Clock].Text) / $($ui.UrgencyText.Text)"
     Play-Tick $false; Play-Tick $true
     Check 'le tic se joue sans erreur (grave et aigu)' ($script:TickPlayer -ne $null)
     $O.EndsAt = $keepEnd; Update-UrgencyChip
+    Check 'hors de la derniere minute : plus de pulsation' ($script:PulseMode -eq '' -and -not $ui.UrgencyChip.HasAnimatedProperties -and $ui.UrgencyChip.Opacity -eq 1)
+    $Config.FocusAmbience = 'brown'; Step-Ambience
+    Check 'fond sonore : le bruit brun joue pendant le focus' ($script:AmbiencePlayer -ne $null -and $script:AmbienceKey -like 'brown|*')
+    $O.Paused = $true; Step-Ambience
+    Check 'fond sonore : coupe quand le chrono est en pause' ($null -eq $script:AmbiencePlayer)
+    $O.Paused = $false; $Config.FocusAmbience = ''; Step-Ambience
     $n0 = $NB.Contexts.Count; $Config.ContextScreenshot = $false
     Start-Interruption; Close-ContextEditor -Cancel
     Check 'annuler : rien de garde, le focus continue' ($NB.Contexts.Count -eq $n0 -and -not $O.Paused)
@@ -305,6 +314,8 @@ try {
     New-Item -ItemType Directory -Force -Path $SoundsDir | Out-Null
     [IO.File]::WriteAllBytes((Join-Path $SoundsDir 'test-orbit.wav'), [byte[]](1..10))
     Update-SoundList; Update-FileLabels
+    Update-AmbienceList 'test-orbit.wav'
+    Check 'reglages : fond sonore = aucun, bruit brun, ou un de mes sons' (@($sw.SAmbience.Items | ForEach-Object { $_.Tag }) -join ',' -match '^,brown,.*test-orbit\.wav' -and $sw.SAmbience.SelectedItem.Tag -eq 'test-orbit.wav')
     Check 'reglages : « Mes sons » = les fichiers du dossier sons, bouton 📂' ($sw.SSoundDir -and @($SF.BubbleFiles | Where-Object { $_ -match 'test-orbit\.wav$' }).Count -eq 1 -and $sw.SMySounds.Items.Count -ge 1)
     Remove-Item -LiteralPath (Join-Path $SoundsDir 'test-orbit.wav') -ErrorAction SilentlyContinue
     $settingsWin.Hide()

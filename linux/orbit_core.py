@@ -195,6 +195,8 @@ def default_settings() -> dict:
         'taskReminders': True, 'morningPlan': True, 'reminderEveryMin': 4,
         'idleNudge': True, 'idleNudgeMin': 45,
         'tickSound': True, 'tickZoneMin': 5, 'urgencyBar': True,
+        'focusAmbience': '',              # fond sonore du focus : '' (aucun), 'brown' (bruit brun) ou un fichier de « sons »
+        'focusAmbienceVolume': 30,
         'dock': True, 'ctxRemind': True, 'ctxRemindMin': 30,
         'idlePause': True, 'idlePauseMin': 5,
     }
@@ -220,7 +222,33 @@ def sanitize_settings(s) -> dict:
     out['tickZoneMin'] = int(round(num(s.get('tickZoneMin'), 1, 15, d['tickZoneMin'])))
     out['ctxRemindMin'] = num(s.get('ctxRemindMin'), 5, 480, d['ctxRemindMin'])
     out['idlePauseMin'] = num(s.get('idlePauseMin'), 1, 120, d['idlePauseMin'])
+    if valid_ambience(s.get('focusAmbience')):
+        out['focusAmbience'] = s['focusAmbience']
+    out['focusAmbienceVolume'] = int(num(s.get('focusAmbienceVolume'), 5, 100, d['focusAmbienceVolume']))
     return out
+
+
+def valid_ambience(choice) -> bool:
+    """'' (aucun), 'brown', ou le NOM d'un son du dossier « sons » (jamais un chemin)."""
+    if choice in ('', 'brown'):
+        return True
+    return (isinstance(choice, str) and 0 < len(choice) <= 200 and choice == os.path.basename(choice)
+            and '\\' not in choice and not choice.startswith('.') and choice.lower().endswith(SOUND_EXT))
+
+
+def ambience_file(choice, folder):
+    """Chemin du son de fond choisi dans le dossier « sons » (None si absent ou pas valable)."""
+    if not choice or choice == 'brown' or not valid_ambience(choice):
+        return None
+    path = os.path.join(folder, choice)
+    return path if os.path.isfile(path) else None
+
+
+def ambience_wanted(timer, settings) -> str:
+    """Le fond sonore ne joue que pendant un focus qui tourne (coupe en pause, a la fin, a l'arret)."""
+    if timer.get('state') == 'Focus' and not timer.get('paused'):
+        return settings.get('focusAmbience') or ''
+    return ''
 
 
 def rhythm_minutes(settings) -> tuple:
@@ -898,6 +926,31 @@ def list_sounds(folder) -> list:
                       if f.lower().endswith(SOUND_EXT) and os.path.isfile(os.path.join(folder, f)))
     except OSError:
         return []
+
+
+def make_brown_loop(volume=30, seconds=12, rate=22050) -> bytes:
+    """Bruit brun en boucle SANS couture : la fin se fond dans le debut (aucun clic a chaque tour)."""
+    import array
+    n, cross = rate * seconds, rate * 2
+    rnd = random.Random(11)
+    raw = array.array('d', bytes(8 * (n + cross)))   # compact : peu de memoire, meme sur une petite machine
+    last = 0.0
+    for i in range(n + cross):
+        last = (last + 0.02 * (rnd.random() * 2 - 1)) / 1.02
+        raw[i] = last * 3.5
+    amp = 32767 * 0.5 * min(1.0, max(0.05, volume / 100.0))
+    out = array.array('h', bytes(2 * n))
+    for i in range(n):
+        v = raw[i]
+        if i < cross:
+            k = i / cross
+            v = v * math.sqrt(k) + raw[n + i] * math.sqrt(1 - k)
+        out[i] = int(max(-1.0, min(1.0, v)) * amp)
+    if out.itemsize == 2 and struct.pack('=h', 1) != struct.pack('<h', 1):
+        out.byteswap()
+    data = out.tobytes()
+    head = b'RIFF' + struct.pack('<I', 36 + len(data)) + b'WAVEfmt ' + struct.pack('<IHHIIHH', 16, 1, 1, rate, rate * 2, 2, 16)
+    return head + b'data' + struct.pack('<I', len(data)) + data
 
 
 def make_wav(tones, volume=60, rate=22050) -> bytes:
