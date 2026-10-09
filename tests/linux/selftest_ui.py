@@ -100,7 +100,8 @@ def scenario(app):
     print('  (memoire au demarrage : %.1f Mo)' % rss0)
     check('la petite fenetre est affichee, toujours au-dessus', r.winfo_viewable() and r.attributes('-topmost'))
     check('en bas a droite de l\'ecran', r.winfo_x() > r.winfo_screenwidth() / 2 and r.winfo_y() > r.winfo_screenheight() / 2)
-    check('6 boutons ronds (note, ✋, S.O.S, tableaux, notes, reprises)', len(app.dock_buttons) == 6)
+    check('5 boutons ronds (note, ✋, S.O.S, tableaux, reprises)', sorted(app.dock_buttons) == ['boards', 'ctx', 'note', 'reprises', 'sos'])
+    check('✋ utilisable a tout moment (pas seulement pendant un focus)', app.dock_buttons['ctx'].cget('state') == 'normal')
     right = max(b.master.winfo_x() + b.master.winfo_width() for b in app.dock_buttons.values()) + app.dock.winfo_x()
     check('les boutons ne passent pas sous le robot', right <= app.canvas.winfo_x(), '%d > %d' % (right, app.canvas.winfo_x()))
     check("pas de blague ni de culture G dans les phrases", not any('blague' in k or 'culture' in k for k in __import__('orbit').LINES))
@@ -131,7 +132,6 @@ def scenario(app):
     check('focus lance, carte la plus urgente liee', app.s.timer['state'] == 'Focus' and len(app.s.kanban['focus']) == 1)
     check('barre de compte a rebours visible, bleue, la fenetre s\'agrandit', app.bar.winfo_ismapped() and app.level == 'calm'
           and r.winfo_height() >= app.H + app.BAR - 2, 'hauteur %d' % r.winfo_height())
-    check('le bouton ✋ est actif pendant le focus', app.dock_buttons['ctx'].cget('state') == 'normal')
     app.offset += app.s.time_left(app.now()) - 6 * 60
     seconds(app, 1)
     check('a 6 min de la fin : orange, pas de tic', app.level == 'high' and not [p for p in app.sound.played if p.startswith('tick')])

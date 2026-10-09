@@ -1197,7 +1197,7 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
         <TextBlock Text="📝" FontSize="14" FontFamily="Segoe UI Emoji" HorizontalAlignment="Center" VerticalAlignment="Center"/>
       </Border>
       <Border x:Name="CtxBadge" Width="30" Height="30" CornerRadius="15" Margin="2" Background="#FFFDFBFF" BorderBrush="#1E1B3A" BorderThickness="2"
-              Cursor="Hand" Visibility="Collapsed" FlowDirection="LeftToRight" ToolTip="✋ Je m'interromps : je garde où tu en es (fenêtre, onglet, prochaine étape)">
+              Cursor="Hand" FlowDirection="LeftToRight" ToolTip="✋ Je m'interromps : je garde où tu en es (fenêtre, onglet, prochaine étape)">
         <TextBlock Text="✋" FontSize="14" FontFamily="Segoe UI Emoji" HorizontalAlignment="Center" VerticalAlignment="Center"/>
       </Border>
       <Border x:Name="SosBadge" Width="30" Height="30" CornerRadius="15" Margin="2" Background="#FFFFE3E3" BorderBrush="#1E1B3A" BorderThickness="2"
@@ -1207,10 +1207,6 @@ function Pick([object[]]$list) { $list[(Get-Random -Maximum $list.Count)] }
       <Border x:Name="BoardsBadge" Width="30" Height="30" CornerRadius="15" Margin="2" Background="#FFFFF4D6" BorderBrush="#1E1B3A" BorderThickness="2"
               Cursor="Hand" FlowDirection="LeftToRight" ToolTip="🗂 Mes tableaux">
         <TextBlock Text="🗂" FontSize="14" FontFamily="Segoe UI Emoji" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-      </Border>
-      <Border x:Name="NotesBadge" Width="30" Height="30" CornerRadius="15" Margin="2" Background="#FFE6F7EE" BorderBrush="#1E1B3A" BorderThickness="2"
-              Cursor="Hand" FlowDirection="LeftToRight" ToolTip="📒 Mes notes">
-        <TextBlock Text="📒" FontSize="14" FontFamily="Segoe UI Emoji" HorizontalAlignment="Center" VerticalAlignment="Center"/>
       </Border>
       <Border x:Name="CtxListBadge" Width="30" Height="30" CornerRadius="15" Margin="2" Background="#FFE8F1FF" BorderBrush="#1E1B3A" BorderThickness="2"
               Cursor="Hand" Visibility="Collapsed" FlowDirection="LeftToRight" ToolTip="↩ Mes reprises : là où tu t'es arrêté(e)">
@@ -2115,7 +2111,8 @@ function Update-Pill {
     }
     $clock = $ui[$Skins[$O.Skin].Clock]
     if ($clock) { $clock.Text = $txt }
-    $badge = if ($Config.ContextButton -and $O.State -eq 'Focus' -and -not $O.Paused) { 'Visible' } else { 'Collapsed' }
+    # ✋ toujours la, a portee de clic (on peut etre interrompu aussi en dehors d'un focus)
+    $badge = if ($Config.ContextButton) { 'Visible' } else { 'Collapsed' }
     if ($ui.CtxBadge.Visibility -ne $badge) { $ui.CtxBadge.Visibility = $badge }
     $dock = if ($Config.AnchorButton) { 'Visible' } else { 'Collapsed' }
     if ($ui.Dock.Visibility -ne $dock) { $ui.Dock.Visibility = $dock }
@@ -3111,7 +3108,6 @@ $ui.CtxBadge.Add_MouseLeftButtonUp({ param($s, $e) $e.Handled = $true; Invoke-Sa
 $ui.AnchorBadge.Add_MouseLeftButtonUp({ param($s, $e) $e.Handled = $true; Invoke-Safe { Show-QuickNote } })
 $ui.SosBadge.Add_MouseLeftButtonUp({ param($s, $e) $e.Handled = $true; Invoke-Safe { Show-Sos } })
 $ui.BoardsBadge.Add_MouseLeftButtonUp({ param($s, $e) $e.Handled = $true; Invoke-Safe { Open-Notebook 'Todo' } })
-$ui.NotesBadge.Add_MouseLeftButtonUp({ param($s, $e) $e.Handled = $true; Invoke-Safe { Open-Notebook 'Notes' } })
 $ui.CtxListBadge.Add_MouseLeftButtonUp({ param($s, $e) $e.Handled = $true; Invoke-Safe { Open-Notebook 'Ctx' } })
 
 # ---------------------------------------------------------------------------

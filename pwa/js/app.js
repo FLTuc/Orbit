@@ -356,7 +356,7 @@ function renderClock() {
   Ob.setMood(bot, mood);
   document.title = (t.state === 'Focus' || t.state === 'Break') ? `${big} · Orbit` : 'Orbit';
   renderUrgency();
-  $('ctxBadge').classList.toggle('hidden', !(S.settings.ctxButton && t.state === 'Focus' && !t.paused));
+  $('ctxBadge').classList.toggle('hidden', !S.settings.ctxButton);   // ✋ a tout moment, pas seulement pendant un focus
   $('dockReprises').classList.toggle('hidden', !St.openReprises(S).length);
 }
 
@@ -970,7 +970,7 @@ const SETTINGS_FORM = [
   ['💬 Petites phrases', [['breakLines', 'bool', 'Petites phrases sympas pendant la pause'], ['motivation', 'bool', 'Petites phrases de motivation pendant le focus']]],
   ['🔔 Sons et rappels', [['sounds', 'bool', 'Sons doux (jamais stridents)'], ['vibrate', 'bool', 'Vibrations'], ['notifications', 'bool', 'Notification à la fin d’une session', "Tant que l'appli est ouverte ou en arrière-plan récent."], ['wakeLock', 'bool', 'Garder l’écran allumé pendant un focus', "Pour que le chrono sonne à coup sûr."], ['taskReminders', 'bool', 'Proposer ma carte la plus urgente au début du focus'], ['morningPlan', 'bool', 'Plan du matin'], ['idleNudge', 'bool', '👀 Sans focus depuis un moment : me proposer 2-3 cartes qui attendent'], ['idleNudgeMin', 'number', 'Au bout de (minutes)', 10, 240]]],
   ['⏳ Compte à rebours', [['urgencyBar', 'bool', 'Barre qui se vide et change de couleur (bleu, jaune, orange, rouge qui pulse)'], ['tickSound', 'bool', 'Un tic doux qui s’accélère à l’approche de la fin du focus'], ['tickZoneMin', 'number', 'Pendant les dernières (minutes)', 1, 15]]],
-  ["✋ Je m'interromps", [['ctxButton', 'bool', 'Bouton ✋ à côté d’Orbit pendant un focus'], ['ctxRemind', 'bool', 'Me relancer si je n’ai pas repris (3 fois max)'], ['ctxRemindMin', 'number', 'Après (minutes)', 5, 480]]],
+  ["✋ Je m'interromps", [['ctxButton', 'bool', 'Bouton ✋ (je m’interromps) à côté d’Orbit'], ['ctxRemind', 'bool', 'Me relancer si je n’ai pas repris (3 fois max)'], ['ctxRemindMin', 'number', 'Après (minutes)', 5, 480]]],
 ];
 function renderSettings() {
   const f = clear($('settingsForm'));

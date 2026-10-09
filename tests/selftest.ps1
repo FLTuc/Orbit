@@ -237,7 +237,7 @@ try {
     Check 'reprendre : terminee, capture effacee' ((Find-Context $id).status -eq 'done' -and -not (Test-Path $shot))
     Check 'reprendre : la prochaine etape est rappelee' ($ui.BubbleText.Text -match 'ecrire la ligne 2')
     Update-Pill
-    Check 'bouton ✋ a cote d''Orbit pendant un focus' ($ui.CtxBadge.Visibility -eq 'Visible')
+    Check 'bouton ✋ a cote d''Orbit' ($ui.CtxBadge.Visibility -eq 'Visible')
     $Config.ContextButton = $false; Update-Pill
     Check 'et cache si desactive dans les reglages' ($ui.CtxBadge.Visibility -eq 'Collapsed')
     $Config.ContextButton = $true
@@ -271,11 +271,11 @@ try {
     Close-QuickNote
     Check 'note gardee en 2 gestes' ($NB.Notes.Count -eq $n0 + 1 -and -not $qnWin.IsVisible)
     $click = { param($b) $b.RaiseEvent((New-Object Windows.Input.MouseButtonEventArgs([Windows.Input.Mouse]::PrimaryDevice, 0, [Windows.Input.MouseButton]::Left) -Property @{ RoutedEvent = [Windows.UIElement]::MouseLeftButtonUpEvent })) }
-    Check 'boutons ronds 🚨 🗂 📒 colles a Orbit' ($ui.SosBadge.Visibility -eq 'Visible' -and $ui.BoardsBadge.Visibility -eq 'Visible' -and $ui.NotesBadge.Visibility -eq 'Visible' -and $ui.Dock.Margin.Right -lt 150)
+    $keepState = $O.State; $O.State = 'Idle'; Update-Pill
+    Check 'boutons ronds 📝 ✋ 🚨 🗂 colles a Orbit, ✋ meme hors focus' ($ui.CtxBadge.Visibility -eq 'Visible' -and $ui.SosBadge.Visibility -eq 'Visible' -and $ui.BoardsBadge.Visibility -eq 'Visible' -and $ui.Dock.Margin.Right -lt 150)
+    $O.State = $keepState; Update-Pill
     & $click $ui.BoardsBadge
     Check 'bouton 🗂 : ouvre les tableaux' ($NB.Tab -eq 'Todo' -and $panel.IsVisible)
-    & $click $ui.NotesBadge
-    Check 'bouton 📒 : ouvre les notes' ($NB.Tab -eq 'Notes')
     Close-Notebook
     Start-UnstickFor 'Ranger le garage'
     Close-AnchorFocus

@@ -229,7 +229,6 @@ class Orbit:
                 ('ctx', '✋', "Je m'interromps", self.interrupt, CARD),
                 ('sos', 'SOS', 'S.O.S : je bloque', self.sos, '#FFE3E3'),
                 ('boards', '▦', 'Mes tableaux', self.open_boards, '#FFF4D6'),
-                ('notes', '☰', 'Mes notes', self.open_notes, '#E6F7EE'),
                 ('reprises', '↩', 'Mes reprises', self.open_reprises, '#E8F1FF'))):
             cell = tk.Frame(self.dock, width=50, height=32, bg=BG)     # taille fixe en pixels, quelle que soit la police
             cell.grid_propagate(False)
@@ -279,8 +278,6 @@ class Orbit:
             self.dock.place(x=6, y=6)
         else:
             self.dock.place_forget()
-        focus = self.s.timer['state'] == 'Focus' and not self.s.timer['paused']
-        self.dock_buttons['ctx'].configure(state='normal' if focus else 'disabled')
         n = len(self.s.open_reprises())
         self.dock_buttons['reprises'].configure(text='↩%d' % n if n else '↩')
 

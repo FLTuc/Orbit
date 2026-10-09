@@ -92,8 +92,8 @@
           </CheckBox>
 
           <TextBlock Style="{StaticResource Section}" Text="✋ Je m'interromps (reprendre là où j'en étais)"/>
-          <CheckBox x:Name="SCtxButton" Content="Bouton ✋ à côté d'Orbit pendant un focus"/>
-          <CheckBox x:Name="SAnchorButton" Content="Boutons ronds à côté d'Orbit (📝 note, 🚨 S.O.S, 🗂 tableaux, 📒 notes, ↩ reprises)"/>
+          <CheckBox x:Name="SCtxButton" Content="Bouton ✋ (je m'interromps) à côté d'Orbit"/>
+          <CheckBox x:Name="SAnchorButton" Content="Boutons ronds à côté d'Orbit (📝 note, ✋ je m'interromps, 🚨 S.O.S, 🗂 tableaux, ↩ reprises)"/>
           <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
             <TextBlock Text="Garder" VerticalAlignment="Center" Margin="0,0,6,0"/>
             <ComboBox x:Name="SCtxWindows" Width="250">
