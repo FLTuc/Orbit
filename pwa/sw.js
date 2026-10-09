@@ -1,7 +1,7 @@
 // Orbit (telephone) : fonctionne hors ligne.
 // Fichier genere par tools/build_pwa.py a partir de sw.template.js (ne pas modifier sw.js a la main).
 'use strict';
-const CACHE = 'orbit-a4384c6500d4';
+const CACHE = 'orbit-f75bbea72e84';
 const FILES = ["./", "index.html", "manifest.webmanifest", "css/app.css", "js/app.js", "js/store.js", "js/zip.js", "js/orbit.js", "data/unstick.json", "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-512.png"];
 
 self.addEventListener('install', (event) => {

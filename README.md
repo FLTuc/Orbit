@@ -72,7 +72,7 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
     - et toujours une copie lisible dans `%APPDATA%\Orbit\notes.md`.
 - **🚨 Quand tu bloques, et tes victoires** (pensé pour le TDAH, aussi sur le téléphone) :
   - **🚨 S.O.S / ⚡ Unstick Me** : clic droit > 🚨 S.O.S, ou ⚡ sur une carte. Tu écris ce que tu n'arrives pas à commencer (Win+H pour dicter) ; Orbit le découpe en 3 à 5 micro-étapes ridiculement petites (« Ouvre ta messagerie (juste l'ouvrir) »…) et n'en montre **qu'une à la fois**, avec une barre de 2 min 30 qui se vide doucement **sans jamais sonner**. « 🔪 Encore plus petit » ajoute une étape de préparation, ✏ la modifie, ⏭ la passe. À la fin : « 🎉 Tu es lancé(e) » et la victoire est notée. Un fond sonore 🟤 bruit brun est disponible.
-  - **Les boutons ronds collés à Orbit** (réglable) : 📝 note rapide (tu écris, Entrée, c'est gardé), ✋ je m'interromps (pendant un focus), 🚨 S.O.S, 🗂 tableaux, 📒 notes et ↩ reprises (quand il y en a en attente). Sur le téléphone : 📝, ✋, ↩, 🏆 victoires et ☀ plan du jour juste sous Orbit.
+  - **Les boutons ronds collés à Orbit** (réglable) : 📝 note rapide (tu écris, Entrée, c'est gardé), ✋ je m'interromps (à tout moment), 🚨 S.O.S, 🗂 tableaux et ↩ reprises (quand il y en a en attente) ; tes notes sont dans le clic droit > 📒 Mes notes. Sur le téléphone : 📝, ✋, ↩, 🏆 victoires et ☀ plan du jour juste sous Orbit.
   - **🏆 Mes victoires du jour** (clic droit sur Orbit > ☰ Plus) : le journal se remplit tout seul (focus terminés, cartes finies, déblocages, reprises), avec la série de jours d'affilée. Pas de compteur rouge ni de « en retard ».
   - *Le Brain Dump et la DopaList ont été retirés pour simplifier* : au premier lancement, leurs idées deviennent des notes et leurs actions des cartes (les routines deviennent des cartes qui se répètent). Rien n'est perdu.
   - Le découpage est fait **sur le PC**, avec les règles du fichier `unstick\rules.json` (les mêmes sur le téléphone, modifiables) : aucun service d'IA, rien ne sort du PC. Le PC et le téléphone donnent exactement les mêmes étapes (vérifié par les tests).
@@ -173,7 +173,7 @@ sh linux/install.sh --remove     # désinstaller (tes données sont gardées)
 Ou sans rien installer : `python3 linux/orbit.py`. Facultatif : `sudo apt install xdotool xprintidle` (✋ garde le titre de la fenêtre en cours ; pause automatique quand tu t'absentes).
 
 **Ce qu'il y a dedans** (le principal, en léger) :
-- Orbit en bas à droite, toujours au-dessus, avec les **boutons ronds** à côté (✎ note rapide, ✋ je m'interromps, SOS, ▦ tableaux, ☰ notes, ↩ reprises) ; clic = où j'en suis, glisser = le déplacer, clic droit = le menu court (le reste dans « ☰ Plus ») ;
+- Orbit en bas à droite, toujours au-dessus, avec les **boutons ronds** à côté (✎ note rapide, ✋ je m'interromps, SOS, ▦ tableaux, ↩ reprises) ; clic = où j'en suis, glisser = le déplacer, clic droit = le menu court (le reste dans « ☰ Plus ») ;
 - le **focus** 50/10, 25/5 ou perso, avec confirmation à chaque fin, la **barre de compte à rebours** (bleu, jaune, orange, rouge) et le **tic qui s'accélère** dans les 5 dernières minutes ;
 - les **tableaux** (colonnes, priorités « !2 », rappels « @14h », échéances, cartes du focus), les **notes**, **✋ Je m'interromps** et les reprises, le **S.O.S** (même découpage que le PC et le téléphone), le **journal des victoires**, le **plan du matin** et la relance **« Tu attends quoi ? »** ;
 - **mes sons** : le dossier `~/.local/share/orbit/sons` (.wav, .ogg, .flac, .mp3), chacun son tour au hasard ;
