@@ -1,13 +1,13 @@
 ﻿# ---------------------------------------------------------------------------
-#  🚨 S.O.S / ⚡ Unstick Me et le journal des victoires (les memes que sur le telephone) :
+#  🚨 S.O.S / ⚡ Unstick Me et le journal des victoires (les memes que sous Linux) :
 #   - une tache qui bloque est decoupee en 3 a 5 micro-etapes ridiculement
 #     petites ; on n'en voit qu'une a la fois, avec un minuteur doux de 2 min 30
 #     qui ne sonne jamais ;
 #   - le journal des victoires note tout seul ce qui a ete fait (focus termines,
 #     cartes finies, reprises, deblocages), jamais ce qui est « en retard ».
 #  Le decoupage est fait sur le PC, avec les regles de unstick\rules.json (les memes
-#  que sur le telephone) : aucun service d'IA, rien ne sort du PC.
-#  Donnees : lifeanchor.json (meme format que le telephone, voyage avec l'export).
+#  que sous Linux) : aucun service d'IA, rien ne sort du PC.
+#  Donnees : lifeanchor.json (meme format que sous Linux, voyage avec l'export).
 #  (Le Brain Dump et la DopaList ont ete retires : leurs donnees deviennent des notes
 #  rapides et des cartes, une seule fois, au premier lancement.)
 # ---------------------------------------------------------------------------
@@ -63,7 +63,7 @@ function ConvertTo-AnchorTask($x) {
     }
 }
 
-# lifeanchor.json (PC ou telephone) : tout est reverifie
+# lifeanchor.json (PC ou Linux) : tout est reverifie
 function Import-AnchorData($d) {
     $Anchor.Dump.Clear(); $Anchor.Tasks.Clear(); $Anchor.Wins.Clear(); $Anchor.Unstick = $null
     if (-not $d) { return }
@@ -191,7 +191,7 @@ function Convert-AnchorLegacy {
 }
 
 # ---------------------------------------------------------------------------
-#  Unstick Me : decoupage local en micro-etapes (memes regles que le telephone)
+#  Unstick Me : decoupage local en micro-etapes (memes regles que sous Linux)
 # ---------------------------------------------------------------------------
 function Get-UnstickRules {
     if ($null -eq $Anchor.Rules) {

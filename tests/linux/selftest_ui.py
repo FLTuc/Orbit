@@ -247,7 +247,7 @@ def scenario(app):
     check('tout est relu a l\'identique', len(s2.kanban['cards']) == len(app.s.kanban['cards']) and len(s2.notes) == len(app.s.notes))
     s3 = C.State()
     C.import_zip(s3, C.export_zip(app.s))
-    check('export / import (meme zip que le PC et le telephone)', len(s3.kanban['cards']) == 3 and s3.notes)
+    check('export / import (meme zip que le PC)', len(s3.kanban['cards']) == 3 and s3.notes)
 
     section('Memoire')
 

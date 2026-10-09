@@ -453,14 +453,14 @@ $mon = Get-Date '2026-10-05T09:00:00'
 [void](Add-Win 'Focus de 25 min' 'focus' $mon.AddDays(-1)); [void](Add-Win 'Carte finie' 'card' $mon)
 Check 'victoires du jour et serie de jours' (@(Get-WinsOfDay $mon).Count -eq 1 -and (Get-WinStreak $mon) -eq 2)
 Check 'texte « Mes victoires »' ((Get-WinsText) -match '🏆')
-# decoupage : le meme que sur le telephone
+# decoupage : le meme que sous Linux
 $expected = ConvertFrom-Json ([IO.File]::ReadAllText((Join-Path $Root 'tests\fixtures\unstick-expected.json')))
 $diff = @()
 foreach ($p in $expected.PSObject.Properties) {
     $got = @(Split-Task $p.Name)
     if (($got -join '|') -ne (@($p.Value) -join '|')) { $diff += "$($p.Name) -> $($got[0])" }
 }
-Check "decoupage identique au telephone ($(@($expected.PSObject.Properties).Count) taches)" ($diff.Count -eq 0) ($diff -join ' / ')
+Check "decoupage identique a Linux ($(@($expected.PSObject.Properties).Count) taches)" ($diff.Count -eq 0) ($diff -join ' / ')
 Check 'tache vide : rien a decouper' (@(Split-Task '   ').Count -eq 0)
 [void](Start-Unstick 'Ranger le bureau')
 $n0 = $Anchor.Unstick.steps.Count
@@ -472,7 +472,7 @@ Check 'toutes les etapes faites : victoire « Débloqué »' ($r -eq 'finished' 
 Load-Anchor
 Check 'lifeanchor.json relu (victoires)' ($Anchor.Wins.Count -ge 3)
 # ancien fichier (Brain Dump + DopaList) : rien n'est perdu
-Copy-Item (Join-Path $Root 'tests\fixtures\lifeanchor-telephone.json') $AnchorFile -Force
+Copy-Item (Join-Path $Root 'tests\fixtures\lifeanchor-ancien.json') $AnchorFile -Force
 Load-Anchor
 $nNotes = $NB.Notes.Count; $nCards = $NB.Todos.Count
 Convert-AnchorLegacy

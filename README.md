@@ -4,12 +4,11 @@ Un petit satellite qui flotte au-dessus de toutes tes fenêtres, en bas à droit
 
 **Aucune installation, aucun droit administrateur** : Orbit n'utilise que PowerShell et WPF, deux composants déjà présents dans Windows 10 et 11.
 
-**Trois versions, les mêmes données** (un zip d'export s'ouvre de l'une à l'autre) :
+**Deux versions, les mêmes données** (un zip d'export s'ouvre de l'une à l'autre) :
 
 | Version | Pour qui | Comment l'avoir |
 |---|---|---|
 | 🪟 **Windows** (PC) | la version complète | télécharger le zip, double-clic sur `Orbit.cmd` (voir ci-dessous) |
-| 📱 **Téléphone** (Android, iPhone) | en déplacement | ouvrir **https://fltuc.github.io/Orbit/** dans Chrome, puis « Installer » ([détails](#-orbit-sur-ton-téléphone-android-iphone)) |
 | 🐧 **Linux** (Debian, Ubuntu, Mint…) | les petites machines | ~35 Mo de mémoire, `sh linux/install.sh` ([détails](#-orbit-sur-linux-debian-ubuntu-mint--version-légère)) |
 
 Pas de blagues ni de culture G : Orbit parle peu, avec de petites phrases sympas, et seulement quand c'est utile.
@@ -78,16 +77,16 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   - **Sauvegarde des notes** (bouton **🕘 Sauvegardes** de l'onglet Notes) :
     - une copie automatique **chaque jour** (14 jours gardés) : clic pour **revenir** à l'état d'un jour précédent, et une restauration peut elle-même être annulée ;
     - une **corbeille** : une note supprimée reste récupérable **30 jours** (♻️) ;
-    - **☁️ copie automatique dans un dossier de ton choix** (OneDrive, dossier réseau, clé USB…) : `Orbit-notes.md` (lisible partout, même sur ton téléphone avec OneDrive) et `Orbit-notes.json` (pour restaurer, même sur un autre PC), mis à jour à chaque note ;
+    - **☁️ copie automatique dans un dossier de ton choix** (OneDrive, dossier réseau, clé USB…) : `Orbit-notes.md` (lisible partout, même depuis OneDrive) et `Orbit-notes.json` (pour restaurer, même sur un autre PC), mis à jour à chaque note ;
     - **💾 Enregistrer une copie** où tu veux, en .txt ou .md ;
     - si le fichier des notes est abîmé au démarrage, Orbit repart tout seul de la dernière sauvegarde ;
     - et toujours une copie lisible dans `%APPDATA%\Orbit\notes.md`.
-- **🚨 Quand tu bloques, et tes victoires** (pensé pour le TDAH, aussi sur le téléphone) :
+- **🚨 Quand tu bloques, et tes victoires** (pensé pour le TDAH) :
   - **🚨 S.O.S / ⚡ Unstick Me** : clic droit > 🚨 S.O.S, ou ⚡ sur une carte. Tu écris ce que tu n'arrives pas à commencer (Win+H pour dicter) ; Orbit le découpe en 3 à 5 micro-étapes ridiculement petites (« Ouvre ta messagerie (juste l'ouvrir) »…) et n'en montre **qu'une à la fois**, avec une barre de 2 min 30 qui se vide doucement **sans jamais sonner**. « 🔪 Encore plus petit » ajoute une étape de préparation, ✏ la modifie, ⏭ la passe. À la fin : « 🎉 Tu es lancé(e) » et la victoire est notée. Un fond sonore 🟤 bruit brun est disponible.
-  - **Les boutons ronds collés à Orbit** (réglable) : 📝 note rapide (tu écris, Entrée, c'est gardé), ✋ je m'interromps (à tout moment), 🚨 S.O.S, 🗂 tableaux et ↩ reprises (quand il y en a en attente) ; tes notes sont dans le clic droit > 📒 Mes notes. Sur le téléphone : 📝, ✋, ↩, 🏆 victoires et ☀ plan du jour juste sous Orbit.
+  - **Les boutons ronds collés à Orbit** (réglable) : 📝 note rapide (tu écris, Entrée, c'est gardé), ✋ je m'interromps (à tout moment), 🚨 S.O.S, 🗂 tableaux et ↩ reprises (quand il y en a en attente) ; tes notes sont dans le clic droit > 📒 Mes notes.
   - **🏆 Mes victoires du jour** (clic droit sur Orbit > ☰ Plus) : le journal se remplit tout seul (focus terminés, cartes finies, déblocages, reprises), avec la série de jours d'affilée. Pas de compteur rouge ni de « en retard ».
   - *Le Brain Dump et la DopaList ont été retirés pour simplifier* : au premier lancement, leurs idées deviennent des notes et leurs actions des cartes (les routines deviennent des cartes qui se répètent). Rien n'est perdu.
-  - Le découpage est fait **sur le PC**, avec les règles du fichier `unstick\rules.json` (les mêmes sur le téléphone, modifiables) : aucun service d'IA, rien ne sort du PC. Le PC et le téléphone donnent exactement les mêmes étapes (vérifié par les tests).
+  - Le découpage est fait **sur le PC**, avec les règles du fichier `unstick\rules.json` (les mêmes sous Linux, modifiables) : aucun service d'IA, rien ne sort du PC. Windows et Linux donnent exactement les mêmes étapes (vérifié par les tests).
 - **✋ Je m'interromps (savoir où tu t'es arrêté)** : quand on t'interrompt (collègue, appel, réunion), un clic suffit pour ne pas perdre le fil.
   - **Où cliquer** : le bouton rond **✋** à côté d'Orbit (toujours là, focus ou pas), clic droit sur Orbit > ✋ Je m'interromps, ou l'icône près de l'horloge. Pas de raccourci clavier.
   - **Ce qu'Orbit garde tout seul** :
@@ -115,10 +114,10 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
     - les fenêtres de navigation privée (InPrivate, Incognito) ne sont jamais lues ;
     - la capture d'écran reste sur ce PC, n'est jamais exportée et s'efface dès que tu as repris ;
     - Orbit ne rouvre que des adresses web (http/https), des dossiers et des documents (Excel, Word, PDF…) qui existent, jamais un programme.
-- **⏳ Compte à rebours de fin de focus** (PC et téléphone, réglable) :
-  - **une barre** à côté d'Orbit (sous le gros chrono sur le téléphone) qui se vide avec le temps et change de couleur : **bleu** (plus de la moitié du temps), **jaune** (moins de la moitié), **orange** (dernier quart), puis **rouge qui pulse** la dernière minute ; à ce moment, elle « zoome » sur les 60 dernières secondes pour qu'on la voie se vider ; grise en pause, verte pendant la pause café ;
+- **⏳ Compte à rebours de fin de focus** (réglable) :
+  - **une barre** à côté d'Orbit qui se vide avec le temps et change de couleur : **bleu** (plus de la moitié du temps), **jaune** (moins de la moitié), **orange** (dernier quart), puis **rouge qui pulse** la dernière minute ; à ce moment, elle « zoome » sur les 60 dernières secondes pour qu'on la voie se vider ; grise en pause, verte pendant la pause café ;
   - **un tic doux qui s'accélère**, seulement dans la **zone finale** (5 dernières minutes par défaut, de 1 à 15) : toutes les 20 s, puis 10 s (2 dernières minutes), 5 s (dernière minute), 2 s (30 dernières secondes) et chaque seconde, plus aigu, pour les 10 dernières. Pourquoi pas pendant tout le focus : un tic-tac continu capterait l'attention, l'inverse du but. Jamais en pause ni pendant la pause café.
-- **👀 « Tu attends quoi ? »** : si aucun focus n'a été lancé depuis **45 minutes** (réglable) alors que des cartes attendent, Orbit sort une bulle : « Tu as des tâches en cours, qu'est-ce que tu attends ? » avec **2 ou 3 cartes proposées** (les plus urgentes, avec la raison). Un clic sur une carte lance le focus dessus ; **⏰ Plus tard** le redemande dans 45 min ; **🌙 Pas aujourd'hui** le fait taire jusqu'au lendemain. Jamais pendant un focus ou une pause, jamais si tu n'es pas devant l'écran (il attend ton retour), jamais par-dessus une autre question, ni quand Orbit est caché ou réduit. Aussi sur le téléphone (quand l'appli est ouverte). Réglages : case « 👀 Sans focus depuis … min ».
+- **👀 « Tu attends quoi ? »** : si aucun focus n'a été lancé depuis **45 minutes** (réglable) alors que des cartes attendent, Orbit sort une bulle : « Tu as des tâches en cours, qu'est-ce que tu attends ? » avec **2 ou 3 cartes proposées** (les plus urgentes, avec la raison). Un clic sur une carte lance le focus dessus ; **⏰ Plus tard** le redemande dans 45 min ; **🌙 Pas aujourd'hui** le fait taire jusqu'au lendemain. Jamais pendant un focus ou une pause, jamais si tu n'es pas devant l'écran (il attend ton retour), jamais par-dessus une autre question, ni quand Orbit est caché ou réduit. Réglages : case « 👀 Sans focus depuis … min ».
 - **☀️ Plan du matin** : à ta première apparition de la journée (à partir de 5 h), Orbit propose les 3 cartes les plus urgentes, tous tableaux confondus (en retard, à rendre aujourd'hui ou demain, rappel du jour, déjà commencées, puis priorité), avec la raison. « Go » les lie au focus et le lance ; « Choisir autre chose » ouvre la liste avec ces 3 cartes déjà cochées. À revoir quand tu veux : clic droit > ☰ Plus > ☀️ Plan du jour (sur le téléphone : le bouton rond ☀). Se désactive dans les réglages.
 - **🔍 Recherche partout** (onglet 🔍 du carnet, Ctrl+F, ou clic droit > ☰ Plus > Rechercher partout) : cartes de tous les tableaux (titre, description, sous-tâches), notes, reprises (✋), cartes récurrentes à venir, copier-coller et favoris, archives. Plusieurs mots : ils doivent tous y être ; accents et majuscules ignorés. Clic sur une carte : elle s'ouvre dans son tableau ; clic sur un copier-coller : il est recopié.
 - **📦 Changer de PC** (clic droit > ☰ Plus > 📦 Autre PC) : « Exporter » crée un seul fichier zip avec Orbit et tes données (réglages, tableaux, modèles, favoris, sons, image, sauvegardes). Sur l'autre PC, décompresse-le et double-clic sur `Orbit\Orbit.cmd` : tout est récupéré au premier lancement (les chemins de l'image et des sons sont adaptés). Si Orbit est déjà installé, « Importer un export… » fait la même chose et redémarre Orbit ; les données présentes sont gardées dans `avant-import-<date>`.
@@ -139,47 +138,6 @@ Le rythme **50/10 ou 25/5** se choisit dans la bulle d'accueil ou avec clic droi
   - apparence (satellite, droïde, robot, majordome robot ou humain, cerveau humain) ;
   - balades (oui/non et fréquence), sons (style, dossier « Mes sons » avec ＋ Ajouter / － Retirer / 📂 Dossier, volume, bouton ▶ pour écouter), lancement au démarrage de Windows.
 
-## 📱 Orbit sur ton téléphone (Android, iPhone)
-
-Le dossier `pwa\` contient Orbit en version « appli web installable » : elle s'ajoute à l'écran d'accueil, s'ouvre en plein écran, **fonctionne sans réseau** et garde tout sur le téléphone (rien n'est envoyé nulle part).
-
-**Son adresse : https://fltuc.github.io/Orbit/** (mise à jour toute seule à chaque nouvelle version : ferme et rouvre l'appli).
-
-**Ce qu'il y a dedans** :
-- Orbit et sa bulle, le Pomodoro (50/10, 25/5 ou perso) avec ses confirmations et les petites phrases sympas de la pause ;
-- sous Orbit, les boutons ronds : 📝 note rapide, ✋ je m'interromps, ↩ reprises, 🏆 victoires, ☀ plan du jour ; en bas, les onglets Orbit, Tableaux, Notes, Reprises, Plus ;
-- la barre de compte à rebours sous le gros chrono et le tic qui s'accélère à la fin du focus ;
-- les tableaux Kanban, les notes, ✋ Je m'interromps, le plan du matin, la relance « Tu attends quoi ? » et la recherche ;
-- 🚨 S.O.S / ⚡ Unstick Me et le 🏆 journal des victoires ;
-- sons doux et vibrations, écran maintenu allumé pendant un focus (option), bruit brun, dictée (🎙).
-
-**Les petits plus du téléphone** :
-- **Partager** une page depuis Chrome vers Orbit la garde comme « reprise », avec son lien.
-- **Appui long sur l'icône** : 📝 Note rapide, 🚨 S.O.S, ✋ Je m'interromps, 🚀 Focus.
-
-**PC ↔ téléphone** (☰ Plus > 💻) :
-- *Recevoir* : lit directement le zip créé par Orbit PC (clic droit > ☰ Plus > 📦 Autre PC > Exporter).
-- *Envoyer* : crée un zip qu'Orbit PC ouvre avec « Importer un export… ».
-- Ce sont les mêmes fichiers des deux côtés : tableaux, notes, reprises, victoires.
-
-**L'installer sur ton téléphone** : ouvre https://fltuc.github.io/Orbit/ dans Chrome, puis ☰ Plus > 📲 Installer (ou ⋮ > « Installer l'application »).
-
-**Si tu fais ta propre copie du projet**, il faut que le dossier `pwa\` soit en ligne en HTTPS (obligatoire pour une appli installable). Au choix :
-1. **GitHub Pages** : Settings > Pages > Source « GitHub Actions ». Le workflow « Version téléphone » publie alors l'appli à chaque mise à jour de `main`. Sur un dépôt **privé**, GitHub Pages demande un abonnement GitHub Pro (ou de rendre le dépôt public : le code ne contient aucune donnée personnelle).
-2. **Netlify, Cloudflare Pages…** (gratuits) : le zip `orbit-telephone-site`, téléchargeable dans l'onglet Actions de GitHub après chaque test, se dépose tel quel.
-
-
-**Limites honnêtes** :
-- un téléphone endort les applis web : la fin d'un focus sonne si Orbit est ouvert (option « garder l'écran allumé ») et sinon au retour, avec une notification si tu les autorises ;
-- la dictée 🎙 utilise le service vocal du téléphone (Google sur Android) ; le micro du clavier marche aussi.
-
-**Tests** :
-- `node tests/pwa/unit.mjs` : la logique et les attaques ;
-- `node tests/pwa/static.mjs` : la sécurité du code ;
-- `node tests/pwa/e2e.cjs` : un parcours complet sur un Pixel 7 simulé, avec le temps accéléré, le hors-ligne, le partage, le glissement du doigt, l'import et l'export ;
-- `node tests/pwa/monkey.cjs 500 1` : le test « chaos » : 500 gestes au hasard (boutons, saisies, retour d'Android, temps qui passe, rechargements), sans aucune erreur permise ;
-- `python tools/build_pwa.py` : régénère les règles du S.O.S du téléphone et le cache hors ligne.
-
 ## 🐧 Orbit sur Linux (Debian, Ubuntu, Mint…) : version légère
 
 Pensée pour les petites machines (moins de 8 Go de RAM) : **environ 35 Mo de mémoire** (mesuré à chaque mise à jour par les tests, limite fixée à 60 Mo), aucun navigateur intégré, aucune animation qui tourne en permanence. Python 3 et Tkinter seulement, déjà présents sur Debian (sinon : `sudo apt install python3-tk`, 3 Mo).
@@ -195,9 +153,9 @@ Ou sans rien installer : `python3 linux/orbit.py`. Facultatif : `sudo apt instal
 **Ce qu'il y a dedans** (le principal, en léger) :
 - Orbit en bas à droite, toujours au-dessus, avec les **boutons ronds** à côté (✎ note rapide, ✋ je m'interromps, SOS, ▦ tableaux, ↩ reprises) ; clic = où j'en suis, glisser = le déplacer, clic droit = le menu court (le reste dans « ☰ Plus ») ;
 - le **focus** 50/10, 25/5 ou perso, avec confirmation à chaque fin, la **barre de compte à rebours** (bleu, jaune, orange, rouge) et le **tic qui s'accélère** dans les 5 dernières minutes ;
-- les **tableaux** (colonnes, priorités « !2 », rappels « @14h », échéances, cartes du focus), les **notes**, **✋ Je m'interromps** et les reprises, le **S.O.S** (même découpage que le PC et le téléphone), le **journal des victoires**, le **plan du matin** et la relance **« Tu attends quoi ? »** ;
+- les **tableaux** (colonnes, priorités « !2 », rappels « @14h », échéances, cartes du focus), les **notes**, **✋ Je m'interromps** et les reprises, le **S.O.S** (même découpage que le PC), le **journal des victoires**, le **plan du matin** et la relance **« Tu attends quoi ? »** ;
 - **mes sons** : le dossier `~/.local/share/orbit/sons` (.wav, .ogg, .flac, .mp3), chacun son tour au hasard ;
-- **échange** avec le PC et le téléphone : clic droit > ☰ Plus > Exporter / Importer (le même zip partout).
+- **échange** avec le PC : clic droit > ☰ Plus > Exporter / Importer (le même zip partout).
 
 Données : `~/.local/share/orbit` (une copie des tableaux et des notes par jour, 7 jours gardés ; un fichier abîmé est mis de côté et Orbit repart de la copie du jour). Pas inclus pour rester léger : l'historique des copier-coller, le rappel sur les sites de distraction, les autres apparences.
 
@@ -278,4 +236,4 @@ Si seule la compilation des fonctions natives est bloquée, Orbit fonctionne qua
 - **Texte des bulles propre** : avant d'afficher une bulle, Orbit enlève ce que la fenêtre ne sait pas dessiner et qui apparaissait en plein milieu des phrases (morceaux d'emoji composés, sélecteurs de variante, marques invisibles des titres de fenêtres, emoji absents des polices de Windows). Les textes raccourcis (cartes, notes, recherche, copier-coller, info-bulle de l'icône) ne coupent plus jamais un emoji en deux. Si les fichiers d'Orbit ont été réenregistrés sans BOM (copie, éditeur de texte), Orbit le remet tout seul au lancement : sinon PowerShell 5.1 affiche « Ã© » à la place des « é ».
 - **Journal limité** : au-delà de 1 Mo, `orbit.log` devient `orbit.old.log` et repart de zéro.
 - **Relance automatique** : une erreur imprévue est notée dans le journal sans faire tomber Orbit ; s'il plante quand même, il se relance tout seul (une fois toutes les 10 minutes au plus). Le cycle en cours (focus, pause, question en attente) est gardé dans `etat.json` : après un plantage ou un redémarrage forcé, Orbit reprend le chrono là où il en était (si c'était il y a moins de 4 h). « Quitter » efface cet état.
-- **Testé à chaque modification, sur les trois versions** : Windows (ci-dessous), le téléphone (parcours complet sur un téléphone simulé et test « chaos ») et Linux (Debian 12 et 13, mémoire mesurée). Côté Windows, le dossier `tests` vérifie la syntaxe, la logique (tableaux, focus, sauvegardes, reprise), puis charge Orbit en entier (fenêtres, 7 dessins, code natif, sons) sur une machine Windows de GitHub, avec le même PowerShell 5.1 que ton PC. Tu peux aussi les lancer toi-même : `powershell -ExecutionPolicy Bypass -File tests\logic.ps1`.
+- **Testé à chaque modification, sur les deux versions** : Windows (ci-dessous) et Linux (Debian 12 et 13, mémoire mesurée). Côté Windows, le dossier `tests` vérifie la syntaxe, la logique (tableaux, focus, sauvegardes, reprise), puis charge Orbit en entier (fenêtres, 7 dessins, code natif, sons) sur une machine Windows de GitHub, avec le même PowerShell 5.1 que ton PC. Tu peux aussi les lancer toi-même : `powershell -ExecutionPolicy Bypass -File tests\logic.ps1`.

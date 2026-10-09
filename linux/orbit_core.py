@@ -2,7 +2,7 @@
 """Orbit pour Linux : toute la logique, sans interface (testable seule).
 
 Memes formats de donnees que la version PC (kanban.json, notes.json, reprises.json,
-lifeanchor.json) et que la version telephone : un zip exporte d'un cote s'ouvre de
+lifeanchor.json) et que la version PC : un zip exporte d'un cote s'ouvre de
 l'autre. Tout ce qui est lu (fichiers, zip importe) est reverifie ici : identifiants,
 adresses web, longueurs, types. Python 3.9+ et la bibliotheque standard seulement.
 """
@@ -832,7 +832,7 @@ def decompose(text, rules) -> list:
 
 
 # ---------------------------------------------------------------------------
-#  Zone finale du focus, relance « Tu attends quoi ? », sons (memes regles que PC/telephone)
+#  Zone finale du focus, relance « Tu attends quoi ? », sons (memes regles que le PC)
 # ---------------------------------------------------------------------------
 def tick_interval(left_sec, zone_sec) -> int:
     if left_sec <= 0 or left_sec > zone_sec:
@@ -1032,7 +1032,7 @@ class Store:
 
 
 # ---------------------------------------------------------------------------
-#  Echange avec les versions PC et telephone (meme zip : Orbit/donnees/*.json)
+#  Echange avec les version PC (meme zip : Orbit/donnees/*.json)
 # ---------------------------------------------------------------------------
 MAX_ZIP_ENTRY = 20 * 1024 * 1024
 
@@ -1049,7 +1049,7 @@ def export_zip(s: State) -> bytes:
 
 
 def import_zip(s: State, data: bytes) -> dict:
-    """Lit un zip d'Orbit (PC, telephone ou Linux). Ne lit que les 4 fichiers de donnees, de taille raisonnable."""
+    """Lit un zip d'Orbit (PC ou Linux). Ne lit que les 4 fichiers de donnees, de taille raisonnable."""
     found = {}
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         for info in z.infolist():

@@ -336,7 +336,7 @@ try {
     Check 'et les tableaux' (@($names | Where-Object { $_ -match 'donnees[\\/]kanban\.json$' }).Count -eq 1)
     Check 'mais pas le code compile de ce PC' (@($names | Where-Object { $_ -match 'native-' }).Count -eq 0)
     Check 'ni les captures d''ecran' (@($names | Where-Object { $_ -match 'captures[\\/]' }).Count -eq 0)
-    Check 'les victoires aussi (comme sur le telephone)' (@($names | Where-Object { $_ -match 'donnees[\\/]lifeanchor\.json$' }).Count -eq 1)
+    Check 'les victoires aussi (comme sous Linux)' (@($names | Where-Object { $_ -match 'donnees[\\/]lifeanchor\.json$' }).Count -eq 1)
     Check 'les reprises, oui (le texte)' (@($names | Where-Object { $_ -match 'donnees[\\/]reprises\.json$' }).Count -eq 1)
     Write-Host "  ($([math]::Round((Get-Item $zip).Length / 1KB)) Ko, $($names.Count) fichiers)"
 } catch { Check 'export sans erreur' $false "$($_.Exception.Message) @ $($_.InvocationInfo.ScriptLineNumber)" }
